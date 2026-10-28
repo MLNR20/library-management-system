@@ -1,6 +1,7 @@
 using LibraryManagementSystem.Server.Data;
 using LibraryManagementSystem.Server.Dtos.Roles;
 using LibraryManagementSystem.Server.Mapping;
+using LibraryManagementSystem.Server.Settings;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -40,6 +41,8 @@ namespace LibraryManagementSystem.Server.Services
                 return null;
             }
 
+            ThrowIfBuiltIn(role, "renamed");
+
             role.Name = request.Name.Trim();
             IdentityException.ThrowIfFailed(await roleManager.UpdateAsync(role));
 
@@ -54,6 +57,8 @@ namespace LibraryManagementSystem.Server.Services
                 return false;
             }
 
+            ThrowIfBuiltIn(role, "deleted");
+
             // Deleting would silently strip the role from every user, so make that an explicit step.
             if ((await userManager.GetUsersInRoleAsync(role.Name!)).Count > 0)
             {
@@ -63,6 +68,14 @@ namespace LibraryManagementSystem.Server.Services
             IdentityException.ThrowIfFailed(await roleManager.DeleteAsync(role));
 
             return true;
+        }
+
+        private static void ThrowIfBuiltIn(IdentityRole role, string verb)
+        {
+            if (string.Equals(role.Name, AppRoles.Administrator, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException($"The {AppRoles.Administrator} role is built in and cannot be {verb}.");
+            }
         }
     }
 }

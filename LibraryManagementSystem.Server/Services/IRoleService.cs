@@ -11,10 +11,12 @@ namespace LibraryManagementSystem.Server.Services
         // Throws IdentityException when the name is empty or already taken.
         Task<RoleDto> CreateAsync(RoleRequest request, CancellationToken cancellationToken = default);
 
-        // Returns null when the role does not exist; throws IdentityException like CreateAsync.
+        // Returns null when the role does not exist; throws IdentityException like CreateAsync, and
+        // InvalidOperationException for the built-in Administrator role.
         Task<RoleDto?> UpdateAsync(string id, RoleRequest request, CancellationToken cancellationToken = default);
 
-        // Returns false when the role does not exist; throws InvalidOperationException while users still hold it.
+        // Returns false when the role does not exist; throws InvalidOperationException for the built-in
+        // Administrator role and while users still hold the role.
         Task<bool> DeleteAsync(string id, CancellationToken cancellationToken = default);
     }
 }

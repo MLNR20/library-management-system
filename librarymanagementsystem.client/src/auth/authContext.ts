@@ -16,6 +16,9 @@ export interface RegisterRequest {
 export interface AuthContextValue {
     session: AuthSession | null;
     user: AuthUser | null;
+    /** Roles as of the last sign-in; the server re-checks them on every request. */
+    roles: string[];
+    isAdmin: boolean;
     login: (request: LoginRequest) => Promise<void>;
     register: (request: RegisterRequest) => Promise<void>;
     logout: () => void;

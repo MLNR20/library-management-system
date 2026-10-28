@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router';
 import { useAuth } from '../../auth/useAuth.ts';
 import {
+    AuditIcon,
     AuthorIcon,
     BookIcon,
     DashboardIcon,
@@ -13,6 +14,8 @@ import {
     RowIcon,
     SectionIcon,
     ShelfIcon,
+    ShieldIcon,
+    UsersIcon,
 } from '../ui/icons.tsx';
 
 interface NavItem {
@@ -55,8 +58,19 @@ const navGroups: NavGroup[] = [
     },
 ];
 
+// Only shown to administrators.
+const adminGroup: NavGroup = {
+    title: 'Administration',
+    items: [
+        { to: '/users', label: 'Users', icon: <UsersIcon className={iconClass} /> },
+        { to: '/roles', label: 'Roles', icon: <ShieldIcon className={iconClass} /> },
+        { to: '/audit-log', label: 'Audit log', icon: <AuditIcon className={iconClass} /> },
+    ],
+};
+
 export function AppLayout() {
-    const { user, logout } = useAuth();
+    const { user, isAdmin, logout } = useAuth();
+    const visibleGroups = isAdmin ? [...navGroups, adminGroup] : navGroups;
     const navigate = useNavigate();
     const handleLogout = () => {
         logout();
@@ -154,7 +168,7 @@ export function AppLayout() {
                 <aside id="app-sidebar" className="flex min-h-full w-64 flex-col bg-base-200">
                     <div className="px-6 py-5 text-xl font-bold">📚 Library</div>
                     <nav aria-label="Main">
-                        {navGroups.map((group, index) => (
+                        {visibleGroups.map((group, index) => (
                             <div key={group.title ?? 'main'}>
                                 {index > 0 && <div className="divider my-1 px-6" role="separator" />}
                                 <ul className="menu w-full gap-1 px-3" aria-label={group.title}>

@@ -31,13 +31,18 @@ try
     builder.Services.AddControllers(options => options.Filters.Add<ValidationFilter>());
     builder.Services.AddProblemDetails();
     builder.Services.AddExceptionHandler<UniqueConstraintExceptionHandler>();
+    builder.Services.AddExceptionHandler<IdentityExceptionHandler>();
+    builder.Services.AddHttpContextAccessor();
     // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
     builder.Services.AddOpenApi();
 
     // Entity Framework Core + Identity
-    builder.Services.AddDbContext<ApplicationDbContext>(options =>
-        options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.")));
+    builder.Services.AddSingleton<AuditSaveChangesInterceptor>();
+    builder.Services.AddDbContext<ApplicationDbContext>((services, options) =>
+        options
+            .UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")
+                ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found."))
+            .AddInterceptors(services.GetRequiredService<AuditSaveChangesInterceptor>()));
 
     builder.Services
         .AddIdentityCore<ApplicationUser>(options =>
@@ -94,6 +99,7 @@ try
     builder.Services.AddScoped<ISectionService, SectionService>();
     builder.Services.AddScoped<IRoleService, RoleService>();
     builder.Services.AddScoped<IUserRoleService, UserRoleService>();
+    builder.Services.AddScoped<IAuditService, AuditService>();
 
     builder.Services.AddAuthorization();
 
@@ -126,6 +132,9 @@ try
     builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
     var app = builder.Build();
+
+    // Needs the latest migration applied (dotnet ef database update).
+    await IdentitySeeder.SeedAsync(app.Services, app.Configuration);
 
     app.UseExceptionHandler();
 

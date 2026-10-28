@@ -16,6 +16,7 @@ namespace LibraryManagementSystem.Server.Data
         public DbSet<Shelf> Shelves => Set<Shelf>();
         public DbSet<Row> Rows => Set<Row>();
         public DbSet<Section> Sections => Set<Section>();
+        public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -65,6 +66,13 @@ namespace LibraryManagementSystem.Server.Data
                 section.HasIndex(s => s.Name).IsUnique();
                 section.HasOne(s => s.Floor).WithMany().HasForeignKey(s => s.FloorId).OnDelete(DeleteBehavior.Restrict);
                 section.HasOne(s => s.Shelf).WithMany().HasForeignKey(s => s.ShelfId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // The log is read newest-first and filtered by action.
+            builder.Entity<AuditLog>(log =>
+            {
+                log.HasIndex(l => l.TimestampUtc);
+                log.HasIndex(l => l.Action);
             });
 
             builder.Entity<Genre>().HasIndex(g => g.Name).IsUnique();

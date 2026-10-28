@@ -1,7 +1,8 @@
 import { createBrowserRouter } from 'react-router';
-import { GuestOnly, RequireAuth } from './auth/RouteGuards.tsx';
+import { GuestOnly, RequireAdmin, RequireAuth } from './auth/RouteGuards.tsx';
 import { AppLayout } from './components/layout/AppLayout.tsx';
 import { Page } from './components/layout/Page.tsx';
+import { AuditLogPage } from './pages/AuditLogPage.tsx';
 import { AuthorsPage } from './pages/AuthorsPage.tsx';
 import { BooksPage } from './pages/BooksPage.tsx';
 import { DashboardPage } from './pages/DashboardPage.tsx';
@@ -10,9 +11,11 @@ import { GenresPage } from './pages/GenresPage.tsx';
 import { LanguagesPage } from './pages/LanguagesPage.tsx';
 import { LoginPage } from './pages/LoginPage.tsx';
 import { RegisterPage } from './pages/RegisterPage.tsx';
+import { RolesPage } from './pages/RolesPage.tsx';
 import { RowsPage } from './pages/RowsPage.tsx';
 import { SectionsPage } from './pages/SectionsPage.tsx';
 import { ShelvesPage } from './pages/ShelvesPage.tsx';
+import { UsersPage } from './pages/UsersPage.tsx';
 
 export const router = createBrowserRouter([
     {
@@ -37,6 +40,14 @@ export const router = createBrowserRouter([
                     { path: 'shelves', element: <ShelvesPage /> },
                     { path: 'rows', element: <RowsPage /> },
                     { path: 'sections', element: <SectionsPage /> },
+                    {
+                        element: <RequireAdmin />,
+                        children: [
+                            { path: 'users', element: <UsersPage /> },
+                            { path: 'roles', element: <RolesPage /> },
+                            { path: 'audit-log', element: <AuditLogPage /> },
+                        ],
+                    },
                     { path: '*', element: <Page title="Page not found">That page does not exist.</Page> },
                 ],
             },
