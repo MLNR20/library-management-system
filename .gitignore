@@ -1,0 +1,20 @@
+# Build output
+bin/
+obj/
+publish/
+
+# Visual Studio / editors
+.vs/
+*.user
+*.suo
+
+# Logs
+*.log
+logs/
+
+# Local-only files (dev login, secrets). Never commit these.
+dev-account.txt
+appsettings.*.local.json
+secrets.json
+.env
+.env.*

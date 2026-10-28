@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="librarymanagementsystem.client/librarymanagementsystem.client.esproj">
+    <Build />
+    <Deploy />
+  </Project>
+  <Project Path="LibraryManagementSystem.Server/LibraryManagementSystem.Server.csproj" />
+</Solution>
