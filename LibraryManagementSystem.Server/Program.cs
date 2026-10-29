@@ -95,6 +95,7 @@ try
     builder.Services.AddScoped<ILanguageService, LanguageService>();
     builder.Services.AddScoped<IFloorService, FloorService>();
     builder.Services.AddScoped<IShelfService, ShelfService>();
+    builder.Services.AddScoped<IAnnouncementService, AnnouncementService>();
     builder.Services.AddScoped<IRowService, RowService>();
     builder.Services.AddScoped<ISectionService, SectionService>();
     builder.Services.AddScoped<IRoleService, RoleService>();

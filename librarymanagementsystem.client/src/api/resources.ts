@@ -130,7 +130,23 @@ export interface BookRequest {
     rowIds: string[];
 }
 
-export const bookHooks = createCrudHooks<Book, BookRequest>('books');
+export interface Announcement {
+    id: string;
+    title: string;
+    /** HTML from the rich text editor, already cleaned by the server. */
+    body: string;
+    /** Null when the announcement is for the entire library. */
+    floorId: string | null;
+    floorName: string | null;
+    createdAt: string;
+}
+export interface AnnouncementRequest {
+    title: string;
+    body: string;
+    floorId: string | null;
+}
+
+export const bookHooks =createCrudHooks<Book, BookRequest>('books');
 export const authorHooks = createCrudHooks<Author, AuthorRequest>('authors');
 export const genreHooks = createCrudHooks<Genre, GenreRequest>('genres');
 export const languageHooks = createCrudHooks<Language, LanguageRequest>('languages');
@@ -138,3 +154,4 @@ export const floorHooks = createCrudHooks<Floor, FloorRequest>('floors');
 export const shelfHooks = createCrudHooks<Shelf, ShelfRequest>('shelves');
 export const rowHooks = createCrudHooks<Row, RowRequest>('rows');
 export const sectionHooks = createCrudHooks<Section, SectionRequest>('sections');
+export const announcementHooks = createCrudHooks<Announcement, AnnouncementRequest>('announcements');

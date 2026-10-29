@@ -132,6 +132,36 @@ namespace LibraryManagementSystem.Server.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("LibraryManagementSystem.Server.Models.Announcement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("FloorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("FloorId");
+
+                    b.ToTable("Announcements");
+                });
+
             modelBuilder.Entity("LibraryManagementSystem.Server.Models.AuditLog", b =>
                 {
                     b.Property<Guid>("Id")
@@ -564,6 +594,16 @@ namespace LibraryManagementSystem.Server.Migrations
                         .HasForeignKey("RowsId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("LibraryManagementSystem.Server.Models.Announcement", b =>
+                {
+                    b.HasOne("LibraryManagementSystem.Server.Models.Floor", "Floor")
+                        .WithMany()
+                        .HasForeignKey("FloorId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("Floor");
                 });
 
             modelBuilder.Entity("LibraryManagementSystem.Server.Models.Book", b =>

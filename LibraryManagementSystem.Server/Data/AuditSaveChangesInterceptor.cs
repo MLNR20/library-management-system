@@ -12,7 +12,7 @@ namespace LibraryManagementSystem.Server.Data
     public class AuditSaveChangesInterceptor(IHttpContextAccessor httpContextAccessor) : SaveChangesInterceptor
     {
         private static readonly HashSet<Type> AuditedTypes =
-            [typeof(Book), typeof(Genre), typeof(Author), typeof(Language), typeof(Floor), typeof(Shelf), typeof(Row), typeof(Section)];
+            [typeof(Book), typeof(Genre), typeof(Author), typeof(Language), typeof(Floor), typeof(Shelf), typeof(Row), typeof(Section), typeof(Announcement)];
 
         public override InterceptionResult<int> SavingChanges(DbContextEventData eventData, InterceptionResult<int> result)
         {
@@ -73,6 +73,7 @@ namespace LibraryManagementSystem.Server.Data
             Shelf shelf => shelf.Name,
             Row row => row.Name,
             Section section => section.Name,
+            Announcement announcement => announcement.Title,
             _ => entity.GetType().Name
         };
 

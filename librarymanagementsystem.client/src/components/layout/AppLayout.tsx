@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router';
 import { useAuth } from '../../auth/useAuth.ts';
 import {
+    AnnouncementIcon,
     AuditIcon,
     AuthorIcon,
     BookIcon,
@@ -44,6 +45,7 @@ const navGroups: NavGroup[] = [
             { to: '/authors', label: 'Authors', icon: <AuthorIcon className={iconClass} /> },
             { to: '/genres', label: 'Genres', icon: <GenreIcon className={iconClass} /> },
             { to: '/languages', label: 'Languages', icon: <LanguageIcon className={iconClass} /> },
+            { to: '/announcements', label: 'Announcements', icon: <AnnouncementIcon className={iconClass} /> },
         ],
     },
     {

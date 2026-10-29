@@ -10,6 +10,7 @@ import type {
 } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { z } from 'zod';
+import { RichTextEditor } from './RichTextEditor.tsx';
 
 export interface FieldOption {
     label: string;
@@ -34,6 +35,8 @@ export type FormField<TValues extends FieldValues> =
       })
     | (BaseField<TValues> & { type: 'number'; min?: number; max?: number; step?: number })
     | (BaseField<TValues> & { type: 'textarea'; rows?: number })
+    /** Formatted text (bold, lists, links); the value is HTML. */
+    | (BaseField<TValues> & { type: 'richText' })
     | (BaseField<TValues> & { type: 'select' | 'radio'; options: FieldOption[] })
     /** Multiple checkboxes bound to a string[] value. */
     | (BaseField<TValues> & { type: 'checkboxGroup'; options: FieldOption[] })
@@ -134,7 +137,7 @@ function FieldControl<TValues extends FieldValues>({
     const id = `field-${field.name}`;
     const error = (get(errors, field.name) as { message?: string } | undefined)?.message;
     const describedBy = error ? `${id}-error` : field.description ? `${id}-description` : undefined;
-    const fullWidth = field.span === 2 || (field.span === undefined && ['textarea', 'checkbox', 'toggle'].includes(field.type));
+    const fullWidth = field.span === 2 || (field.span === undefined && ['textarea', 'richText', 'checkbox', 'toggle'].includes(field.type));
     const errorClass = error ? 'input-error' : '';
     const common = {
         id,
@@ -154,6 +157,25 @@ function FieldControl<TValues extends FieldValues>({
                     rows={field.rows ?? 3}
                     placeholder={field.placeholder}
                     className={`textarea w-full ${error ? 'textarea-error' : ''}`}
+                />
+            );
+            break;
+        case 'richText':
+            control = (
+                <Controller
+                    control={formControl}
+                    name={field.name}
+                    render={({ field: { value, onChange, onBlur } }) => (
+                        <RichTextEditor
+                            id={id}
+                            value={typeof value === 'string' ? value : ''}
+                            onChange={onChange}
+                            onBlur={onBlur}
+                            invalid={!!error}
+                            disabled={field.disabled}
+                            describedBy={describedBy}
+                        />
+                    )}
                 />
             );
             break;
@@ -271,7 +293,9 @@ function FieldControl<TValues extends FieldValues>({
         <fieldset className={`fieldset ${fullWidth ? 'md:col-span-2' : ''}`}>
             {!isSingleToggle && (
                 <legend id={`${id}-label`} className="fieldset-legend">
-                    <label htmlFor={field.type === 'radio' ? undefined : id}>{field.label}</label>
+                    <label id={`${id}-label`} htmlFor={field.type === 'radio' || field.type === 'richText' ? undefined : id}>
+                        {field.label}
+                    </label>
                 </legend>
             )}
             {control}

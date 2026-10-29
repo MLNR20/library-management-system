@@ -16,6 +16,7 @@ namespace LibraryManagementSystem.Server.Data
         public DbSet<Shelf> Shelves => Set<Shelf>();
         public DbSet<Row> Rows => Set<Row>();
         public DbSet<Section> Sections => Set<Section>();
+        public DbSet<Announcement> Announcements => Set<Announcement>();
         public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
         protected override void OnModelCreating(ModelBuilder builder)
@@ -51,6 +52,13 @@ namespace LibraryManagementSystem.Server.Data
                     .WithMany(f => f.Shelves)
                     .HasForeignKey(s => s.FloorId)
                     .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // An announcement belongs to one floor, or to the whole library when FloorId is null. Removing a floor removes its notices.
+            builder.Entity<Announcement>(announcement =>
+            {
+                announcement.HasIndex(a => a.CreatedAt);
+                announcement.HasOne(a => a.Floor).WithMany().HasForeignKey(a => a.FloorId).OnDelete(DeleteBehavior.Cascade);
             });
 
             builder.Entity<Row>(row =>

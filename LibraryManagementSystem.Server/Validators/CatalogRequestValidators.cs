@@ -1,4 +1,5 @@
 using FluentValidation;
+using LibraryManagementSystem.Server.Dtos.Announcements;
 using LibraryManagementSystem.Server.Dtos.Authors;
 using LibraryManagementSystem.Server.Dtos.Books;
 using LibraryManagementSystem.Server.Dtos.Floors;
@@ -8,6 +9,7 @@ using LibraryManagementSystem.Server.Dtos.Shelves;
 using LibraryManagementSystem.Server.Dtos.Genres;
 using LibraryManagementSystem.Server.Dtos.Languages;
 using LibraryManagementSystem.Server.Models;
+using LibraryManagementSystem.Server.Services;
 
 namespace LibraryManagementSystem.Server.Validators
 {
@@ -71,6 +73,17 @@ namespace LibraryManagementSystem.Server.Validators
             RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
             RuleFor(x => x.FloorId).NotEmpty();
             RuleFor(x => x.Rotation).Must(Shelf.IsValidRotation).WithMessage("Rotation must be 90 or 180 degrees.");
+        }
+    }
+
+    public class AnnouncementRequestValidator : AbstractValidator<AnnouncementRequest>
+    {
+        public AnnouncementRequestValidator()
+        {
+            RuleFor(x => x.Title).NotEmpty().MaximumLength(150);
+            RuleFor(x => x.Body).NotEmpty().MaximumLength(20000)
+                .Must(body => RichText.ToPlainText(RichText.Sanitize(body)).Length > 0).WithMessage("Write a message.");
+            RuleFor(x => x.FloorId).NotEqual(Guid.Empty).When(x => x.FloorId is not null);
         }
     }
 

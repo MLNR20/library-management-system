@@ -15,6 +15,7 @@ import { RolesPage } from './pages/RolesPage.tsx';
 import { RowsPage } from './pages/RowsPage.tsx';
 import { SectionsPage } from './pages/SectionsPage.tsx';
 import { ShelvesPage } from './pages/ShelvesPage.tsx';
+import { AnnouncementsPage } from './pages/AnnouncementsPage.tsx';
 import { UsersPage } from './pages/UsersPage.tsx';
 
 export const router = createBrowserRouter([
@@ -31,6 +32,7 @@ export const router = createBrowserRouter([
                     { path: 'authors', element: <AuthorsPage /> },
                     { path: 'genres', element: <GenresPage /> },
                     { path: 'languages', element: <LanguagesPage /> },
+                    { path: 'announcements', element: <AnnouncementsPage /> },
                     {
                         // Loaded on demand so the 3D library only ships to people who open the map.
                         path: 'map',
