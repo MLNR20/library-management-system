@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router';
 import { useAuth } from '../../auth/useAuth.ts';
+import { useDarkTheme } from './useDarkTheme.ts';
 import {
     AnnouncementIcon,
     AuditIcon,
@@ -36,7 +37,10 @@ const iconClass = 'h-5 w-5';
 
 const navGroups: NavGroup[] = [
     {
-        items: [{ to: '/', label: 'Dashboard', icon: <DashboardIcon className={iconClass} />, end: true }],
+        items: [
+            { to: '/', label: 'Dashboard', icon: <DashboardIcon className={iconClass} />, end: true },
+            { to: '/student', label: 'Student view', icon: <BookIcon className={iconClass} /> },
+        ],
     },
     {
         title: 'Catalogue',
@@ -103,11 +107,7 @@ export function AppLayout() {
             drawerToggle.current.checked = !drawerToggle.current.checked;
         }
     };
-    const [dark, setDark] = useState(() => window.matchMedia('(prefers-color-scheme: dark)').matches);
-
-    useEffect(() => {
-        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-    }, [dark]);
+    const [dark, setDark] = useDarkTheme();
 
     const closeDrawer = () => {
         if (drawerToggle.current) drawerToggle.current.checked = false;

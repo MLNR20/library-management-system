@@ -12,6 +12,8 @@ const DRAG_THRESHOLD_PX = 5;
 interface LibraryDragProviderProps {
     /** `toRowId` is null when a book was dropped on an unshelve zone. */
     onDrop: (book: Book, fromRowId: string | null, toRowId: string | null) => void;
+    /** Pressing a book only selects it; it can never be dragged. */
+    readOnly?: boolean;
     children: ReactNode;
 }
 
@@ -19,7 +21,7 @@ interface LibraryDragProviderProps {
  * Pointer-based drag and drop between the book list, the 3D scene and the unshelve zone.
  * HTML5 drag events do not fire pointer events over a WebGL canvas, so this tracks the pointer itself.
  */
-export function LibraryDragProvider({ onDrop, children }: LibraryDragProviderProps) {
+export function LibraryDragProvider({ onDrop, readOnly = false, children }: LibraryDragProviderProps) {
     const [drag, setDrag] = useState<DragState | null>(null);
     const [hoverRowId, setHoverRowId] = useState<string | null>(null);
     const [hoverBook, setHoverBook] = useState<Book | null>(null);
@@ -45,7 +47,7 @@ export function LibraryDragProvider({ onDrop, children }: LibraryDragProviderPro
 
         const onMove = (event: PointerEvent) => {
             if (!active) {
-                if (Math.hypot(event.clientX - origin.x, event.clientY - origin.y) < DRAG_THRESHOLD_PX) return;
+                if (readOnly || Math.hypot(event.clientX - origin.x, event.clientY - origin.y) < DRAG_THRESHOLD_PX) return;
                 active = true;
                 document.body.style.userSelect = 'none';
                 setDrag({ book, fromRowId, active: true, x: event.clientX, y: event.clientY });
@@ -91,7 +93,7 @@ export function LibraryDragProvider({ onDrop, children }: LibraryDragProviderPro
         window.addEventListener('pointerup', onUp);
         window.addEventListener('pointercancel', onCancel);
         window.addEventListener('keydown', onKey);
-    }, []);
+    }, [readOnly]);
 
     const clearHoverBook = useCallback((bookId: string) => {
         setHoverBook(current => (current?.id === bookId ? null : current));

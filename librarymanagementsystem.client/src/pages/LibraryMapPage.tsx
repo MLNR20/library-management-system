@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { bookHooks, bookStatusLabels, floorHooks, rowHooks, sectionHooks, shelfHooks } from '../api/resources.ts';
 import type { Book, BookRequest } from '../api/resources.ts';
 import { BookListPanel } from '../components/library-map/BookListPanel.tsx';
@@ -34,7 +34,8 @@ function toBookRequest(book: Book, rowIds: string[]): BookRequest {
     };
 }
 
-export function LibraryMapPage() {
+/** `readOnly` is the readers' map: the same view, but books cannot be moved. */
+export function LibraryMapPage({ readOnly = false }: { readOnly?: boolean }) {
     const books = bookHooks.useList();
     const floors = floorHooks.useList();
     const shelves = shelfHooks.useList();
@@ -95,7 +96,11 @@ export function LibraryMapPage() {
     return (
         <Page
             title="Library map"
-            description="A 3D view of every floor, shelf and row. Drag a book onto a row to shelve it."
+            description={
+                readOnly
+                    ? 'A 3D view of every floor, shelf and row. Search for a book to see the way to it.'
+                    : 'A 3D view of every floor, shelf and row. Drag a book onto a row to shelve it.'
+            }
         >
             {failed ? (
                 <div role="alert" className="alert alert-error alert-soft">
@@ -114,8 +119,9 @@ export function LibraryMapPage() {
                     </span>
                 </div>
             ) : (
-                <LibraryDragProvider onDrop={handleDrop}>
+                <LibraryDragProvider onDrop={handleDrop} readOnly={readOnly}>
                     <MapBody
+                        readOnly={readOnly}
                         books={books.data ?? []}
                         layouts={layouts}
                         rowLabels={rowLabels}
@@ -131,6 +137,7 @@ export function LibraryMapPage() {
 }
 
 interface MapBodyProps {
+    readOnly: boolean;
     books: Book[];
     layouts: FloorLayout[];
     rowLabels: Map<string, string>;
@@ -139,11 +146,13 @@ interface MapBodyProps {
     onDismissNotice: () => void;
 }
 
-function MapBody({ books, layouts, rowLabels, saving, notice, onDismissNotice }: MapBodyProps) {
+function MapBody({ readOnly, books, layouts, rowLabels, saving, notice, onDismissNotice }: MapBodyProps) {
     const { hoverBook, selectedBookId, selectBook } = useLibraryDrag();
     // 'all' stacks every floor; otherwise one floor's id. Null means "the first floor".
     const [floorChoice, setFloorChoice] = useState<string | null>(null);
-    const [search, setSearch] = useState('');
+    // A link such as /student/map?find=Emma opens the map already looking for that book.
+    const [searchParams] = useSearchParams();
+    const [search, setSearch] = useState(() => searchParams.get('find') ?? '');
 
     const activeChoice = floorChoice ?? layouts[0]?.floor.id ?? 'all';
     const visible = useMemo(
@@ -233,7 +242,7 @@ function MapBody({ books, layouts, rowLabels, saving, notice, onDismissNotice }:
             )}
 
             <div className="grid min-h-[34rem] flex-1 gap-3 lg:h-[calc(100vh-17rem)] lg:flex-none lg:grid-cols-[20rem_minmax(0,1fr)]">
-                <BookListPanel books={books} search={search} onSearchChange={setSearch} />
+                <BookListPanel books={books} readOnly={readOnly} search={search} onSearchChange={setSearch} />
 
                 <div className="relative min-h-[26rem] overflow-hidden rounded-box border border-base-300 bg-base-200">
                     <LibraryCanvas floors={visible} stacked={activeChoice === 'all'} route={route} />

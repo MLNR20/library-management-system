@@ -1,6 +1,7 @@
 import { createBrowserRouter } from 'react-router';
 import { GuestOnly, RequireAdmin, RequireAuth } from './auth/RouteGuards.tsx';
 import { AppLayout } from './components/layout/AppLayout.tsx';
+import { StudentLayout } from './components/layout/StudentLayout.tsx';
 import { Page } from './components/layout/Page.tsx';
 import { AuditLogPage } from './pages/AuditLogPage.tsx';
 import { AuthorsPage } from './pages/AuthorsPage.tsx';
@@ -15,6 +16,7 @@ import { RolesPage } from './pages/RolesPage.tsx';
 import { RowsPage } from './pages/RowsPage.tsx';
 import { SectionsPage } from './pages/SectionsPage.tsx';
 import { ShelvesPage } from './pages/ShelvesPage.tsx';
+import { StudentBooksPage } from './pages/StudentBooksPage.tsx';
 import { AnnouncementsPage } from './pages/AnnouncementsPage.tsx';
 import { UsersPage } from './pages/UsersPage.tsx';
 
@@ -23,6 +25,18 @@ export const router = createBrowserRouter([
         // Everything inside needs a signed-in user.
         element: <RequireAuth />,
         children: [
+            {
+                // The readers' view: browse what is available and find it on the map.
+                path: '/student',
+                element: <StudentLayout />,
+                children: [
+                    { index: true, element: <StudentBooksPage /> },
+                    {
+                        path: 'map',
+                        lazy: async () => ({ Component: (await import('./pages/StudentMapPage.tsx')).StudentMapPage }),
+                    },
+                ],
+            },
             {
                 path: '/',
                 element: <AppLayout />,

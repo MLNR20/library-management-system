@@ -8,12 +8,14 @@ import { useLibraryDrag } from './useLibraryDrag.ts';
 
 interface BookListPanelProps {
     books: Book[];
+    /** For readers: pick a book to see where it is, nothing can be dragged. */
+    readOnly?: boolean;
     search: string;
     onSearchChange: (search: string) => void;
 }
 
 /** The books to pick up and drag. Also the drop zone for taking a book off its row. */
-export function BookListPanel({ books, search, onSearchChange }: BookListPanelProps) {
+export function BookListPanel({ books, readOnly = false, search, onSearchChange }: BookListPanelProps) {
     const { drag, beginDrag, selectedBookId } = useLibraryDrag();
     const [unshelvedOnly, setUnshelvedOnly] = useState(false);
 
@@ -36,9 +38,11 @@ export function BookListPanel({ books, search, onSearchChange }: BookListPanelPr
             <div>
                 <h2 className="font-semibold">Books</h2>
                 <p className="text-xs opacity-70">
-                    {unshelveReady
-                        ? 'Release here to take the book off its row.'
-                        : 'Drag a book onto a row of a shelf. Drag a shelved book to move it, or back here to unshelve it.'}
+                    {readOnly
+                        ? 'Pick a book to see the way to it.'
+                        : unshelveReady
+                          ? 'Release here to take the book off its row.'
+                          : 'Drag a book onto a row of a shelf. Drag a shelved book to move it, or back here to unshelve it.'}
                 </p>
             </div>
 
@@ -50,15 +54,17 @@ export function BookListPanel({ books, search, onSearchChange }: BookListPanelPr
                 onChange={event => onSearchChange(event.target.value)}
                 aria-label="Search books"
             />
-            <label className="flex cursor-pointer items-center gap-2 text-sm">
-                <input
-                    type="checkbox"
-                    className="checkbox checkbox-xs"
-                    checked={unshelvedOnly}
-                    onChange={event => setUnshelvedOnly(event.target.checked)}
-                />
-                Only unshelved ({unshelvedCount})
-            </label>
+            {!readOnly && (
+                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                    <input
+                        type="checkbox"
+                        className="checkbox checkbox-xs"
+                        checked={unshelvedOnly}
+                        onChange={event => setUnshelvedOnly(event.target.checked)}
+                    />
+                    Only unshelved ({unshelvedCount})
+                </label>
+            )}
 
             <ul className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto pr-1">
                 {visible.length === 0 && <li className="p-2 text-sm opacity-60">No books match.</li>}
@@ -72,10 +78,12 @@ export function BookListPanel({ books, search, onSearchChange }: BookListPanelPr
                                 event.preventDefault();
                                 beginDrag(book, null, event);
                             }}
-                            className={`flex cursor-grab touch-none items-center gap-2 rounded-field border px-2 py-1.5 select-none active:cursor-grabbing ${
+                            className={`flex items-center gap-2 rounded-field border px-2 py-1.5 select-none ${
+                                readOnly ? 'cursor-pointer' : 'cursor-grab touch-none active:cursor-grabbing'
+                            } ${
                                 selectedBookId === book.id ? 'border-primary bg-primary/10' : 'border-base-300 hover:bg-base-200'
                             }`}
-                            aria-label={`${book.title}. Drag onto a shelf row to shelve it.`}
+                            aria-label={readOnly ? `${book.title}. Show the way to it.` : `${book.title}. Drag onto a shelf row to shelve it.`}
                         >
                             <span
                                 className="h-6 w-2 shrink-0 rounded-sm"
