@@ -45,6 +45,8 @@ namespace LibraryManagementSystem.Server.Data
             builder.Entity<Shelf>(shelf =>
             {
                 shelf.HasIndex(s => new { s.FloorId, s.Name }).IsUnique();
+                shelf.Property(s => s.Rotation).HasDefaultValue(Shelf.RotationQuarter);
+                shelf.ToTable(t => t.HasCheckConstraint("CK_Shelves_Rotation", "[Rotation] IN (90, 180)"));
                 shelf.HasOne(s => s.Floor)
                     .WithMany(f => f.Shelves)
                     .HasForeignKey(s => s.FloorId)

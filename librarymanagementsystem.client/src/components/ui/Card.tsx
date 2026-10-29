@@ -55,11 +55,17 @@ interface StatCardProps {
 export function StatCard({ label, value, hint, icon, className = '' }: StatCardProps) {
     return (
         <div className={`stats card-border border-base-300 bg-base-100 shadow-sm ${className}`}>
-            <div className="stat">
-                {icon && <div className="stat-figure text-primary">{icon}</div>}
-                <div className="stat-title">{label}</div>
-                <div className="stat-value">{value}</div>
-                {hint && <div className="stat-desc">{hint}</div>}
+            <div className="stat flex items-center gap-4">
+                {icon && (
+                    <div className="flex size-14 shrink-0 items-center justify-center rounded-box bg-primary/10 text-primary">
+                        {icon}
+                    </div>
+                )}
+                <div>
+                    <div className="stat-title">{label}</div>
+                    <div className="stat-value">{value}</div>
+                    {hint && <div className="stat-desc">{hint}</div>}
+                </div>
             </div>
         </div>
     );

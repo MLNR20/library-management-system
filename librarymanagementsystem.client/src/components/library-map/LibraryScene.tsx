@@ -3,10 +3,15 @@ import { Canvas, useThree } from '@react-three/fiber';
 import { Html, OrbitControls, useContextBridge } from '@react-three/drei';
 import * as THREE from 'three';
 import type { Book } from '../../api/resources.ts';
-import { PLANK, SHELF_DEPTH, SHELF_WIDTH, TIER_HEIGHT, hash01 } from '../../lib/libraryLayout.ts';
+import { PLANK, SHELF_DEPTH, SHELF_WIDTH, STAIR_ZONE, TIER_HEIGHT, hash01 } from '../../lib/libraryLayout.ts';
 import type { FloorLayout, ShelfLayout, TierLayout } from '../../lib/libraryLayout.ts';
 import { LibraryDragContext } from './dragContext.ts';
+import { Columns, Doors, LibrarianDesk, Stairs, Tables, Walls, Windows } from './FloorStructure.tsx';
+import { SLAB_THICKNESS, STAIR_LANDING, sceneMetrics, stairDirection } from './floorPlan.ts';
+import { RoutePath } from './RoutePath.tsx';
+import type { Route } from './route.ts';
 import { sectionColor, statusColors } from './palette.ts';
+import { TILE_WORLD_SIZE, createWoodTexture } from './woodTexture.ts';
 import { useLibraryDrag } from './useLibraryDrag.ts';
 
 const WOOD = '#8a6a4b';
@@ -17,20 +22,20 @@ interface LibraryCanvasProps {
     floors: FloorLayout[];
     /** Show every floor stacked on top of each other instead of just the first one passed in. */
     stacked: boolean;
+    /** The walk to a book, drawn on top of the floors it crosses. */
+    route: Route | null;
 }
 
-export function LibraryCanvas({ floors, stacked }: LibraryCanvasProps) {
+export function LibraryCanvas({ floors, stacked, route }: LibraryCanvasProps) {
     // Canvas renders in its own React root, so the drag context has to be carried across.
     const ContextBridge = useContextBridge(LibraryDragContext);
-    const spacing = Math.max(4, ...floors.map(f => f.height)) + 3;
+    // Every floor shares one footprint so walls and stairs line up from floor to floor.
+    const { width, depth, storey: spacing } = useMemo(() => sceneMetrics(floors), [floors]);
     const focus = useMemo(() => {
         const count = Math.max(1, floors.length);
-        const width = Math.max(9, ...floors.map(f => f.width));
-        const depth = Math.max(7, ...floors.map(f => f.depth));
-        const tallest = Math.max(2, ...floors.map(f => f.height));
-        const totalHeight = stacked ? (count - 1) * spacing + tallest : tallest;
+        const totalHeight = stacked ? (count - 1) * spacing + spacing : spacing;
         return { x: 0, y: totalHeight / 2, z: 0, size: Math.max(width, depth, totalHeight) };
-    }, [floors, stacked, spacing]);
+    }, [floors, width, depth, stacked, spacing]);
 
     return (
         <Canvas
@@ -43,7 +48,16 @@ export function LibraryCanvas({ floors, stacked }: LibraryCanvasProps) {
                 <directionalLight position={[6, 14, 9]} intensity={1.6} />
                 {floors.map((layout, index) => (
                     <group key={layout.floor.id} position={[0, stacked ? index * spacing : 0, 0]}>
-                        <FloorModel layout={layout} />
+                        <FloorModel
+                            layout={layout}
+                            width={width}
+                            depth={depth}
+                            storey={spacing}
+                            index={index}
+                            hasFloorAbove={stacked && index < floors.length - 1}
+                            seeThrough={stacked}
+                        />
+                        {route && <RoutePath route={route} index={index} />}
                     </group>
                 ))}
                 <Controls />
@@ -82,7 +96,7 @@ function CameraRig({ focus, focusKey }: CameraRigProps) {
 
     useEffect(() => {
         if (!controls) return;
-        camera.position.set(focus.x, focus.y + focus.size * 0.55 + 2, focus.z + focus.size * 0.95 + 4);
+        camera.position.set(focus.x, focus.y + focus.size * 0.55 + 2, focus.z + focus.size * 1.15 + 4);
         controls.target.set(focus.x, focus.y, focus.z);
         controls.update();
         // Only re-frame when the visible floors change, not on every data refresh.
@@ -140,14 +154,103 @@ function CursorManager() {
     return null;
 }
 
-function FloorModel({ layout }: { layout: FloorLayout }) {
+// The wood is painted once and shared; each floor gets its own copy so it can be tiled to its own size.
+let sharedWood: THREE.CanvasTexture | null = null;
+
+function useFloorWood(width: number, depth: number): THREE.Texture {
+    const texture = useMemo(() => {
+        sharedWood ??= createWoodTexture();
+        const copy = sharedWood.clone();
+        copy.repeat.set(width / TILE_WORLD_SIZE, depth / TILE_WORLD_SIZE);
+        copy.needsUpdate = true;
+        return copy;
+    }, [width, depth]);
+
+    useEffect(() => () => texture.dispose(), [texture]);
+    return texture;
+}
+
+// BoxGeometry faces, in order: +x, -x, top, bottom, +z, -z. Only the top shows the planks.
+const FLOOR_FACES = [0, 1, 2, 3, 4, 5];
+
+interface SlabProps {
+    width: number;
+    depth: number;
+    x?: number;
+    z?: number;
+    seeThrough: boolean;
+}
+
+function Slab({ width, depth, x = 0, z = 0, seeThrough }: SlabProps) {
+    const wood = useFloorWood(width, depth);
+
+    return (
+        <mesh position={[x, -SLAB_THICKNESS / 2, z]}>
+            <boxGeometry args={[width, SLAB_THICKNESS, depth]} />
+            {FLOOR_FACES.map(face => (
+                <meshStandardMaterial
+                    key={face}
+                    attach={`material-${face}`}
+                    map={face === 2 ? wood : null}
+                    color={face === 2 ? '#ffffff' : '#4a3320'}
+                    roughness={0.8}
+                    transparent={seeThrough}
+                    opacity={seeThrough ? 0.6 : 1}
+                />
+            ))}
+        </mesh>
+    );
+}
+
+interface FloorModelProps {
+    layout: FloorLayout;
+    width: number;
+    depth: number;
+    storey: number;
+    index: number;
+    /** The next floor is drawn above this one, so the stairs lead up to it. */
+    hasFloorAbove: boolean;
+    seeThrough: boolean;
+}
+
+function FloorModel({ layout, width, depth, storey, index, hasFloorAbove, seeThrough }: FloorModelProps) {
+    // On a floor with another below it, the stairs from below come up through an opening next to the right wall.
+    const stairwell = seeThrough && index > 0;
+    const arrivalZ = stairDirection(index - 1) * (depth / 2 - STAIR_LANDING / 2);
+
     return (
         <group>
-            <mesh position={[0, -0.1, 0]}>
-                <boxGeometry args={[layout.width, 0.2, layout.depth]} />
-                <meshStandardMaterial color="#64748b" transparent opacity={0.4} />
-            </mesh>
-            <Html position={[-layout.width / 2 + 0.3, 0.1, layout.depth / 2]} style={{ pointerEvents: 'none' }}>
+            {stairwell ? (
+                <>
+                    <Slab width={width - STAIR_ZONE} depth={depth} x={-STAIR_ZONE / 2} seeThrough={seeThrough} />
+                    <Slab
+                        width={STAIR_ZONE}
+                        depth={STAIR_LANDING}
+                        x={width / 2 - STAIR_ZONE / 2}
+                        z={arrivalZ}
+                        seeThrough={seeThrough}
+                    />
+                </>
+            ) : (
+                <Slab width={width} depth={depth} seeThrough={seeThrough} />
+            )}
+            <Walls width={width} depth={depth} height={storey - SLAB_THICKNESS} seeThrough={seeThrough} />
+            {/* Only the bottom floor has outside doors and the librarian's desk; the floors above are reached by the stairs. */}
+            {layout.level === 0 && <Doors width={width} depth={depth} seeThrough={seeThrough} />}
+            {layout.level === 0 && <LibrarianDesk depth={depth} seeThrough={seeThrough} />}
+            <Windows width={width} depth={depth} seeThrough={seeThrough} />
+            <Tables width={width} depth={depth} seeThrough={seeThrough} />
+            <Columns width={width} depth={depth} height={storey - SLAB_THICKNESS} seeThrough={seeThrough} />
+            {(!seeThrough || hasFloorAbove) && (
+                <Stairs
+                    width={width}
+                    depth={depth}
+                    storey={storey}
+                    direction={stairDirection(index)}
+                    hasFloorAbove={hasFloorAbove}
+                />
+            )}
+            <Html position={[-width / 2 + 0.3, 0.1, depth / 2]} style={{ pointerEvents: 'none' }}>
                 <div className="rounded bg-base-100/80 px-2 py-0.5 text-xs font-bold whitespace-nowrap">
                     {layout.floor.name}
                 </div>
@@ -173,7 +276,7 @@ function ShelfModel({ layout }: { layout: ShelfLayout }) {
     const sectionTint = layout.sections[0] ? sectionColor(layout.sections[0].id) : null;
 
     return (
-        <group position={[layout.x, 0, layout.z]}>
+        <group position={[layout.x, 0, layout.z]} rotation={[0, THREE.MathUtils.degToRad(layout.shelf.rotation), 0]}>
             {sectionTint && (
                 <mesh position={[0, 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
                     <planeGeometry args={[SHELF_WIDTH + 0.6, SHELF_DEPTH + 0.8]} />

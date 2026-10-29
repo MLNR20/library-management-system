@@ -1,15 +1,18 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { bookHooks, bookStatusLabels, floorHooks, rowHooks, sectionHooks, shelfHooks } from '../api/resources.ts';
 import type { Book, BookRequest } from '../api/resources.ts';
 import { BookListPanel } from '../components/library-map/BookListPanel.tsx';
 import { DragGhost } from '../components/library-map/DragGhost.tsx';
 import { LibraryDragProvider } from '../components/library-map/LibraryDragProvider.tsx';
+import { sceneMetrics } from '../components/library-map/floorPlan.ts';
 import { LibraryCanvas } from '../components/library-map/LibraryScene.tsx';
 import { sectionColor, statusColors } from '../components/library-map/palette.ts';
+import { buildRoute } from '../components/library-map/route.ts';
 import { useLibraryDrag } from '../components/library-map/useLibraryDrag.ts';
 import { Page } from '../components/layout/Page.tsx';
 import { getErrorMessage } from '../lib/api.ts';
+import { bookMatchesSearch } from '../lib/bookSearch.ts';
 import { buildLayout } from '../lib/libraryLayout.ts';
 import type { FloorLayout } from '../lib/libraryLayout.ts';
 
@@ -137,9 +140,10 @@ interface MapBodyProps {
 }
 
 function MapBody({ books, layouts, rowLabels, saving, notice, onDismissNotice }: MapBodyProps) {
-    const { hoverBook, selectedBookId } = useLibraryDrag();
+    const { hoverBook, selectedBookId, selectBook } = useLibraryDrag();
     // 'all' stacks every floor; otherwise one floor's id. Null means "the first floor".
     const [floorChoice, setFloorChoice] = useState<string | null>(null);
+    const [search, setSearch] = useState('');
 
     const activeChoice = floorChoice ?? layouts[0]?.floor.id ?? 'all';
     const visible = useMemo(
@@ -149,6 +153,42 @@ function MapBody({ books, layouts, rowLabels, saving, notice, onDismissNotice }:
     const visibleSections = visible.flatMap(l => l.shelves.flatMap(s => s.sections));
 
     const infoBook = hoverBook ?? books.find(b => b.id === selectedBookId) ?? null;
+
+    // The book to find the way to: while searching, the picked book if it matches, else the best match
+    // (preferring one that is on a shelf); with no search, the picked book.
+    const routeBook = useMemo(() => {
+        if (search.trim() === '') return books.find(b => b.id === selectedBookId) ?? null;
+        const matches = books.filter(b => bookMatchesSearch(b, search));
+        return (
+            matches.find(b => b.id === selectedBookId) ?? matches.find(b => b.rows.length > 0) ?? matches[0] ?? null
+        );
+    }, [books, search, selectedBookId]);
+
+    // A book can sit in several rows; walk to the one on the lowest floor, which is the nearest to the door.
+    const routeRowId = useMemo(() => {
+        const levelOf = (rowId: string) =>
+            layouts.find(l => l.shelves.some(s => s.tiers.some(t => t.row.id === rowId)))?.level ?? Infinity;
+        const rows = [...(routeBook?.rows ?? [])].sort((a, b) => levelOf(a.id) - levelOf(b.id));
+        return rows[0] && levelOf(rows[0].id) !== Infinity ? rows[0].id : null;
+    }, [routeBook, layouts]);
+
+    // Bring the floor with the book into view: its own tab if it is on the ground floor, otherwise the
+    // stacked view so the stairs can be seen.
+    useEffect(() => {
+        if (!routeRowId) return;
+        const target = layouts.find(l => l.shelves.some(s => s.tiers.some(t => t.row.id === routeRowId)));
+        if (!target) return;
+        if (target.level > 0) setFloorChoice('all');
+        else setFloorChoice(current => (current === 'all' ? current : target.floor.id));
+        // Only when the destination changes, so the floor tabs stay usable afterwards.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [routeRowId]);
+
+    const route = useMemo(() => {
+        if (!routeRowId) return null;
+        const { width, depth, storey } = sceneMetrics(visible);
+        return buildRoute(visible, routeRowId, width, depth, storey);
+    }, [visible, routeRowId]);
 
     return (
         <div className="flex flex-1 flex-col gap-3">
@@ -193,10 +233,10 @@ function MapBody({ books, layouts, rowLabels, saving, notice, onDismissNotice }:
             )}
 
             <div className="grid min-h-[34rem] flex-1 gap-3 lg:h-[calc(100vh-17rem)] lg:flex-none lg:grid-cols-[20rem_minmax(0,1fr)]">
-                <BookListPanel books={books} />
+                <BookListPanel books={books} search={search} onSearchChange={setSearch} />
 
                 <div className="relative min-h-[26rem] overflow-hidden rounded-box border border-base-300 bg-base-200">
-                    <LibraryCanvas floors={visible} stacked={activeChoice === 'all'} />
+                    <LibraryCanvas floors={visible} stacked={activeChoice === 'all'} route={route} />
 
                     {/* Overlays let pointer events through so the canvas underneath keeps working. */}
                     <div className="pointer-events-none absolute top-3 left-3 max-w-72 rounded-box bg-base-100/90 p-3 text-sm shadow">
@@ -218,6 +258,45 @@ function MapBody({ books, layouts, rowLabels, saving, notice, onDismissNotice }:
                             <span className="opacity-70">Drag to rotate, scroll to zoom, right-drag to pan. Hover a book for details.</span>
                         )}
                     </div>
+
+                    {routeBook && (
+                        <div className="absolute top-3 right-3 max-w-64 rounded-box bg-base-100/95 p-3 text-sm shadow">
+                            <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                    <div className="text-xs opacity-70">Route to</div>
+                                    <div className="truncate font-semibold">{routeBook.title}</div>
+                                </div>
+                                <button
+                                    className="btn btn-ghost btn-xs"
+                                    onClick={() => {
+                                        setSearch('');
+                                        selectBook(null);
+                                    }}
+                                    aria-label="Clear the route"
+                                >
+                                    Clear
+                                </button>
+                            </div>
+                            {route ? (
+                                <>
+                                    <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs">
+                                        {route.steps.map(step => (
+                                            <li key={step}>{step}</li>
+                                        ))}
+                                    </ol>
+                                    <div className="mt-2 text-xs opacity-70">
+                                        About {Math.max(1, Math.round(route.distance))} m on foot.
+                                    </div>
+                                </>
+                            ) : (
+                                <p className="mt-2 text-xs opacity-80">
+                                    {routeBook.rows.length === 0
+                                        ? 'This book is not shelved, so there is no route.'
+                                        : 'Its shelf is not on the floors shown.'}
+                                </p>
+                            )}
+                        </div>
+                    )}
 
                     <div className="pointer-events-none absolute bottom-3 left-3 flex max-w-[calc(100%-1.5rem)] flex-wrap gap-x-3 gap-y-1 rounded-box bg-base-100/90 px-3 py-2 text-xs shadow">
                         {Object.entries(bookStatusLabels).map(([value, label]) => (

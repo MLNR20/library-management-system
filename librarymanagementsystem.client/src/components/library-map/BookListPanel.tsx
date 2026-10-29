@@ -1,27 +1,26 @@
 import { useMemo, useState } from 'react';
 import { bookStatusLabels } from '../../api/resources.ts';
 import type { Book } from '../../api/resources.ts';
+import { bookMatchesSearch } from '../../lib/bookSearch.ts';
 import { UNSHELVE_ZONE_ATTRIBUTE } from './LibraryDragProvider.tsx';
 import { statusColors } from './palette.ts';
 import { useLibraryDrag } from './useLibraryDrag.ts';
 
+interface BookListPanelProps {
+    books: Book[];
+    search: string;
+    onSearchChange: (search: string) => void;
+}
+
 /** The books to pick up and drag. Also the drop zone for taking a book off its row. */
-export function BookListPanel({ books }: { books: Book[] }) {
+export function BookListPanel({ books, search, onSearchChange }: BookListPanelProps) {
     const { drag, beginDrag, selectedBookId } = useLibraryDrag();
-    const [search, setSearch] = useState('');
     const [unshelvedOnly, setUnshelvedOnly] = useState(false);
 
-    const visible = useMemo(() => {
-        const term = search.trim().toLowerCase();
-        return books.filter(
-            book =>
-                (!unshelvedOnly || book.rows.length === 0) &&
-                (!term ||
-                    book.title.toLowerCase().includes(term) ||
-                    book.isbn.toLowerCase().includes(term) ||
-                    book.authors.some(a => a.name.toLowerCase().includes(term))),
-        );
-    }, [books, search, unshelvedOnly]);
+    const visible = useMemo(
+        () => books.filter(book => (!unshelvedOnly || book.rows.length === 0) && bookMatchesSearch(book, search)),
+        [books, search, unshelvedOnly],
+    );
 
     const unshelveReady = !!drag?.active && drag.fromRowId !== null;
     const unshelvedCount = books.filter(book => book.rows.length === 0).length;
@@ -46,9 +45,9 @@ export function BookListPanel({ books }: { books: Book[] }) {
             <input
                 type="search"
                 className="input input-sm w-full"
-                placeholder="Search title, author, ISBN..."
+                placeholder="Find a book: title, author, ISBN..."
                 value={search}
-                onChange={event => setSearch(event.target.value)}
+                onChange={event => onSearchChange(event.target.value)}
                 aria-label="Search books"
             />
             <label className="flex cursor-pointer items-center gap-2 text-sm">

@@ -372,12 +372,20 @@ namespace LibraryManagementSystem.Server.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<int>("Rotation")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(90);
+
                     b.HasKey("Id");
 
                     b.HasIndex("FloorId", "Name")
                         .IsUnique();
 
-                    b.ToTable("Shelves");
+                    b.ToTable("Shelves", t =>
+                        {
+                            t.HasCheckConstraint("CK_Shelves_Rotation", "[Rotation] IN (90, 180)");
+                        });
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>

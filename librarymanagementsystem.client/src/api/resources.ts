@@ -56,15 +56,21 @@ export interface FloorRequest {
     name: string;
 }
 
+/** How a shelf is turned on the 3D map, in degrees. The server only accepts these two. */
+export type ShelfRotation = 90 | 180;
+export const shelfRotations: readonly ShelfRotation[] = [90, 180];
+
 export interface Shelf {
     id: string;
     name: string;
     floorId: string;
     floorName: string;
+    rotation: ShelfRotation;
 }
 export interface ShelfRequest {
     name: string;
     floorId: string;
+    rotation: ShelfRotation;
 }
 
 export interface Row {

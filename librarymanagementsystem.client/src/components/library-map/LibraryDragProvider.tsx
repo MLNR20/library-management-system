@@ -98,7 +98,17 @@ export function LibraryDragProvider({ onDrop, children }: LibraryDragProviderPro
     }, []);
 
     const value = useMemo<LibraryDragValue>(
-        () => ({ drag, hoverRowId, hoverBook, setHoverBook, clearHoverBook, selectedBookId, beginDrag, registerPicker }),
+        () => ({
+            drag,
+            hoverRowId,
+            hoverBook,
+            setHoverBook,
+            clearHoverBook,
+            selectedBookId,
+            selectBook: setSelectedBookId,
+            beginDrag,
+            registerPicker,
+        }),
         [drag, hoverRowId, hoverBook, clearHoverBook, selectedBookId, beginDrag, registerPicker],
     );
 

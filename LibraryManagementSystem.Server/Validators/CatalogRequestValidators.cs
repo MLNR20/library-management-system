@@ -7,6 +7,7 @@ using LibraryManagementSystem.Server.Dtos.Sections;
 using LibraryManagementSystem.Server.Dtos.Shelves;
 using LibraryManagementSystem.Server.Dtos.Genres;
 using LibraryManagementSystem.Server.Dtos.Languages;
+using LibraryManagementSystem.Server.Models;
 
 namespace LibraryManagementSystem.Server.Validators
 {
@@ -69,6 +70,7 @@ namespace LibraryManagementSystem.Server.Validators
         {
             RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
             RuleFor(x => x.FloorId).NotEmpty();
+            RuleFor(x => x.Rotation).Must(Shelf.IsValidRotation).WithMessage("Rotation must be 90 or 180 degrees.");
         }
     }
 

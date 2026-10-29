@@ -10,6 +10,8 @@ const AISLE_X = 1.4;
 const AISLE_Z = 2.8;
 const MAX_COLUMNS = 4;
 const FLOOR_MARGIN = 1.5;
+/** Strip along the right wall of every floor, kept clear of shelves for the stairs. */
+export const STAIR_ZONE = 2;
 
 export interface TierLayout {
     row: Row;
@@ -29,6 +31,8 @@ export interface ShelfLayout {
 
 export interface FloorLayout {
     floor: Floor;
+    /** 0 for the bottom floor, 1 for the one above it, and so on. */
+    level: number;
     shelves: ShelfLayout[];
     width: number;
     depth: number;
@@ -47,6 +51,22 @@ interface LayoutInput {
 const byName = (a: { name: string }, b: { name: string }) =>
     a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
 
+const ORDINALS = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth'];
+
+/** Where a floor sits in the building, guessed from its name: basement, ground, first, second, "level 3"... */
+function floorRank(name: string): number {
+    const text = name.toLowerCase();
+    if (/basement|cellar|lower/.test(text)) return -1;
+    if (/ground|lobby|entrance/.test(text)) return 0;
+    const ordinal = ORDINALS.findIndex(word => text.includes(word));
+    if (ordinal >= 0) return ordinal + 1;
+    const digits = /\d+/.exec(text);
+    return digits ? Number(digits[0]) : 100;
+}
+
+/** Bottom floor first. Falls back to name order for floors whose names say nothing about their level. */
+const byLevel = (a: { name: string }, b: { name: string }) => floorRank(a.name) - floorRank(b.name) || byName(a, b);
+
 /** Arranges every floor's shelves in an auto grid and puts each book on the tiers (rows) it is assigned to. */
 export function buildLayout({ floors, shelves, rows, sections, books }: LayoutInput): FloorLayout[] {
     const booksByRow = new Map<string, Book[]>();
@@ -58,7 +78,7 @@ export function buildLayout({ floors, shelves, rows, sections, books }: LayoutIn
         }
     }
 
-    return [...floors].sort(byName).map(floor => {
+    return [...floors].sort(byLevel).map((floor, level) => {
         const floorShelves = shelves.filter(s => s.floorId === floor.id).sort(byName);
         const columns = Math.max(1, Math.min(MAX_COLUMNS, Math.ceil(Math.sqrt(floorShelves.length))));
         const gridRows = Math.max(1, Math.ceil(floorShelves.length / columns));
@@ -73,7 +93,7 @@ export function buildLayout({ floors, shelves, rows, sections, books }: LayoutIn
 
             return {
                 shelf,
-                x: (column - (columns - 1) / 2) * (SHELF_WIDTH + AISLE_X),
+                x: (column - (columns - 1) / 2) * (SHELF_WIDTH + AISLE_X) - STAIR_ZONE / 2,
                 z: (gridRow - (gridRows - 1) / 2) * (SHELF_DEPTH + AISLE_Z),
                 tiers,
                 sections: sections.filter(s => s.shelfId === shelf.id),
@@ -83,8 +103,9 @@ export function buildLayout({ floors, shelves, rows, sections, books }: LayoutIn
 
         return {
             floor,
+            level,
             shelves: shelfLayouts,
-            width: Math.max(9, columns * (SHELF_WIDTH + AISLE_X) + FLOOR_MARGIN),
+            width: Math.max(9, columns * (SHELF_WIDTH + AISLE_X) + FLOOR_MARGIN + STAIR_ZONE),
             depth: Math.max(7, gridRows * (SHELF_DEPTH + AISLE_Z) + FLOOR_MARGIN),
             height: shelfLayouts.reduce((max, s) => Math.max(max, s.height), TIER_HEIGHT * 2),
         };

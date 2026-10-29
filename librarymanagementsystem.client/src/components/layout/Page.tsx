@@ -13,9 +13,9 @@ export function Page({ title, description, actions, children }: PageProps) {
     return (
         <div className="flex flex-1 flex-col gap-6 p-4 sm:p-8">
             <header className="flex flex-wrap items-center justify-between gap-3">
-                <div>
+                <div className="flex flex-col gap-3">
                     <h1 className="text-2xl font-bold">{title}</h1>
-                    {description && <p className="opacity-70">{description}</p>}
+                    {description && <p className="text-[1.02rem] opacity-70">{description}</p>}
                 </div>
                 {actions}
             </header>

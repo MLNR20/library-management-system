@@ -8,6 +8,7 @@ import { FormBuilder } from '../form/FormBuilder.tsx';
 import type { FormField } from '../form/FormBuilder.tsx';
 import { Page } from '../layout/Page.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
+import { EditIcon, TrashIcon } from '../ui/icons.tsx';
 import { Modal } from '../ui/Modal.tsx';
 import { getErrorMessage } from '../../lib/api.ts';
 import type { CrudHooks } from '../../lib/crud.ts';
@@ -67,23 +68,25 @@ export function CrudPage<
             id: 'actions',
             header: () => <span className="sr-only">Actions</span>,
             cell: ({ row }) => (
-                <div className="flex justify-end gap-1">
+                <div className="flex justify-end gap-2">
                     <button
-                        className="btn btn-ghost btn-xs"
+                        className="btn btn-outline btn-sm"
                         onClick={() => {
                             setFormError(undefined);
                             setEditing({ mode: 'edit', item: row.original });
                         }}
                     >
+                        <EditIcon className="h-4 w-4" />
                         Edit
                     </button>
                     <button
-                        className="btn btn-ghost btn-xs text-error"
+                        className="btn btn-outline btn-error btn-sm"
                         onClick={() => {
                             remove.reset();
                             setDeleting(row.original);
                         }}
                     >
+                        <TrashIcon className="h-4 w-4" />
                         Delete
                     </button>
                 </div>

@@ -24,6 +24,8 @@ export interface LibraryDragValue {
     /** Clears the hovered book, unless the pointer has already moved on to another one. */
     clearHoverBook: (bookId: string) => void;
     selectedBookId: string | null;
+    /** Marks a book as the selected one (its route is drawn on the map), or clears the selection. */
+    selectBook: (bookId: string | null) => void;
     beginDrag: (book: Book, fromRowId: string | null, pointer: { clientX: number; clientY: number }) => void;
     registerPicker: (picker: RowPicker | null) => void;
 }
