@@ -5,6 +5,7 @@ using LibraryManagementSystem.Server.Data;
 using LibraryManagementSystem.Server.Filters;
 using LibraryManagementSystem.Server.Repositories;
 using LibraryManagementSystem.Server.Services;
+using LibraryManagementSystem.Server.Services.Exports;
 using LibraryManagementSystem.Server.Settings;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -90,6 +91,10 @@ try
 
     // Domain services: each one runs its CRUD through the unit of work.
     builder.Services.AddScoped<IBookService, BookService>();
+    // Book export: the factory is handed every registered exporter and picks one by format.
+    builder.Services.AddSingleton<IBookExporter, CsvBookExporter>();
+    builder.Services.AddSingleton<IBookExporter, PdfBookExporter>();
+    builder.Services.AddSingleton<IBookExporterFactory, BookExporterFactory>();
     builder.Services.AddScoped<IGenreService, GenreService>();
     builder.Services.AddScoped<IAuthorService, AuthorService>();
     builder.Services.AddScoped<ILanguageService, LanguageService>();

@@ -1,5 +1,6 @@
 using LibraryManagementSystem.Server.Dtos.Books;
 using LibraryManagementSystem.Server.Services;
+using LibraryManagementSystem.Server.Services.Exports;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,11 +10,30 @@ namespace LibraryManagementSystem.Server.Controllers
     [ApiController]
     [Authorize]
     [Route("api/books")]
-    public class BooksController(IBookService books) : ControllerBase
+    public class BooksController(IBookService books, IBookExporterFactory exporterFactory) : ControllerBase
     {
         [HttpGet]
         public async Task<ActionResult<IReadOnlyList<BookDto>>> GetAll(CancellationToken cancellationToken) =>
             Ok(await books.GetAllAsync(cancellationToken));
+
+        // GET api/books/export?format=csv|pdf downloads the whole catalogue in the chosen format.
+        [HttpGet("export")]
+        public async Task<IActionResult> Export([FromQuery] ExportFormat format, CancellationToken cancellationToken)
+        {
+            IBookExporter exporter;
+            try
+            {
+                exporter = exporterFactory.Create(format);
+            }
+            catch (NotSupportedException ex)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest, detail: ex.Message);
+            }
+
+            var catalogue = await books.GetAllAsync(cancellationToken);
+
+            return File(exporter.Export(catalogue), exporter.ContentType, $"books-{DateTime.UtcNow:yyyyMMdd}.{exporter.FileExtension}");
+        }
 
         [HttpGet("{id:guid}")]
         public async Task<ActionResult<BookDto>> GetById(Guid id, CancellationToken cancellationToken)
