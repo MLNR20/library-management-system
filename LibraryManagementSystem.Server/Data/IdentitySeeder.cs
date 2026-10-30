@@ -23,6 +23,22 @@ namespace LibraryManagementSystem.Server.Data
                 logger.LogInformation("Created the {Role} role", AppRoles.Administrator);
             }
 
+            if (!await roleManager.RoleExistsAsync(AppRoles.Librarian))
+            {
+                IdentityException.ThrowIfFailed(await roleManager.CreateAsync(new IdentityRole(AppRoles.Librarian)));
+                logger.LogInformation("Created the {Role} role", AppRoles.Librarian);
+            }
+
+            // The only roles that may borrow books; administrators can still rename or delete them like any custom role.
+            foreach (var borrowerRole in AppRoles.Borrowers)
+            {
+                if (!await roleManager.RoleExistsAsync(borrowerRole))
+                {
+                    IdentityException.ThrowIfFailed(await roleManager.CreateAsync(new IdentityRole(borrowerRole)));
+                    logger.LogInformation("Created the {Role} role", borrowerRole);
+                }
+            }
+
             var userName = configuration["Seed:AdministratorUserName"];
             if (string.IsNullOrWhiteSpace(userName))
             {
