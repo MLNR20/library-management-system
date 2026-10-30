@@ -14,6 +14,9 @@ namespace LibraryManagementSystem.Server.Services
         public const string RoleAssigned = "User.RoleAssigned";
         public const string RoleRemoved = "User.RoleRemoved";
 
+        public const string ClockIn = "Clock.In";
+        public const string ClockOut = "Clock.Out";
+
         // Catalogue changes are recorded by AuditSaveChangesInterceptor as "{Entity}.Created|Updated|Deleted".
     }
 }

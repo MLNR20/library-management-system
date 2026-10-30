@@ -27,6 +27,22 @@ export function RequireAdmin() {
     return <Outlet />;
 }
 
+/** Nested routes for librarians and administrators only (the clock and time cards). The API enforces this too. */
+export function RequireStaff() {
+    const { isStaff } = useAuth();
+
+    if (!isStaff) {
+        return (
+            <Page title="Not allowed">
+                <div role="alert" className="alert alert-warning alert-soft">
+                    You need the Librarian role to see this page. If you were just given it, sign out and back in.
+                </div>
+            </Page>
+        );
+    }
+    return <Outlet />;
+}
+
 /** Login and register pages: a signed-in user has no business here. */
 export function GuestOnly() {
     const { user } = useAuth();

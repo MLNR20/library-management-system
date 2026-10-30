@@ -7,6 +7,7 @@ import { createCrudHooks } from '../lib/crud.ts';
 
 /** The built-in role: it grants access to this section and cannot be renamed or deleted. */
 export const ADMIN_ROLE = 'Administrator';
+export const LIBRARIAN_ROLE = 'Librarian';
 
 export interface Role {
     id: string;

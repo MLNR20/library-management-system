@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { ADMIN_ROLE } from '../api/admin.ts';
+import { ADMIN_ROLE, LIBRARIAN_ROLE } from '../api/admin.ts';
 import { api, setUnauthorizedHandler } from '../lib/api.ts';
 import { clearSession, loadSession, saveSession } from '../lib/authStorage.ts';
 import type { AuthSession } from '../lib/authStorage.ts';
@@ -45,6 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             user: session?.user ?? null,
             roles: session?.roles ?? [],
             isAdmin: session?.roles?.includes(ADMIN_ROLE) ?? false,
+            isStaff: session?.roles?.some(role => role === ADMIN_ROLE || role === LIBRARIAN_ROLE) ?? false,
             login: async (request: LoginRequest) => {
                 // The response has the same shape as the saved session.
                 const { data } = await api.post<AuthSession>('/auth/login', request);

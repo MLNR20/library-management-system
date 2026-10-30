@@ -1,5 +1,5 @@
 import { createBrowserRouter } from 'react-router';
-import { GuestOnly, RequireAdmin, RequireAuth } from './auth/RouteGuards.tsx';
+import { GuestOnly, RequireAdmin, RequireAuth, RequireStaff } from './auth/RouteGuards.tsx';
 import { AppLayout } from './components/layout/AppLayout.tsx';
 import { StudentLayout } from './components/layout/StudentLayout.tsx';
 import { Page } from './components/layout/Page.tsx';
@@ -16,6 +16,7 @@ import { RolesPage } from './pages/RolesPage.tsx';
 import { RowsPage } from './pages/RowsPage.tsx';
 import { SectionsPage } from './pages/SectionsPage.tsx';
 import { ShelvesPage } from './pages/ShelvesPage.tsx';
+import { TimeCardsPage } from './pages/TimeCardsPage.tsx';
 import { StudentBooksPage } from './pages/StudentBooksPage.tsx';
 import { AnnouncementsPage } from './pages/AnnouncementsPage.tsx';
 import { UsersPage } from './pages/UsersPage.tsx';
@@ -47,6 +48,10 @@ export const router = createBrowserRouter([
                     { path: 'genres', element: <GenresPage /> },
                     { path: 'languages', element: <LanguagesPage /> },
                     { path: 'announcements', element: <AnnouncementsPage /> },
+                    {
+                        element: <RequireStaff />,
+                        children: [{ path: 'time-cards', element: <TimeCardsPage /> }],
+                    },
                     {
                         // Loaded on demand so the 3D library only ships to people who open the map.
                         path: 'map',

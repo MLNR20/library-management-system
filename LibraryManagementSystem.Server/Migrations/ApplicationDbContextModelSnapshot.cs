@@ -272,6 +272,33 @@ namespace LibraryManagementSystem.Server.Migrations
                     b.ToTable("Books");
                 });
 
+            modelBuilder.Entity("LibraryManagementSystem.Server.Models.ClockEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("ClockInUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ClockOutUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<Guid>("TimeCardId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TimeCardId");
+
+                    b.ToTable("ClockEntries");
+                });
+
             modelBuilder.Entity("LibraryManagementSystem.Server.Models.Floor", b =>
                 {
                     b.Property<Guid>("Id")
@@ -416,6 +443,34 @@ namespace LibraryManagementSystem.Server.Migrations
                         {
                             t.HasCheckConstraint("CK_Shelves_Rotation", "[Rotation] IN (90, 180)");
                         });
+                });
+
+            modelBuilder.Entity("LibraryManagementSystem.Server.Models.TimeCard", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<int>("TotalHours")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TotalMinutes")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Date")
+                        .IsUnique();
+
+                    b.ToTable("TimeCards");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -617,6 +672,17 @@ namespace LibraryManagementSystem.Server.Migrations
                     b.Navigation("Genre");
                 });
 
+            modelBuilder.Entity("LibraryManagementSystem.Server.Models.ClockEntry", b =>
+                {
+                    b.HasOne("LibraryManagementSystem.Server.Models.TimeCard", "TimeCard")
+                        .WithMany("Entries")
+                        .HasForeignKey("TimeCardId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("TimeCard");
+                });
+
             modelBuilder.Entity("LibraryManagementSystem.Server.Models.Row", b =>
                 {
                     b.HasOne("LibraryManagementSystem.Server.Models.Shelf", "Shelf")
@@ -656,6 +722,17 @@ namespace LibraryManagementSystem.Server.Migrations
                         .IsRequired();
 
                     b.Navigation("Floor");
+                });
+
+            modelBuilder.Entity("LibraryManagementSystem.Server.Models.TimeCard", b =>
+                {
+                    b.HasOne("LibraryManagementSystem.Server.Data.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -722,6 +799,11 @@ namespace LibraryManagementSystem.Server.Migrations
             modelBuilder.Entity("LibraryManagementSystem.Server.Models.Shelf", b =>
                 {
                     b.Navigation("Rows");
+                });
+
+            modelBuilder.Entity("LibraryManagementSystem.Server.Models.TimeCard", b =>
+                {
+                    b.Navigation("Entries");
                 });
 #pragma warning restore 612, 618
         }

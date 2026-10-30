@@ -2,12 +2,14 @@ import { useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router';
 import { useAuth } from '../../auth/useAuth.ts';
+import { ClockWidget } from './ClockWidget.tsx';
 import { useDarkTheme } from './useDarkTheme.ts';
 import {
     AnnouncementIcon,
     AuditIcon,
     AuthorIcon,
     BookIcon,
+    ClockIcon,
     DashboardIcon,
     FloorIcon,
     GenreIcon,
@@ -40,6 +42,7 @@ const navGroups: NavGroup[] = [
         items: [
             { to: '/', label: 'Dashboard', icon: <DashboardIcon className={iconClass} />, end: true },
             { to: '/student', label: 'Student view', icon: <BookIcon className={iconClass} /> },
+            { to: '/time-cards', label: 'Time cards', icon: <ClockIcon className={iconClass} /> },
         ],
     },
     {
@@ -75,8 +78,13 @@ const adminGroup: NavGroup = {
 };
 
 export function AppLayout() {
-    const { user, isAdmin, logout } = useAuth();
-    const visibleGroups = isAdmin ? [...navGroups, adminGroup] : navGroups;
+    const { user, isAdmin, isStaff, logout } = useAuth();
+    const groups = isAdmin ? [...navGroups, adminGroup] : navGroups;
+    // Time cards belong to librarians and administrators only.
+    const visibleGroups = groups.map(group => ({
+        ...group,
+        items: group.items.filter(item => isStaff || item.to !== '/time-cards'),
+    }));
     const navigate = useNavigate();
     const handleLogout = () => {
         logout();
@@ -142,6 +150,7 @@ export function AppLayout() {
                         </button>
                     </div>
                     <div className="flex-1 px-2 font-semibold">Library Management System</div>
+                    {isStaff && <ClockWidget />}
                     <label className="flex flex-none cursor-pointer items-center gap-2 pr-2 text-sm">
                         <span>Dark</span>
                         <input

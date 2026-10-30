@@ -18,6 +18,8 @@ namespace LibraryManagementSystem.Server.Data
         public DbSet<Section> Sections => Set<Section>();
         public DbSet<Announcement> Announcements => Set<Announcement>();
         public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+        public DbSet<TimeCard> TimeCards => Set<TimeCard>();
+        public DbSet<ClockEntry> ClockEntries => Set<ClockEntry>();
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -84,6 +86,16 @@ namespace LibraryManagementSystem.Server.Data
                 log.HasIndex(l => l.TimestampUtc);
                 log.HasIndex(l => l.Action);
             });
+
+            // One card per user per day; deleting a user or a card removes its clock entries.
+            builder.Entity<TimeCard>(card =>
+            {
+                card.HasIndex(c => new { c.UserId, c.Date }).IsUnique();
+                card.HasOne(c => c.User).WithMany().HasForeignKey(c => c.UserId).OnDelete(DeleteBehavior.Cascade);
+                card.HasMany(c => c.Entries).WithOne(e => e.TimeCard).HasForeignKey(e => e.TimeCardId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            builder.Entity<ClockEntry>().Property(e => e.Status).HasConversion<string>().HasMaxLength(20);
 
             builder.Entity<Genre>().HasIndex(g => g.Name).IsUnique();
             builder.Entity<Language>().HasIndex(l => l.Name).IsUnique();
