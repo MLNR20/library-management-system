@@ -29,6 +29,10 @@ namespace LibraryManagementSystem.Server.Validators
         {
             RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
             RuleFor(x => x.Description).MaximumLength(500);
+            RuleFor(x => x.DeweyNumber)
+                .Matches(Genre.DeweyPattern)
+                .WithMessage("Dewey number must be a single number such as 510 or 516.3, not a range.")
+                .When(x => !string.IsNullOrEmpty(x.DeweyNumber));
         }
     }
 

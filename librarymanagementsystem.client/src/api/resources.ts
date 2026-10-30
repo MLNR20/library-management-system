@@ -14,10 +14,13 @@ export interface Genre {
     id: string;
     name: string;
     description: string | null;
+    /** A single Dewey Decimal number such as "510" or "516.3"; null when not set. */
+    deweyNumber: string | null;
 }
 export interface GenreRequest {
     name: string;
     description: string | null;
+    deweyNumber: string | null;
 }
 
 export interface Language {
