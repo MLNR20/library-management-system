@@ -20,6 +20,7 @@ namespace LibraryManagementSystem.Server.Data
         public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
         public DbSet<TimeCard> TimeCards => Set<TimeCard>();
         public DbSet<ClockEntry> ClockEntries => Set<ClockEntry>();
+        public DbSet<Borrowing> Borrowings => Set<Borrowing>();
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -96,6 +97,18 @@ namespace LibraryManagementSystem.Server.Data
             });
 
             builder.Entity<ClockEntry>().Property(e => e.Status).HasConversion<string>().HasMaxLength(20);
+
+            // Loans are history: a book or user with loans cannot be deleted. The filtered unique index allows only one
+            // open loan per book even if two borrow requests race.
+            builder.Entity<Borrowing>(borrowing =>
+            {
+                borrowing.Property(b => b.PenaltyAmount).HasPrecision(18, 2);
+                borrowing.HasIndex(b => b.BookId).IsUnique().HasFilter("[ReturnedAtUtc] IS NULL").HasDatabaseName("IX_Borrowings_BookId_Open");
+                borrowing.HasIndex(b => new { b.UserId, b.ReturnedAtUtc });
+                borrowing.HasIndex(b => b.DueAtUtc);
+                borrowing.HasOne(b => b.Book).WithMany().HasForeignKey(b => b.BookId).OnDelete(DeleteBehavior.Restrict);
+                borrowing.HasOne(b => b.User).WithMany().HasForeignKey(b => b.UserId).OnDelete(DeleteBehavior.Restrict);
+            });
 
             builder.Entity<Genre>().HasIndex(g => g.Name).IsUnique();
             builder.Entity<Language>().HasIndex(l => l.Name).IsUnique();

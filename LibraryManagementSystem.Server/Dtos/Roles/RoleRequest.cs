@@ -5,6 +5,8 @@ namespace LibraryManagementSystem.Server.Dtos.Roles
     // Assigns one role to a user; the user comes from the route.
     public record AssignRoleRequest(string RoleName);
 
+    public record SetUserActiveRequest(bool IsActive);
+
     // Replaces every role the user has with exactly these roles.
     public record SetUserRolesRequest(IReadOnlyList<string> RoleNames);
 }

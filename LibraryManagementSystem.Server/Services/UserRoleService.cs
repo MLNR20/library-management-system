@@ -130,6 +130,23 @@ namespace LibraryManagementSystem.Server.Services
             return await BuildAsync(user);
         }
 
+        public async Task<UserRolesDto?> SetActiveAsync(string userId, bool isActive, CancellationToken cancellationToken = default)
+        {
+            var user = await userManager.FindByIdAsync(userId);
+            if (user is null)
+            {
+                return null;
+            }
+
+            if (user.IsActive != isActive)
+            {
+                user.IsActive = isActive;
+                IdentityException.ThrowIfFailed(await userManager.UpdateAsync(user));
+            }
+
+            return await BuildAsync(user);
+        }
+
         // Called only when a user who currently holds the role is about to lose it.
         private async Task EnsureAnotherAdministratorExistsAsync()
         {

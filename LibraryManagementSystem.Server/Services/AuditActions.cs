@@ -17,6 +17,12 @@ namespace LibraryManagementSystem.Server.Services
         public const string ClockIn = "Clock.In";
         public const string ClockOut = "Clock.Out";
 
+        public const string BookBorrowed = "Borrowing.Borrowed";
+        public const string BookReturned = "Borrowing.Returned";
+
+        public const string UserActivated = "User.Activated";
+        public const string UserDeactivated = "User.Deactivated";
+
         // Catalogue changes are recorded by AuditSaveChangesInterceptor as "{Entity}.Created|Updated|Deleted".
     }
 }

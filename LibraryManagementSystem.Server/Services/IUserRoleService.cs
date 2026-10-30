@@ -23,6 +23,9 @@ namespace LibraryManagementSystem.Server.Services
         // remove the Administrator role from the last administrator.
         Task<UserRolesDto?> SetRolesAsync(string userId, SetUserRolesRequest request, CancellationToken cancellationToken = default);
 
+        // Returns null when the user does not exist. Inactive users cannot borrow books; their history is kept.
+        Task<UserRolesDto?> SetActiveAsync(string userId, bool isActive, CancellationToken cancellationToken = default);
+
         // Returns null when the user does not exist. Removing a role the user does not hold is a no-op.
         // Throws InvalidOperationException when it would remove the Administrator role from the last administrator.
         Task<UserRolesDto?> RemoveAsync(string userId, string roleName, CancellationToken cancellationToken = default);

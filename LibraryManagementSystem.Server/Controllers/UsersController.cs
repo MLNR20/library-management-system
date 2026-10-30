@@ -99,6 +99,24 @@ namespace LibraryManagementSystem.Server.Controllers
             }
         }
 
+        // Activates or deactivates the account; only active users can borrow books.
+        [HttpPut("{id}/active")]
+        public async Task<ActionResult<UserRolesDto>> SetActive(string id, SetUserActiveRequest request, CancellationToken cancellationToken)
+        {
+            var user = await userRoles.SetActiveAsync(id, request.IsActive, cancellationToken);
+            if (user is null)
+            {
+                return NotFound();
+            }
+
+            await audit.WriteAsync(
+                request.IsActive ? AuditActions.UserActivated : AuditActions.UserDeactivated,
+                target: user.User.UserName,
+                cancellationToken: cancellationToken);
+
+            return Ok(user);
+        }
+
         // One audit row per role that was actually granted or revoked.
         private async Task AuditChangesAsync(UserRolesDto before, UserRolesDto after, CancellationToken cancellationToken)
         {

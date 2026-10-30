@@ -3,6 +3,7 @@ using System.Threading.RateLimiting;
 using FluentValidation;
 using LibraryManagementSystem.Server.Data;
 using LibraryManagementSystem.Server.Filters;
+using LibraryManagementSystem.Server.Hubs;
 using LibraryManagementSystem.Server.Repositories;
 using LibraryManagementSystem.Server.Services;
 using LibraryManagementSystem.Server.Services.Exports;
@@ -81,6 +82,21 @@ try
                 ValidateLifetime = true,
                 ClockSkew = TimeSpan.FromMinutes(1)
             };
+
+            // Browsers cannot set an Authorization header on a WebSocket, so SignalR sends the token as ?access_token=.
+            options.Events = new JwtBearerEvents
+            {
+                OnMessageReceived = context =>
+                {
+                    var token = context.Request.Query["access_token"];
+                    if (!string.IsNullOrEmpty(token) && context.HttpContext.Request.Path.StartsWithSegments(BorrowingHub.Path))
+                    {
+                        context.Token = token;
+                    }
+
+                    return Task.CompletedTask;
+                }
+            };
         });
 
     builder.Services.AddSingleton<ITokenService, TokenService>();
@@ -107,6 +123,16 @@ try
     builder.Services.AddScoped<IUserRoleService, UserRoleService>();
     builder.Services.AddScoped<IAuditService, AuditService>();
     builder.Services.AddScoped<IClockService, ClockService>();
+
+    // Borrowing: loans, plus a SignalR hub and a background monitor that push overdue penalties in real time.
+    builder.Services.AddOptions<BorrowingSettings>()
+        .BindConfiguration(BorrowingSettings.SectionName)
+        .ValidateDataAnnotations()
+        .ValidateOnStart();
+    builder.Services.AddSignalR();
+    builder.Services.AddScoped<IBorrowingService, BorrowingService>();
+    builder.Services.AddSingleton<IBorrowingNotifier, SignalRBorrowingNotifier>();
+    builder.Services.AddHostedService<OverdueBorrowingMonitor>();
 
     builder.Services.AddAuthorization();
 
@@ -164,6 +190,7 @@ try
     app.UseAuthorization();
 
     app.MapControllers();
+    app.MapHub<BorrowingHub>(BorrowingHub.Path);
 
     app.MapFallbackToFile("/index.html");
 
