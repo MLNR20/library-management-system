@@ -21,6 +21,7 @@ namespace LibraryManagementSystem.Server.Data
         public DbSet<TimeCard> TimeCards => Set<TimeCard>();
         public DbSet<ClockEntry> ClockEntries => Set<ClockEntry>();
         public DbSet<Borrowing> Borrowings => Set<Borrowing>();
+        public DbSet<Contact> Contacts => Set<Contact>();
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -108,6 +109,13 @@ namespace LibraryManagementSystem.Server.Data
                 borrowing.HasIndex(b => b.DueAtUtc);
                 borrowing.HasOne(b => b.Book).WithMany().HasForeignKey(b => b.BookId).OnDelete(DeleteBehavior.Restrict);
                 borrowing.HasOne(b => b.User).WithMany().HasForeignKey(b => b.UserId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // Two contacts cannot share an email address; listings sort by name.
+            builder.Entity<Contact>(contact =>
+            {
+                contact.HasIndex(c => c.Email).IsUnique();
+                contact.HasIndex(c => new { c.LastName, c.FirstName });
             });
 
             builder.Entity<Genre>().HasIndex(g => g.Name).IsUnique();
