@@ -8,7 +8,7 @@ import { LibraryDragProvider } from '../components/library-map/LibraryDragProvid
 import { sceneMetrics } from '../components/library-map/floorPlan.ts';
 import { LibraryCanvas } from '../components/library-map/LibraryScene.tsx';
 import { sectionColor, statusColors } from '../components/library-map/palette.ts';
-import { buildRoute } from '../components/library-map/route.ts';
+import { buildRoute, routeRowFor } from '../components/library-map/route.ts';
 import { useLibraryDrag } from '../components/library-map/useLibraryDrag.ts';
 import { Page } from '../components/layout/Page.tsx';
 import { getErrorMessage } from '../lib/api.ts';
@@ -173,13 +173,7 @@ function MapBody({ readOnly, books, layouts, rowLabels, saving, notice, onDismis
         );
     }, [books, search, selectedBookId]);
 
-    // A book can sit in several rows; walk to the one on the lowest floor, which is the nearest to the door.
-    const routeRowId = useMemo(() => {
-        const levelOf = (rowId: string) =>
-            layouts.find(l => l.shelves.some(s => s.tiers.some(t => t.row.id === rowId)))?.level ?? Infinity;
-        const rows = [...(routeBook?.rows ?? [])].sort((a, b) => levelOf(a.id) - levelOf(b.id));
-        return rows[0] && levelOf(rows[0].id) !== Infinity ? rows[0].id : null;
-    }, [routeBook, layouts]);
+    const routeRowId = useMemo(() => routeRowFor((routeBook?.rows ?? []).map(r => r.id), layouts), [routeBook, layouts]);
 
     // Bring the floor with the book into view: its own tab if it is on the ground floor, otherwise the
     // stacked view so the stairs can be seen.

@@ -24,9 +24,13 @@ interface LibraryCanvasProps {
     stacked: boolean;
     /** The walk to a book, drawn on top of the floors it crosses. */
     route: Route | null;
+    /** Slowly circle the library on its own until the user takes over. */
+    autoRotate?: boolean;
+    /** Change this number to put the camera back to its starting view. */
+    resetKey?: number;
 }
 
-export function LibraryCanvas({ floors, stacked, route }: LibraryCanvasProps) {
+export function LibraryCanvas({ floors, stacked, route, autoRotate = false, resetKey = 0 }: LibraryCanvasProps) {
     // Canvas renders in its own React root, so the drag context has to be carried across.
     const ContextBridge = useContextBridge(LibraryDragContext);
     // Every floor shares one footprint so walls and stairs line up from floor to floor.
@@ -60,8 +64,8 @@ export function LibraryCanvas({ floors, stacked, route }: LibraryCanvasProps) {
                         {route && <RoutePath route={route} index={index} />}
                     </group>
                 ))}
-                <Controls />
-                <CameraRig focus={focus} focusKey={`${stacked}-${floors.map(f => f.floor.id).join(',')}`} />
+                <Controls autoRotate={autoRotate} />
+                <CameraRig focus={focus} focusKey={`${stacked}-${resetKey}-${floors.map(f => f.floor.id).join(',')}`} />
                 <RowPickerBridge />
                 <CursorManager />
             </ContextBridge>
@@ -70,12 +74,14 @@ export function LibraryCanvas({ floors, stacked, route }: LibraryCanvasProps) {
 }
 
 // The orbit controls must not rotate the view while a book is being dragged.
-function Controls() {
+function Controls({ autoRotate }: { autoRotate: boolean }) {
     const { drag } = useLibraryDrag();
     return (
         <OrbitControls
             makeDefault
             enabled={!drag}
+            autoRotate={autoRotate}
+            autoRotateSpeed={1.5}
             maxPolarAngle={Math.PI * 0.49}
             minDistance={3}
             maxDistance={70}

@@ -66,6 +66,14 @@ function length(points: Point3[]): number {
     return total;
 }
 
+/** A book can sit in several rows; walk to the one on the lowest floor, the nearest to the door. */
+export function routeRowFor(rowIds: string[], layouts: FloorLayout[]): string | null {
+    const levelOf = (rowId: string) =>
+        layouts.find(layout => layout.shelves.some(shelf => shelf.tiers.some(tier => tier.row.id === rowId)))?.level ?? Infinity;
+    const nearest = [...rowIds].sort((a, b) => levelOf(a) - levelOf(b))[0];
+    return nearest !== undefined && levelOf(nearest) !== Infinity ? nearest : null;
+}
+
 /**
  * Plans the walk from the main door to a row: across the floor to the stairs and up them when the row is on a
  * higher floor, then to the front of its shelf. `floors` are the floors being drawn (bottom first), sharing one

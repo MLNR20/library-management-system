@@ -1,5 +1,4 @@
-import { useMemo, useState } from 'react';
-import { Link } from 'react-router';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import { Page } from '../components/layout/Page.tsx';
 import { RichText } from '../components/ui/RichText.tsx';
 import { announcementHooks, BookStatus, bookHooks, genreHooks, rowLabel } from '../api/resources.ts';
@@ -24,6 +23,13 @@ const statusBadge: Record<BookStatus, string> = {
     [BookStatus.Damaged]: 'badge-neutral',
 };
 
+// The 3D scene is heavy, so it loads only when this page is opened.
+const StudentLibraryView = lazy(() =>
+    import('../components/library-map/StudentLibraryView.tsx').then(module => ({
+        default: module.StudentLibraryView,
+    })),
+);
+
 export function StudentBooksPage() {
     const books = bookHooks.useList();
     const genres = genreHooks.useList().data;
@@ -32,6 +38,14 @@ export function StudentBooksPage() {
     const [search, setSearch] = useState('');
     const [genreId, setGenreId] = useState('');
     const [availableOnly, setAvailableOnly] = useState(true);
+    const [selectedId, setSelectedId] = useState<string | null>(null);
+    const selectedBook = (books.data ?? []).find(book => book.id === selectedId) ?? null;
+
+    const showTheWay = (book: Book) => {
+        setSelectedId(book.id);
+        // On a phone the 3D view sits above the list; bring it into sight.
+        document.getElementById('student-3d')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    };
 
     const visible = useMemo(
         () =>
@@ -70,70 +84,97 @@ export function StudentBooksPage() {
                 </section>
             )}
 
-            <div className="flex flex-wrap items-center gap-3">
-                <input
-                    type="search"
-                    className="input w-full sm:w-80"
-                    placeholder="Search by title, author or ISBN..."
-                    value={search}
-                    onChange={event => setSearch(event.target.value)}
-                    aria-label="Search books"
-                />
-                <select
-                    className="select w-full sm:w-52"
-                    value={genreId}
-                    onChange={event => setGenreId(event.target.value)}
-                    aria-label="Genre"
-                >
-                    <option value="">All genres</option>
-                    {(genres ?? []).map(genre => (
-                        <option key={genre.id} value={genre.id}>
-                            {genre.name}
-                        </option>
-                    ))}
-                </select>
-                <label className="flex cursor-pointer items-center gap-2 text-sm">
-                    <input
-                        type="checkbox"
-                        className="toggle toggle-sm toggle-success"
-                        checked={availableOnly}
-                        onChange={event => setAvailableOnly(event.target.checked)}
-                    />
-                    Only books I can borrow now
-                </label>
-            </div>
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_30rem]">
+                <div className="flex min-w-0 flex-col gap-4">
+                    <div className="flex flex-wrap items-center gap-3">
+                        <input
+                            type="search"
+                            className="input w-full sm:w-80"
+                            placeholder="Search by title, author or ISBN..."
+                            value={search}
+                            onChange={event => setSearch(event.target.value)}
+                            aria-label="Search books"
+                        />
+                        <select
+                            className="select w-full sm:w-52"
+                            value={genreId}
+                            onChange={event => setGenreId(event.target.value)}
+                            aria-label="Genre"
+                        >
+                            <option value="">All genres</option>
+                            {(genres ?? []).map(genre => (
+                                <option key={genre.id} value={genre.id}>
+                                    {genre.name}
+                                </option>
+                            ))}
+                        </select>
+                        <label className="flex cursor-pointer items-center gap-2 text-sm">
+                            <input
+                                type="checkbox"
+                                className="toggle toggle-sm toggle-success"
+                                checked={availableOnly}
+                                onChange={event => setAvailableOnly(event.target.checked)}
+                            />
+                            Only books I can borrow now
+                        </label>
+                    </div>
 
-            {books.isError ? (
-                <div role="alert" className="alert alert-error alert-soft">
-                    Could not load the books: {getErrorMessage(books.error)}
+                    {books.isError ? (
+                        <div role="alert" className="alert alert-error alert-soft">
+                            Could not load the books: {getErrorMessage(books.error)}
+                        </div>
+                    ) : books.isLoading ? (
+                        <div className="flex justify-center p-10">
+                            <span className="loading loading-spinner loading-lg" />
+                        </div>
+                    ) : visible.length === 0 ? (
+                        <p className="p-6 text-center opacity-70">
+                            No books match.
+                            {availableOnly ? ' Turn off "Only books I can borrow now" to see every title.' : ''}
+                        </p>
+                    ) : (
+                        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            {visible.map(book => (
+                                <li key={book.id}>
+                                    <BookCard
+                                        book={book}
+                                        selected={book.id === selectedId}
+                                        onShowTheWay={() => showTheWay(book)}
+                                    />
+                                </li>
+                            ))}
+                        </ul>
+                    )}
                 </div>
-            ) : books.isLoading ? (
-                <div className="flex justify-center p-10">
-                    <span className="loading loading-spinner loading-lg" />
+
+                <div className="order-first lg:order-none lg:sticky lg:top-20 lg:self-start">
+                    <Suspense
+                        fallback={
+                            <div className="flex h-80 items-center justify-center">
+                                <span className="loading loading-spinner loading-lg" />
+                            </div>
+                        }
+                    >
+                        <StudentLibraryView
+                            books={books.data ?? []}
+                            selectedBook={selectedBook}
+                            onClearSelection={() => setSelectedId(null)}
+                        />
+                    </Suspense>
                 </div>
-            ) : visible.length === 0 ? (
-                <p className="p-6 text-center opacity-70">
-                    No books match.{availableOnly ? ' Turn off "Only books I can borrow now" to see every title.' : ''}
-                </p>
-            ) : (
-                <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                    {visible.map(book => (
-                        <li key={book.id}>
-                            <BookCard book={book} />
-                        </li>
-                    ))}
-                </ul>
-            )}
+            </div>
         </Page>
     );
 }
 
-function BookCard({ book }: { book: Book }) {
+function BookCard({ book, selected, onShowTheWay }: { book: Book; selected: boolean; onShowTheWay: () => void }) {
     const authors = book.authors.map(author => author.name).join(', ');
     const shelved = book.rows.length > 0;
 
     return (
-        <article className="card card-border h-full bg-base-100 shadow-sm">
+        <article
+            className={`card card-border h-full bg-base-100 shadow-sm ${selected ? 'border-primary ring-2 ring-primary/40' : ''}`}
+        >
             <div className="card-body gap-2">
                 <div className="flex items-start justify-between gap-2">
                     <h2 className="card-title text-base">{book.title}</h2>
@@ -162,12 +203,9 @@ function BookCard({ book }: { book: Book }) {
 
                 {book.status === BookStatus.Available && shelved && (
                     <div className="card-actions mt-2 justify-end">
-                        <Link
-                            className="btn btn-primary btn-sm"
-                            to={`/student/map?find=${encodeURIComponent(book.title)}`}
-                        >
-                            Show me the way
-                        </Link>
+                        <button type="button" className="btn btn-primary btn-sm" onClick={onShowTheWay}>
+                            {selected ? 'Showing the way' : 'Show me the way'}
+                        </button>
                     </div>
                 )}
             </div>
