@@ -2,11 +2,12 @@ import { Navigate, Outlet, useLocation } from 'react-router';
 import { Page } from '../components/layout/Page.tsx';
 import { useAuth } from './useAuth.ts';
 
-/** Renders the nested routes only for a signed-in user; everyone else is sent to the login page. */
+/** Renders the nested routes only for a signed-in user; visitors to the site root see the landing page, everyone else the login page. */
 export function RequireAuth() {
     const { user } = useAuth();
     const location = useLocation();
 
+    if (!user && location.pathname === '/') return <Navigate to="/welcome" replace />;
     if (!user) return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;
     return <Outlet />;
 }

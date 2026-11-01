@@ -9,6 +9,7 @@ import { BooksPage } from './pages/BooksPage.tsx';
 import { DashboardPage } from './pages/DashboardPage.tsx';
 import { FloorsPage } from './pages/FloorsPage.tsx';
 import { GenresPage } from './pages/GenresPage.tsx';
+import { LandingPage } from './pages/LandingPage.tsx';
 import { LanguagesPage } from './pages/LanguagesPage.tsx';
 import { LoginPage } from './pages/LoginPage.tsx';
 import { RegisterPage } from './pages/RegisterPage.tsx';
@@ -22,6 +23,8 @@ import { AnnouncementsPage } from './pages/AnnouncementsPage.tsx';
 import { UsersPage } from './pages/UsersPage.tsx';
 
 export const router = createBrowserRouter([
+    // Public front door, open to guests and signed-in users alike.
+    { path: '/welcome', element: <LandingPage /> },
     {
         // Everything inside needs a signed-in user.
         element: <RequireAuth />,
