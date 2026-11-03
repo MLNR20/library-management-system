@@ -19,9 +19,9 @@ export type Point2 = [number, number];
 
 const CELL = 0.2;
 
-/** Rasterises the floor: every cell that touches an obstacle (grown by `margin`) is blocked. `centerX` shifts a floor that reaches further to one side. */
-export function buildGrid(width: number, depth: number, obstacles: Box[], margin: number, wallGap: number, centerX = 0): Grid {
-    const minX = centerX - width / 2 + wallGap;
+/** Rasterises the floor: every cell that touches an obstacle (grown by `margin`) is blocked. */
+export function buildGrid(width: number, depth: number, obstacles: Box[], margin: number, wallGap: number): Grid {
+    const minX = -width / 2 + wallGap;
     const minZ = -depth / 2 + wallGap;
     const cols = Math.max(1, Math.floor((width - wallGap * 2) / CELL));
     const rows = Math.max(1, Math.floor((depth - wallGap * 2) / CELL));

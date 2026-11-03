@@ -1,4 +1,4 @@
-import { PLANK, SHELF_DEPTH, SHELF_WIDTH, TIER_HEIGHT, floorReach, shelfWorld } from '../../lib/libraryLayout.ts';
+import { PLANK, SHELF_DEPTH, SHELF_WIDTH, TIER_HEIGHT } from '../../lib/libraryLayout.ts';
 import type { FloorLayout, ShelfLayout } from '../../lib/libraryLayout.ts';
 import { buildGrid, findPath } from '../../lib/pathfinding.ts';
 import type { Box, Point2 } from '../../lib/pathfinding.ts';
@@ -89,21 +89,12 @@ export function buildRoute(floors: FloorLayout[], rowId: string, width: number, 
 
     for (let index = 0; index <= targetIndex; index++) {
         const floor = floors[index];
-        // The wings widen the floor to the east.
-        const reach = floorReach(floor, width);
         const grid = buildGrid(
-            width + reach,
+            width,
             depth,
-            [
-                ...floor.shelves.map(shelf => {
-                    const at = shelfWorld(shelf, width);
-                    return shelfBox(shelf, at.x, at.z);
-                }),
-                ...furnitureRects(width, floor.level === 0, floor.wings, storey),
-            ],
+            [...floor.shelves.map(shelf => shelfBox(shelf, shelf.x, shelf.z)), ...furnitureRects(width, floor.level === 0, floor.wings, storey)],
             CLEARANCE,
             0.25,
-            reach / 2,
         );
 
         let from: Point2;
@@ -136,13 +127,12 @@ export function buildRoute(floors: FloorLayout[], rowId: string, width: number, 
             const shelf = floor.shelves.find(s => s.tiers.some(tier => tier.row.id === rowId))!;
             const tierIndex = shelf.tiers.findIndex(tier => tier.row.id === rowId);
             const [fx, fz] = facing(shelf);
-            const at = shelfWorld(shelf, width);
-            const stand: Point2 = [at.x + fx * STAND_DISTANCE, at.z + fz * STAND_DISTANCE];
+            const stand: Point2 = [shelf.x + fx * STAND_DISTANCE, shelf.z + fz * STAND_DISTANCE];
             const walk = findPath(grid, from, stand) ?? [from, stand];
             const book: Point3 = [
-                at.x + fx * (SHELF_DEPTH / 2 + 0.05),
+                shelf.x + fx * (SHELF_DEPTH / 2 + 0.05),
                 tierIndex * TIER_HEIGHT + TIER_HEIGHT / 2 + PLANK / 2,
-                at.z + fz * (SHELF_DEPTH / 2 + 0.05),
+                shelf.z + fz * (SHELF_DEPTH / 2 + 0.05),
             ];
             points.push(...lift(index > 0 ? [from, ...walk] : walk), book);
             destination = { index, position: book };

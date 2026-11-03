@@ -1,12 +1,12 @@
 import { SectionModel } from '../../api/resources.ts';
-import { LOBBY_WIDTH, MIN_HALL, wingCenter } from '../../lib/libraryLayout.ts';
+import { LOBBY_WIDTH, MIN_HALL, QUARTERS, quarterRect } from '../../lib/libraryLayout.ts';
 import type { FloorLayout, WingLayout } from '../../lib/libraryLayout.ts';
 
 // Where things stand on a floor. Shared by the 3D models and by the route finder, so a route never cuts through furniture.
 //
 // The hall is a square, `hall` across: x runs from the west wall (the main door) to the east edge, z from the north (back)
 // wall to the south (front) wall. A cross of carpet runs through the middle, ending at a door on the west, north and south
-// walls and at the foot of the stairs on the east arm. Wings stand beside the hall's east edge.
+// walls and at the foot of the stairs on the east arm. The carpet cross divides the hall into its wings (four quarters, or two halves).
 
 export const SLAB_THICKNESS = 0.2;
 /** Flat part of the stairwell at the top of a flight: the next floor's slab is only laid here. */
@@ -17,7 +17,7 @@ const MAX_RISE = 0.35;
 /** Headroom the opening in the floor above must give over the steps. */
 const STAIR_HEADROOM = 2.4;
 
-/** The stairs are one wide flight along the east arm of the carpet cross, every floor the same, climbing east towards the wings. */
+/** The stairs are one wide flight along the east arm of the carpet cross, every floor the same, climbing east to the east wall. */
 export const STAIR_WIDTH = 1.8;
 /** Depth of one step; the flight is as long as it takes to climb a storey at that slope, so taller floors get longer stairs. */
 const STEP_RUN = 0.27;
@@ -45,11 +45,10 @@ export const WINDOW_HEIGHT = 1.7;
 /** The windows start well above the panelling, leaving a band of plain wall under each. */
 export const WINDOW_SILL = 2.2;
 
-/** X positions of the windows along the back wall: each side of the north door, then along the wings. */
-export function backWindowXs(hall: number, reach: number): number[] {
+/** X positions of the windows along the back wall: spaced evenly each side of the north door. */
+export function backWindowXs(hall: number): number[] {
     const xs: number[] = [];
     for (let x = 3.2; x <= hall / 2 - 1.5; x += 3.4) xs.push(-x, x);
-    for (let x = hall / 2 + 2; x <= hall / 2 + reach - 1.5; x += 3.4) xs.push(x);
     return xs.sort((a, b) => a - b);
 }
 
@@ -91,9 +90,17 @@ export function tableXs(hall: number): number[] {
 
 export const tableZ = (hall: number) => hall / 2 - 1.1;
 
-/** Where the tables of a reading room stand, measured from the middle of its wing. */
-export const READING_TABLE_XS = [-2.6, 2.6];
-export const READING_TABLE_Z = 2.2;
+/**
+ * Where the tables of a reading-room wing stand: two in each of its quarters, at the outer end of the quarter (towards the
+ * north or south wall), clear of the shelves that are counted out from the cross. `z` is shared by the pair.
+ */
+export function readingTables(hall: number, wing: WingLayout): { z: number; xs: number[] }[] {
+    return wing.quarters.map(quarter => {
+        const rect = quarterRect(hall, quarter);
+        const outward = QUARTERS[quarter].sz;
+        return { z: rect.z + outward * (rect.hz - 1.4), xs: [rect.x - rect.hx / 2, rect.x + rect.hx / 2] };
+    });
+}
 
 export const DESK_LENGTH = 2;
 export const DESK_DEPTH = 0.75;
@@ -125,9 +132,8 @@ export function furnitureRects(hall: number, hasDesk: boolean, wings: WingLayout
 
     for (const wing of wings) {
         if (wing.model !== SectionModel.ReadingRoom) continue;
-        const centre = wingCenter(hall, wing.index);
-        for (const x of READING_TABLE_XS) {
-            rects.push({ x: centre.x + x, z: centre.z + READING_TABLE_Z, hx: TABLE_LENGTH / 2, hz: CHAIR_OFFSET + 0.25 });
+        for (const { z, xs } of readingTables(hall, wing)) {
+            for (const x of xs) rects.push({ x, z, hx: TABLE_LENGTH / 2, hz: CHAIR_OFFSET + 0.25 });
         }
     }
 
@@ -148,17 +154,11 @@ export function furnitureRects(hall: number, hasDesk: boolean, wings: WingLayout
     return rects;
 }
 
-/** Size of the space the visible floors share: one square footprint for all (the hall), and the height of one storey. */
+/** Size of the space the visible floors share: one square footprint for all (the hall, wings included), and the height of one storey. */
 export function sceneMetrics(floors: FloorLayout[]) {
     // Tall enough for the tallest shelf plus plenty of headroom for the shelves to climb; it is also the rise of the stairs.
     const storey = Math.max(6, ...floors.map(f => f.height)) + 4;
-    // Big enough for every floor's shelves and wings, and for the lobby by the door plus the whole flight of stairs.
+    // Big enough for every floor's shelves, and for the lobby by the door plus the whole flight of stairs.
     const side = Math.max(MIN_HALL, LOBBY_WIDTH + 1 + stairLength(storey), ...floors.map(f => f.width));
-    return {
-        width: side,
-        depth: side,
-        storey,
-        // How far the wings reach past the east edge of the hall: every floor is widened by it.
-        reach: Math.max(0, ...floors.map(f => f.wingColumns)) * (side / 2),
-    };
+    return { width: side, depth: side, storey };
 }

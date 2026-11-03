@@ -279,21 +279,19 @@ export function Planter({ position, seed, seeThrough }: PlanterProps) {
 
 interface WallDecorProps extends SeeThrough {
     hall: number;
-    /** How far the wings reach past the east edge of the hall. */
-    reach: number;
 }
 
 /** Paintings with a lamp either side of each, on every wall, plus plants in the corners and beside the doors. */
-export function WallDecor({ hall, reach, seeThrough }: WallDecorProps) {
+export function WallDecor({ hall, seeThrough }: WallDecorProps) {
     // Level with the middle of the windows.
     const y = WINDOW_SILL + WINDOW_HEIGHT / 2;
     const lampY = y + 0.1;
     const lampGap = 0.76;
-    const east = hall / 2 + reach;
+    const east = hall / 2;
     const aroundDoor = DOOR_HALF + 0.9;
 
     // Back wall: between windows that stand close together (the north door's gap is left alone), and above the lobby.
-    const windowXs = backWindowXs(hall, reach);
+    const windowXs = backWindowXs(hall);
     const backXs = [
         -hall / 2 + 1.8,
         ...windowXs
@@ -302,8 +300,8 @@ export function WallDecor({ hall, reach, seeThrough }: WallDecorProps) {
             .filter(([a, b]) => b - a < 4)
             .map(([a, b]) => (a + b) / 2),
     ];
-    // The east wall is the building's outer wall, beyond the wings. The west wall has the main door in the middle.
-    const eastZs = [-(hall * 3) / 8, 0, (hall * 3) / 8];
+    // The stairs end against the middle of the east wall, so its pictures hang either side of them. The west wall has the main door in the middle.
+    const eastZs = [-(hall * 3) / 8, (hall * 3) / 8];
     const westZs = [-hall / 4, hall / 4];
 
     return (
@@ -336,6 +334,7 @@ export function WallDecor({ hall, reach, seeThrough }: WallDecorProps) {
             <Planter position={[-hall / 2 + 0.6, 0, -hall / 2 + 0.6]} seed="corner-nw" seeThrough={seeThrough} />
             <Planter position={[east - 0.6, 0, -hall / 2 + 0.6]} seed="corner-ne" seeThrough={seeThrough} />
             <Planter position={[east - 0.6, 0, hall / 2 - 0.6]} seed="corner-se" seeThrough={seeThrough} />
+            <Planter position={[-hall / 2 + 0.6, 0, hall / 2 - 0.6]} seed="corner-sw" seeThrough={seeThrough} />
             {[-1, 1].map(side => (
                 <group key={side}>
                     <Planter position={[-hall / 2 + 0.55, 0, side * aroundDoor]} seed={`west-door${side}`} seeThrough={seeThrough} />

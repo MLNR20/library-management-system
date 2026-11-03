@@ -15,26 +15,29 @@ export const CROSS_GAP = 2.4;
 /** Strip along the left (west) wall by the main door, kept clear of shelves. */
 export const LOBBY_WIDTH = 2;
 /** Strips along the back wall (north door, librarian's desk) and the front edge (tables, columns) kept clear of shelves. */
-const BACK_STRIP = 3.4;
-const FRONT_STRIP = 2.8;
-/** The hall is a square at least this big, so that each wing (half the hall's side) is a cube at least 11 across. */
+export const BACK_STRIP = 3.4;
+export const FRONT_STRIP = 2.8;
+/** Extra depth a quarter needs when its wing is a reading room, for the tables and chairs at its outer end. */
+const READING_ROOM_DEPTH = 2.8;
+/** The hall is a square at least this big, so that each quarter of it (a wing) is a cube at least 11 across. */
 export const MIN_HALL = 22;
-/** Where a reading room's shelves stand, measured from the middle of its room towards the back wall. */
-const READING_ROOM_SHELF_Z = -3;
-const WING_MARGIN = 1.5;
 const DEFAULT_WINGS = 4;
+/** The order shelves are shared out to four wings: opposite quarters first, so even a few shelves spread across the hall. */
+const WING_ORDER = [0, 3, 1, 2];
 
 /**
- * A wing: a cube-sized room beside the hall. Wings come in pairs (north and south of the carpet's east arm), a pair at a time
- * going east, so a floor has 2 or 4 of them. Every floor of the building is widened to fit the widest set of wings.
+ * A wing: one quarter of the hall, as the carpet cross divides it (a floor with 2 wings has the north and south halves instead).
+ * Shelves are shared out evenly between the wings.
  */
 export interface WingLayout {
-    /** 0 and 1 are the north and south wing of the first pair, 2 and 3 those of the second pair. */
+    /** 0 to 3: north-west, north-east, south-west, south-east (with 2 wings: the north half, then the south half). */
     index: number;
-    /** Wing (shelves in the room), ReadingRoom (tables and chairs, shelves along the back) or None (an empty wing). */
+    /** ReadingRoom if a reading-room section's shelf stands here (tables and chairs are added), else Wing if a wing section's does, else None. */
     model: SectionModel;
-    /** The sections whose shelves stand in this wing. */
+    /** The sections with a wing or reading room model whose shelves stand in this wing. */
     sections: Section[];
+    /** The quarters of the hall that belong to this wing. */
+    quarters: number[];
 }
 
 export interface TierLayout {
@@ -44,27 +47,23 @@ export interface TierLayout {
 
 export interface ShelfLayout {
     shelf: Shelf;
-    /** Centre of the shelf in the hall, or measured from the centre of its wing when it stands in one. */
+    /** Centre of the shelf on its floor. */
     x: number;
     z: number;
     /** Bottom tier first. The first row (by name) is the top tier, like reading down a shelf. */
     tiers: TierLayout[];
     sections: Section[];
     height: number;
-    /** The wing the shelf stands in; null when it stands in the hall. */
-    wing: WingLayout | null;
 }
 
 export interface FloorLayout {
     floor: Floor;
     /** 0 for the bottom floor, 1 for the one above it, and so on. */
     level: number;
-    /** Every shelf on the floor, including those in wings. */
     shelves: ShelfLayout[];
+    /** 2 or 4 wings. */
     wings: WingLayout[];
-    /** Columns of wings (pairs) the building's widest floor has: every floor is widened by that many wings' width. */
-    wingColumns: number;
-    /** Side of the square hall this floor's shelves and wings need; the building uses the biggest. */
+    /** Side of the square hall this floor's shelves need; the building uses the biggest. */
     width: number;
     depth: number;
     /** Height of the tallest shelf. */
@@ -99,38 +98,42 @@ function floorRank(name: string): number {
 const byLevel = (a: { name: string }, b: { name: string }) => floorRank(a.name) - floorRank(b.name) || byName(a, b);
 
 /** The four quarters of the hall the carpet cross makes: north-west, north-east, south-west, south-east. */
-const QUARTERS = [
+export const QUARTERS = [
     { sx: -1, sz: -1 },
     { sx: 1, sz: -1 },
     { sx: -1, sz: 1 },
     { sx: 1, sz: 1 },
 ] as const;
 
+/** The floor of one quarter of a hall `hall` across, from the aisles of the cross to the strips by the walls: centre and half sizes. */
+export function quarterRect(hall: number, quarter: number) {
+    const { sx, sz } = QUARTERS[quarter];
+    const inner = CROSS_GAP / 2;
+    const outerX = hall / 2 - (sx < 0 ? LOBBY_WIDTH : 0.8);
+    const outerZ = hall / 2 - (sz < 0 ? BACK_STRIP : FRONT_STRIP);
+    return { x: (sx * (inner + outerX)) / 2, z: (sz * (inner + outerZ)) / 2, hx: (outerX - inner) / 2, hz: (outerZ - inner) / 2 };
+}
+
+/** The floor of a whole wing: its quarter, or the two quarters of a half. */
+export function wingRect(hall: number, wing: WingLayout) {
+    const rects = wing.quarters.map(quarter => quarterRect(hall, quarter));
+    const minX = Math.min(...rects.map(r => r.x - r.hx));
+    const maxX = Math.max(...rects.map(r => r.x + r.hx));
+    const minZ = Math.min(...rects.map(r => r.z - r.hz));
+    const maxZ = Math.max(...rects.map(r => r.z + r.hz));
+    return { x: (minX + maxX) / 2, z: (minZ + maxZ) / 2, hx: (maxX - minX) / 2, hz: (maxZ - minZ) / 2 };
+}
+
 /** Side of the square hall that fits `columns` x `rows` shelves in each quarter (stood back from the cross). */
-function hallSide(columns: number, rows: number): number {
+function hallSide(columns: number, rows: number, extraDepth: number): number {
     const reachX = CROSS_GAP / 2 + columns * CELL_X;
-    const reachZ = CROSS_GAP / 2 + rows * CELL_Z;
+    const reachZ = CROSS_GAP / 2 + rows * CELL_Z + extraDepth;
     return Math.max(MIN_HALL, 2 * (reachX + LOBBY_WIDTH), 2 * reachX, 2 * (reachZ + BACK_STRIP), 2 * (reachZ + FRONT_STRIP));
 }
 
-/** Where `count` shelves stand inside a wing, measured from its centre: two to a row. */
-function wingSlots(count: number, model: SectionModel): { x: number; z: number }[] {
-    const columns = Math.min(2, Math.max(1, count));
-    const rows = Math.ceil(count / columns);
-    return Array.from({ length: count }, (_, i) => {
-        const column = i % columns;
-        const row = Math.floor(i / columns);
-        return {
-            x: (column - (columns - 1) / 2) * CELL_X,
-            // A reading room keeps its shelves against the back wall, leaving the rest for tables.
-            z: model === SectionModel.ReadingRoom ? READING_ROOM_SHELF_Z + row * CELL_Z : (row - (rows - 1) / 2) * CELL_Z,
-        };
-    });
-}
-
 /**
- * Arranges every floor's shelves in the four quarters the carpet cross leaves in the hall (or in a wing, for sections that
- * have a wing or reading room) and puts each book on the tiers (rows) it is assigned to.
+ * Arranges every floor's shelves in the quarters of the hall the carpet cross leaves (shared out evenly between the floor's
+ * wings) and puts each book on the tiers (rows) it is assigned to.
  */
 export function buildLayout({ floors, shelves, rows, sections, books }: LayoutInput): FloorLayout[] {
     const booksByRow = new Map<string, Book[]>();
@@ -142,110 +145,72 @@ export function buildLayout({ floors, shelves, rows, sections, books }: LayoutIn
         }
     }
 
-    const layouts = [...floors].sort(byLevel).map((floor, level) => {
-        const allShelves = shelves.filter(s => s.floorId === floor.id).sort(byName);
+    return [...floors].sort(byLevel).map((floor, level) => {
+        const floorShelves = shelves.filter(s => s.floorId === floor.id).sort(byName);
 
-        // Every floor has 2 or 4 wings. The sections with a wing model put their shelves in the first wing, the ones with a
-        // reading room in the second; the rest stand empty.
+        // Every floor has 2 or 4 wings: the four quarters of the hall, or its north and south halves.
         const wingCount = floor.wings === 2 ? 2 : DEFAULT_WINGS;
-        const wings: WingLayout[] = Array.from({ length: wingCount }, (_, index) => ({ index, model: SectionModel.None, sections: [] }));
-        const wingOf = new Map<string, { wing: WingLayout; index: number; count: number }>();
-        for (const [model, wing] of [
-            [SectionModel.Wing, wings[0]],
-            [SectionModel.ReadingRoom, wings[1]],
-        ] as const) {
-            const group = sections.filter(s => s.floorId === floor.id && s.model === model).sort(byName);
-            if (group.length === 0) continue;
-            wing.model = model;
-            wing.sections = group;
-            const shelfIds = [...new Set(group.map(s => s.shelfId))].filter(id => allShelves.some(shelf => shelf.id === id));
-            shelfIds.forEach((id, index) => wingOf.set(id, { wing, index, count: shelfIds.length }));
-        }
+        const quartersOf = (wing: number) => (wingCount === 4 ? [wing] : [wing * 2, wing * 2 + 1]);
+        /** The wing the n-th shelf goes to: the wings in turn, as spread out as possible. */
+        const wingOf = (n: number) => (wingCount === 4 ? WING_ORDER[n % 4] : n % 2);
 
-        const hallShelves = allShelves.filter(s => !wingOf.has(s.id));
         // The same number of columns and rows in every quarter, so the hall stays symmetrical around the cross.
-        const perQuarter = Math.ceil(hallShelves.length / 4);
+        const perQuarter = Math.ceil(floorShelves.length / 4);
         const columns = Math.max(1, Math.ceil(Math.sqrt(perQuarter)));
         const gridRows = Math.max(1, Math.ceil(perQuarter / columns));
 
-        const makeShelf = (shelf: Shelf, x: number, z: number, wing: WingLayout | null): ShelfLayout => {
+        const shelfLayouts = floorShelves.map<ShelfLayout>((shelf, index) => {
+            // Shelves go to the wings in turn; inside a half they alternate between its two quarters.
+            const wing = wingOf(index);
+            const turn = Math.floor(index / wingCount);
+            const quarters = quartersOf(wing);
+            const { sx, sz } = QUARTERS[quarters[turn % quarters.length]];
+            const slot = Math.floor(turn / quarters.length);
+            const column = slot % columns;
+            const row = Math.floor(slot / columns);
+
             const shelfRows = rows.filter(r => r.shelfId === shelf.id).sort(byName);
             const tiers = shelfRows
-                .map<TierLayout>(row => ({ row, books: booksByRow.get(row.id) ?? [] }))
+                .map<TierLayout>(shelfRow => ({ row: shelfRow, books: booksByRow.get(shelfRow.id) ?? [] }))
                 .reverse();
 
             return {
                 shelf,
-                x,
-                z,
+                // Cells are counted outwards from the cross, so the aisles of the cross stay clear however the hall grows.
+                x: sx * (CROSS_GAP / 2 + (column + 0.5) * CELL_X),
+                z: sz * (CROSS_GAP / 2 + (row + 0.5) * CELL_Z),
                 tiers,
                 sections: sections.filter(s => s.shelfId === shelf.id),
                 height: Math.max(1, tiers.length) * TIER_HEIGHT + PLANK,
-                wing,
             };
-        };
-
-        const hallLayouts = hallShelves.map((shelf, index) => {
-            const { sx, sz } = QUARTERS[index % 4];
-            const slot = Math.floor(index / 4);
-            const column = slot % columns;
-            const row = Math.floor(slot / columns);
-            // Cells are counted outwards from the cross, so the aisles of the cross stay clear however the hall grows.
-            return makeShelf(
-                shelf,
-                sx * (CROSS_GAP / 2 + (column + 0.5) * CELL_X),
-                sz * (CROSS_GAP / 2 + (row + 0.5) * CELL_Z),
-                null,
-            );
         });
 
-        let wingNeed = 0;
-        const wingLayouts: ShelfLayout[] = [];
-        for (const wing of wings) {
-            const ids = allShelves.filter(s => wingOf.get(s.id)?.wing === wing);
-            if (ids.length === 0) continue;
-            const slots = wingSlots(ids.length, wing.model);
-            ids.forEach((shelf, i) => wingLayouts.push(makeShelf(shelf, slots[i].x, slots[i].z, wing)));
-            // A wing is half the hall wide and deep, so a crowded wing makes the hall (and every wing) bigger.
-            const wingColumns = Math.min(2, ids.length);
-            const wingRows = Math.ceil(ids.length / wingColumns);
-            wingNeed = Math.max(wingNeed, wingColumns * CELL_X + WING_MARGIN, wingRows * CELL_Z + WING_MARGIN);
-        }
+        // A wing with a wing or reading room section's shelf takes that model, and the sections' names.
+        const wings = Array.from({ length: wingCount }, (_, index): WingLayout => {
+            const shelfIds = new Set(floorShelves.filter((_, i) => wingOf(i) === index).map(shelf => shelf.id));
+            const named = sections
+                .filter(s => s.floorId === floor.id && s.model !== SectionModel.None && shelfIds.has(s.shelfId))
+                .sort(byName);
+            const model = named.some(s => s.model === SectionModel.ReadingRoom)
+                ? SectionModel.ReadingRoom
+                : named.length > 0
+                  ? SectionModel.Wing
+                  : SectionModel.None;
+            return { index, model, sections: named, quarters: quartersOf(index) };
+        });
 
-        const shelfLayouts = [...hallLayouts, ...wingLayouts];
-        const side = Math.max(hallSide(columns, gridRows), wingNeed * 2);
+        const side = hallSide(columns, gridRows, wings.some(w => w.model === SectionModel.ReadingRoom) ? READING_ROOM_DEPTH : 0);
 
         return {
             floor,
             level,
             shelves: shelfLayouts,
             wings,
-            wingColumns: wingCount / 2,
             width: side,
             depth: side,
             height: shelfLayouts.reduce((max, s) => Math.max(max, s.height), TIER_HEIGHT * 2),
         };
     });
-
-    // Wings are part of the building: they widen every floor, with their furnishings and shelves only where they are assigned.
-    const columns = Math.max(0, ...layouts.map(layout => layout.wingColumns));
-    return layouts.map(layout => ({ ...layout, wingColumns: columns }));
-}
-
-/** Centre and side of a wing in a building whose square hall is `hall` across; wings are cubes half the hall's side. */
-export function wingCenter(hall: number, index: number) {
-    const size = hall / 2;
-    return { x: hall / 2 + (Math.floor(index / 2) + 0.5) * size, z: (index % 2 === 0 ? -1 : 1) * (size / 2), size };
-}
-
-/** How far the wings reach past the east edge of the hall. */
-export const floorReach = (layout: FloorLayout, hall: number) => layout.wingColumns * (hall / 2);
-
-/** Where a shelf stands on its floor, wherever it is. */
-export function shelfWorld(shelf: ShelfLayout, hall: number): { x: number; z: number } {
-    if (!shelf.wing) return { x: shelf.x, z: shelf.z };
-    const centre = wingCenter(hall, shelf.wing.index);
-    return { x: centre.x + shelf.x, z: centre.z + shelf.z };
 }
 
 /** Stable pseudo-random number in [0, 1) from a string, so a book keeps its look between renders. */

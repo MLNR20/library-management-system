@@ -28,7 +28,7 @@ const fields: FormField<FloorFormInput>[] = [
             { value: '2', label: '2 wings' },
             { value: '4', label: '4 wings' },
         ],
-        description: 'A floor always has 2 or 4 wings: cube-sized rooms beside the hall on the 3D map. They widen every floor of the building.',
+        description: 'A floor always has 2 or 4 wings. On the 3D map, 4 wings are the four quarters of the hall around the carpet cross; 2 wings are its north and south halves.',
         span: 2,
     },
 ];

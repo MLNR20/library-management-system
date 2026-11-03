@@ -87,13 +87,13 @@ function splitAround(from: number, to: number, gapCentre?: number): [number, num
 }
 
 interface WallsProps {
-    /** Length of the north and south walls: the whole building across, wings included. */
+    /** Length of the north and south walls: the whole building across. */
     width: number;
     /** Length of the west and east walls. */
     depth: number;
     height: number;
     seeThrough: boolean;
-    /** X of the north and south doors along those walls, measured from their middle; absent where there are no doors. */
+    /** X of the north and south doors along those walls, measured from their middle (0: the cross is in the middle); absent where there are no doors. */
     doorX?: number;
     /** Whether the main door stands in the middle of the west wall. */
     hasWestDoor?: boolean;
@@ -480,18 +480,16 @@ function WindowPane({ position, rotationY, seeThrough }: WindowPaneProps) {
 
 interface WindowsProps {
     hall: number;
-    /** How far the wings reach past the east edge of the hall. */
-    reach: number;
     seeThrough: boolean;
 }
 
-/** Windows along the back wall (either side of the north door, then along the wings) and the building's east wall. */
-export function Windows({ hall, reach, seeThrough }: WindowsProps) {
-    const east = hall / 2 + reach;
+/** Windows along the back wall (either side of the north door) and the east wall. */
+export function Windows({ hall, seeThrough }: WindowsProps) {
+    const east = hall / 2;
 
     return (
         <group>
-            {backWindowXs(hall, reach).map(x => (
+            {backWindowXs(hall).map(x => (
                 <WindowPane key={`back-${x}`} position={[x, 0, -hall / 2]} rotationY={0} seeThrough={seeThrough} />
             ))}
             {[-hall / 4, hall / 4].map(z => (

@@ -50,7 +50,7 @@ export function SectionsPage() {
                 name: 'model',
                 label: 'Model',
                 type: 'select',
-                description: "On the 3D map this section's shelf stands in the floor's first wing (Wing), or in its second wing furnished as a reading room (Reading room).",
+                description: "On the 3D map a reading room puts tables and chairs in the wing this section's shelf stands in; a wing just names that wing after the section.",
                 options: modelOptions,
                 span: 2,
             },
@@ -62,7 +62,7 @@ export function SectionsPage() {
         <CrudPage
             title="Sections"
             singular="section"
-            description="Named areas of the library, each assigned to a floor and a shelf. A section with a wing or reading room model puts its shelf in one of the floor's wings."
+            description="Named areas of the library, each assigned to a floor and a shelf. A section with a wing or reading room model names, or furnishes, the wing its shelf stands in."
             hooks={sectionHooks}
             columns={columns}
             schema={sectionSchema}
