@@ -67,6 +67,7 @@ namespace LibraryManagementSystem.Server.Validators
         public FloorRequestValidator()
         {
             RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
+            RuleFor(x => x.Wings).Must(wings => wings is 2 or 4).WithMessage("A floor has 2 or 4 wings.");
         }
     }
 

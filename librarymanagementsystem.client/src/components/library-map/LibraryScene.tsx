@@ -4,12 +4,12 @@ import { Html, OrbitControls, useContextBridge } from '@react-three/drei';
 import * as THREE from 'three';
 import type { Book } from '../../api/resources.ts';
 import { SectionModel } from '../../api/resources.ts';
-import { PLANK, SHELF_DEPTH, SHELF_WIDTH, TIER_HEIGHT, extensionCenterX, hash01, shelfWorldX } from '../../lib/libraryLayout.ts';
-import type { ExtensionLayout, FloorLayout, ShelfLayout, TierLayout } from '../../lib/libraryLayout.ts';
+import { PLANK, SHELF_DEPTH, SHELF_WIDTH, TIER_HEIGHT, floorReach, hash01, shelfWorld, wingCenter } from '../../lib/libraryLayout.ts';
+import type { FloorLayout, ShelfLayout, TierLayout, WingLayout } from '../../lib/libraryLayout.ts';
 import { LibraryDragContext } from './dragContext.ts';
-import { Columns, Doors, LibrarianDesk, Stairs, TableSet, Tables, Walkway, Walls, Windows } from './FloorStructure.tsx';
-import { SLAB_THICKNESS, STAIR_LANDING, STAIR_WIDTH, flightFrame, readingRoomTableXs, sceneMetrics, stairDirection } from './floorPlan.ts';
-import { WallDecor } from './Decor.tsx';
+import { Carpets, Columns, Doors, LibrarianDesk, Stairs, TableSet, Tables, Walls, Windows } from './FloorStructure.tsx';
+import { READING_TABLE_XS, READING_TABLE_Z, SLAB_THICKNESS, STAIR_LANDING, STAIR_WIDTH, flightFrame, sceneMetrics, stairHole } from './floorPlan.ts';
+import { Planter, WallDecor } from './Decor.tsx';
 import { RoutePath } from './RoutePath.tsx';
 import type { Route } from './route.ts';
 import { sectionColor, statusColors } from './palette.ts';
@@ -263,69 +263,65 @@ interface FloorModelProps {
     seeThrough: boolean;
 }
 
-function FloorModel({ layout, width, depth, storey, index, hasFloorAbove, seeThrough }: FloorModelProps) {
-    // On a floor with another below it, the stairs from below come up through an opening in the middle of the floor.
-    const stairwell = seeThrough && index > 0;
-    const { length: flight, centre } = flightFrame(width);
-    const flightStart = centre - flight / 2;
-    const arrivalX = centre + stairDirection(index - 1) * (flight / 2 - STAIR_LANDING / 2);
-    // Wings and reading rooms continue the floor to the right, so its slab, back wall and right wall simply get wider.
-    const right = layout.extensionWidth;
-    const fullWidth = width + right;
+function FloorModel({ layout, depth, storey, index, hasFloorAbove, seeThrough }: FloorModelProps) {
+    // The hall is a square, `hall` across (`depth` is the same).
+    const hall = depth;
+    const { end } = flightFrame(hall, storey);
+    // The wings widen the floor to the east, and every floor of the building gets the same extra width.
+    const reach = floorReach(layout, hall);
+    const fullWidth = hall + reach;
     const wallHeight = storey - SLAB_THICKNESS;
-    const sideDepth = depth / 2 - STAIR_WIDTH / 2;
+    // On a floor with another below it, the flight from below comes up through an opening in the floor near the end of the flight.
+    const stairwell = seeThrough && index > 0;
+    const holeStart = end - stairHole(storey);
+    const sideDepth = hall / 2 - STAIR_WIDTH / 2;
+    // Only the ground floor has the outside doors, the carpets that lead to them and the librarian's desk.
+    const ground = layout.level === 0;
 
     return (
         <group>
             {stairwell ? (
                 <>
-                    <Slab width={flightStart + width / 2} depth={depth} x={(flightStart - width / 2) / 2} seeThrough={seeThrough} />
-                    <Slab width={flight} depth={sideDepth} x={centre} z={-(depth / 4 + STAIR_WIDTH / 4)} seeThrough={seeThrough} />
-                    <Slab width={flight} depth={sideDepth} x={centre} z={depth / 4 + STAIR_WIDTH / 4} seeThrough={seeThrough} />
-                    {right > 0 && <Slab width={right} depth={depth} x={width / 2 + right / 2} seeThrough={seeThrough} />}
+                    <Slab width={holeStart + hall / 2} depth={hall} x={(holeStart - hall / 2) / 2} seeThrough={seeThrough} />
+                    <Slab width={end - holeStart} depth={sideDepth} x={(holeStart + end) / 2} z={-(hall / 4 + STAIR_WIDTH / 4)} seeThrough={seeThrough} />
+                    <Slab width={end - holeStart} depth={sideDepth} x={(holeStart + end) / 2} z={hall / 4 + STAIR_WIDTH / 4} seeThrough={seeThrough} />
+                    {reach > 0 && <Slab width={reach} depth={hall} x={hall / 2 + reach / 2} seeThrough={seeThrough} />}
                     {/* Only the landing at the end of the flight from below is floored. */}
-                    <Slab width={STAIR_LANDING} depth={STAIR_WIDTH} x={arrivalX} seeThrough={seeThrough} />
+                    <Slab width={STAIR_LANDING} depth={STAIR_WIDTH} x={end - STAIR_LANDING / 2} seeThrough={seeThrough} />
                 </>
             ) : (
-                <Slab width={fullWidth} depth={depth} x={right / 2} seeThrough={seeThrough} />
+                <Slab width={fullWidth} depth={hall} x={reach / 2} seeThrough={seeThrough} />
             )}
-            <group position={[right / 2, 0, 0]}>
-                <Walls width={fullWidth} depth={depth} height={wallHeight} seeThrough={seeThrough} hasDoor={layout.level === 0} />
-                <Windows width={fullWidth} depth={depth} seeThrough={seeThrough} />
-                <WallDecor width={fullWidth} depth={depth} seeThrough={seeThrough} />
-            </group>
-            {/* Only the bottom floor has the outside door and the librarian's desk; the floors above are reached by the stairs. */}
-            {layout.level === 0 && <Doors width={width} seeThrough={seeThrough} />}
-            {layout.level === 0 && <LibrarianDesk width={width} depth={depth} seeThrough={seeThrough} />}
-            {layout.level === 0 && <Walkway width={width} seeThrough={seeThrough} />}
-            <Tables width={width} depth={depth} seeThrough={seeThrough} />
-            <Columns width={width} depth={depth} height={wallHeight} seeThrough={seeThrough} />
-            {layout.extensions.map(extension => (
-                <ExtensionRoom
-                    key={extension.section.id}
-                    extension={extension}
-                    x={extensionCenterX(width, extension)}
-                    depth={depth}
+            <group position={[reach / 2, 0, 0]}>
+                <Walls
+                    width={fullWidth}
+                    depth={hall}
                     height={wallHeight}
                     seeThrough={seeThrough}
+                    doorX={ground ? -reach / 2 : undefined}
+                    hasWestDoor={ground}
                 />
+            </group>
+            <Windows hall={hall} reach={reach} seeThrough={seeThrough} />
+            <WallDecor hall={hall} reach={reach} seeThrough={seeThrough} />
+            {ground && <Doors hall={hall} seeThrough={seeThrough} />}
+            {ground && <LibrarianDesk width={hall} seeThrough={seeThrough} />}
+            {ground && <Carpets hall={hall} storey={storey} seeThrough={seeThrough} />}
+            <Tables width={hall} depth={hall} seeThrough={seeThrough} />
+            <Columns width={hall} depth={hall} height={wallHeight} seeThrough={seeThrough} />
+            {layout.wings.map(wing => (
+                <WingRoom key={wing.index} wing={wing} hall={hall} seeThrough={seeThrough} />
             ))}
-            {(!seeThrough || hasFloorAbove) && (
-                <Stairs
-                    width={width}
-                    storey={storey}
-                    direction={stairDirection(index)}
-                    hasFloorAbove={hasFloorAbove}
-                />
-            )}
-            <Html position={[-width / 2 + 0.3, 0.1, depth / 2]} style={{ pointerEvents: 'none' }}>
+            {(!seeThrough || hasFloorAbove) && <Stairs width={hall} storey={storey} hasFloorAbove={hasFloorAbove} />}
+            <Html position={[-hall / 2 + 0.3, 0.1, hall / 2]} style={{ pointerEvents: 'none' }}>
                 <div className="rounded bg-base-100/80 px-2 py-0.5 text-xs font-bold whitespace-nowrap">
                     {layout.floor.name}
                 </div>
             </Html>
-            {layout.shelves.map(shelf => (
-                <ShelfModel key={shelf.shelf.id} layout={shelf} x={shelfWorldX(shelf, width)} />
-            ))}
+            {layout.shelves.map(shelf => {
+                const at = shelfWorld(shelf, hall);
+                return <ShelfModel key={shelf.shelf.id} layout={shelf} x={at.x} z={at.z} />;
+            })}
             {layout.shelves.length === 0 && (
                 <Html position={[0, 0.5, 0]} center style={{ pointerEvents: 'none' }}>
                     <div className="rounded bg-base-100/80 px-2 py-1 text-xs whitespace-nowrap opacity-70">
@@ -337,57 +333,49 @@ function FloorModel({ layout, width, depth, storey, index, hasFloorAbove, seeThr
     );
 }
 
-interface ExtensionRoomProps {
-    extension: ExtensionLayout;
-    /** Middle of the room on the floor. */
-    x: number;
-    depth: number;
-    height: number;
+interface WingRoomProps {
+    wing: WingLayout;
+    hall: number;
     seeThrough: boolean;
 }
 
-/** The furnishing of a wing (a pair of columns at the front) or a reading room (tables and chairs), on a rug in the section's colour. */
-function ExtensionRoom({ extension, x, depth, height, seeThrough }: ExtensionRoomProps) {
-    const { section, model, width } = extension;
-    const isReadingRoom = model === SectionModel.ReadingRoom;
+/** One wing: a cube-sized room beside the hall, on a rug. A reading room has tables and chairs; the others a pair of plants. */
+function WingRoom({ wing, hall, seeThrough }: WingRoomProps) {
+    const { x, z, size } = wingCenter(hall, wing.index);
+    const tint = sectionColor(wing.sections[0]?.id ?? `wing-${wing.index}`);
+    const isReadingRoom = wing.model === SectionModel.ReadingRoom;
 
     return (
-        <group position={[x, 0, 0]}>
+        <group position={[x, 0, z]}>
             <mesh position={[0, 0.006, 0]} rotation={[-Math.PI / 2, 0, 0]} raycast={() => null}>
-                <planeGeometry args={[width - 0.8, depth - 0.8]} />
-                <meshBasicMaterial color={sectionColor(section.id)} transparent opacity={0.18} depthWrite={false} />
+                <planeGeometry args={[size - 1, size - 1]} />
+                <meshBasicMaterial color={tint} transparent opacity={0.18} depthWrite={false} />
             </mesh>
             {isReadingRoom ? (
-                <TableSet xs={readingRoomTableXs(extension)} depth={depth} seeThrough={seeThrough} />
+                <TableSet xs={READING_TABLE_XS} depth={hall} z={READING_TABLE_Z} seeThrough={seeThrough} />
             ) : (
-                <Columns
-                    width={width}
-                    depth={depth}
-                    height={height}
-                    seeThrough={seeThrough}
-                    xs={[-width / 2 + 0.5, width / 2 - 0.5]}
-                />
+                [-1, 1].map(side => (
+                    <Planter key={side} position={[side * (size / 2 - 0.8), 0, size / 2 - 0.8]} seed={`wing${wing.index}${side}`} seeThrough={seeThrough} />
+                ))
             )}
-            <Html position={[0, 0.1, depth / 2]} center style={{ pointerEvents: 'none' }} distanceFactor={11}>
-                <div
-                    className="rounded px-2 py-0.5 text-xs font-bold whitespace-nowrap text-black"
-                    style={{ background: sectionColor(section.id) }}
-                >
-                    {isReadingRoom ? 'Reading room' : 'Wing'} · {section.name}
+            <Html position={[0, 0.1, size / 2 - 0.4]} center style={{ pointerEvents: 'none' }} distanceFactor={11}>
+                <div className="rounded px-2 py-0.5 text-xs font-bold whitespace-nowrap text-black" style={{ background: tint }}>
+                    {isReadingRoom ? 'Reading room' : `Wing ${wing.index + 1}`}
+                    {wing.sections.length > 0 && ` · ${wing.sections.map(s => s.name).join(', ')}`}
                 </div>
             </Html>
         </group>
     );
 }
 
-function ShelfModel({ layout, x }: { layout: ShelfLayout; x: number }) {
+function ShelfModel({ layout, x, z }: { layout: ShelfLayout; x: number; z: number }) {
     const { drag, hoverRowId } = useLibraryDrag();
     const tierCount = Math.max(1, layout.tiers.length);
     const bodyHeight = tierCount * TIER_HEIGHT;
     const sectionTint = layout.sections[0] ? sectionColor(layout.sections[0].id) : null;
 
     return (
-        <group position={[x, 0, layout.z]} rotation={[0, THREE.MathUtils.degToRad(layout.shelf.rotation), 0]}>
+        <group position={[x, 0, z]} rotation={[0, THREE.MathUtils.degToRad(layout.shelf.rotation), 0]}>
             {sectionTint && (
                 <mesh position={[0, 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
                     <planeGeometry args={[SHELF_WIDTH + 0.6, SHELF_DEPTH + 0.8]} />

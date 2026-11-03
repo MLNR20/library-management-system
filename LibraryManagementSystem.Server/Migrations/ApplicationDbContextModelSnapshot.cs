@@ -404,6 +404,11 @@ namespace LibraryManagementSystem.Server.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<int>("Wings")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(4);
+
                     b.HasKey("Id");
 
                     b.HasIndex("Name")

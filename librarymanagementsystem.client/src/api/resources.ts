@@ -54,9 +54,12 @@ export const bookStatusLabels: Record<BookStatus, string> = {
 export interface Floor {
     id: string;
     name: string;
+    /** Cube-sized wings built beside the floor; they widen every floor. */
+    wings: number;
 }
 export interface FloorRequest {
     name: string;
+    wings: number;
 }
 
 /** How a shelf is turned on the 3D map, in degrees. The server only accepts these two. */

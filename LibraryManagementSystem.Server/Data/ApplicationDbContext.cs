@@ -75,6 +75,8 @@ namespace LibraryManagementSystem.Server.Data
             });
 
             // A section points at a floor and a shelf; Restrict avoids multiple cascade paths in SQL Server.
+            builder.Entity<Floor>(floor => floor.Property(f => f.Wings).HasDefaultValue(4));
+
             builder.Entity<Section>(section =>
             {
                 section.HasIndex(s => s.Name).IsUnique();

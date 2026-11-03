@@ -8,8 +8,6 @@ import {
     DESK_DEPTH,
     DESK_HEIGHT,
     DESK_LENGTH,
-    DOOR_Z,
-    SLAB_THICKNESS,
     STAIR_EDGE,
     STAIR_LANDING,
     TABLE_DEPTH,
@@ -22,6 +20,7 @@ import {
     backWindowXs,
     columnXs,
     deskPosition,
+    doorPositions,
     STAIR_WIDTH,
     flightFrame,
     stairGeometry,
@@ -74,37 +73,49 @@ function Wainscot({ length, seeThrough }: WainscotProps) {
     );
 }
 
-/** Width of the gap the main door leaves in the left wall's panelling. */
+/** Width of the gap a door leaves in a wall's panelling. */
 const DOOR_GAP = 2.8;
 
+/** Splits the stretch [from, to] of a wall around a door centred at `gapCentre`, dropping slivers too small to panel. */
+function splitAround(from: number, to: number, gapCentre?: number): [number, number][] {
+    if (gapCentre === undefined) return [[from, to]];
+    const runs: [number, number][] = [
+        [from, gapCentre - DOOR_GAP / 2],
+        [gapCentre + DOOR_GAP / 2, to],
+    ];
+    return runs.filter(([a, b]) => b - a > 0.3);
+}
+
 interface WallsProps {
+    /** Length of the north and south walls: the whole building across, wings included. */
     width: number;
+    /** Length of the west and east walls. */
     depth: number;
     height: number;
     seeThrough: boolean;
-    /** The main door stands in the middle of the left wall; the panelling stops either side of it. */
-    hasDoor?: boolean;
+    /** X of the north and south doors along those walls, measured from their middle; absent where there are no doors. */
+    doorX?: number;
+    /** Whether the main door stands in the middle of the west wall. */
+    hasWestDoor?: boolean;
 }
 
-/** Back and side walls with wooden panelling at their foot; the front stays open so the camera can look in. */
-export function Walls({ width, depth, height, seeThrough, hasDoor = false }: WallsProps) {
-    const walls = [
+/**
+ * The four walls with wooden panelling at their foot. The south (front) wall is glass-clear so the camera can still look in
+ * through it; it has its door and its panelling like the others.
+ */
+export function Walls({ width, depth, height, seeThrough, doorX, hasWestDoor = false }: WallsProps) {
+    const solid = [
         { key: 'back', position: [0, height / 2, -depth / 2 - WALL_THICKNESS / 2], size: [width + WALL_THICKNESS * 2, height, WALL_THICKNESS] },
         { key: 'left', position: [-width / 2 - WALL_THICKNESS / 2, height / 2, 0], size: [WALL_THICKNESS, height, depth] },
         { key: 'right', position: [width / 2 + WALL_THICKNESS / 2, height / 2, 0], size: [WALL_THICKNESS, height, depth] },
     ] as const;
 
-    // Stretches of the left wall that get panelling, as [from, to] along z.
-    const leftRuns: [number, number][] = hasDoor
-        ? [
-              [-depth / 2, -DOOR_GAP / 2],
-              [DOOR_GAP / 2, depth / 2],
-          ]
-        : [[-depth / 2, depth / 2]];
+    const northSouthRuns = splitAround(-width / 2, width / 2, doorX);
+    const westRuns = splitAround(-depth / 2, depth / 2, hasWestDoor ? 0 : undefined);
 
     return (
         <group>
-            {walls.map(wall => (
+            {solid.map(wall => (
                 <mesh key={wall.key} position={wall.position}>
                     <boxGeometry args={wall.size} />
                     <meshStandardMaterial
@@ -116,14 +127,26 @@ export function Walls({ width, depth, height, seeThrough, hasDoor = false }: Wal
                     />
                 </mesh>
             ))}
-            <group position={[0, 0, -depth / 2]}>
-                <Wainscot length={width} seeThrough={seeThrough} />
-            </group>
+            <mesh position={[0, height / 2, depth / 2 + WALL_THICKNESS / 2]} raycast={() => null}>
+                <boxGeometry args={[width + WALL_THICKNESS * 2, height, WALL_THICKNESS]} />
+                <meshStandardMaterial color={WALL_COLOR} roughness={0.9} transparent opacity={0.12} depthWrite={false} />
+            </mesh>
+
+            {northSouthRuns.map(([from, to]) => (
+                <group key={`back-${from}`} position={[(from + to) / 2, 0, -depth / 2]}>
+                    <Wainscot length={to - from} seeThrough={seeThrough} />
+                </group>
+            ))}
+            {northSouthRuns.map(([from, to]) => (
+                <group key={`front-${from}`} position={[(from + to) / 2, 0, depth / 2]} rotation={[0, Math.PI, 0]}>
+                    <Wainscot length={to - from} seeThrough={seeThrough} />
+                </group>
+            ))}
             <group position={[width / 2, 0, 0]} rotation={[0, -Math.PI / 2, 0]}>
                 <Wainscot length={depth} seeThrough={seeThrough} />
             </group>
-            {leftRuns.map(([from, to]) => (
-                <group key={from} position={[-width / 2, 0, (from + to) / 2]} rotation={[0, Math.PI / 2, 0]}>
+            {westRuns.map(([from, to]) => (
+                <group key={`west-${from}`} position={[-width / 2, 0, (from + to) / 2]} rotation={[0, Math.PI / 2, 0]}>
                     <Wainscot length={to - from} seeThrough={seeThrough} />
                 </group>
             ))}
@@ -295,39 +318,67 @@ function VictorianDoor({ position, rotationY, seeThrough }: VictorianDoorProps) 
     );
 }
 
-const WALKWAY_COLOR = '#7a1f1f';
-const WALKWAY_TRIM = '#b8892b';
+const CARPET_COLOR = '#7a1f1f';
+const CARPET_TRIM = '#b8892b';
 
-interface WalkwayProps {
-    width: number;
+interface CarpetsProps {
+    hall: number;
+    storey: number;
     seeThrough: boolean;
 }
 
-/** A runner from the main door across the floor between the two halves of the stacks, up to the foot of the stairs. */
-export function Walkway({ width, seeThrough }: WalkwayProps) {
-    const start = -width / 2 + 0.1;
-    const stairs = flightFrame(width);
-    const end = stairs.centre - stairs.length / 2 - 0.3;
-    const length = end - start;
+/**
+ * The cross of carpet through the middle of the hall: one arm runs from the main door in the west wall to the foot of the
+ * stairs, the other from the north door to the south door, crossing in the middle.
+ */
+export function Carpets({ hall, storey, seeThrough }: CarpetsProps) {
+    const stairs = flightFrame(hall, storey);
+    const west = -hall / 2 + 0.1;
+    const east = stairs.start - 0.3;
+    const north = -hall / 2 + 0.1;
+    const south = hall / 2 - 0.1;
     const opacity = seeThrough ? 0.7 : 1;
 
+    // [middle x, middle z, length, turned a quarter]: the arms along x and along z.
+    const arms = [
+        { key: 'west-east', x: (west + east) / 2, z: 0, length: east - west, turn: 0 },
+        { key: 'north-south', x: 0, z: (north + south) / 2, length: south - north, turn: Math.PI / 2 },
+    ];
+
+    // All the gold edges first, then the red centres on top, so where the arms cross they read as one carpet.
     return (
-        <group position={[(start + end) / 2, 0, DOOR_Z]} rotation={[-Math.PI / 2, 0, 0]}>
-            <mesh position={[0, 0, 0.012]} raycast={() => null}>
-                <planeGeometry args={[length, WALKWAY_WIDTH]} />
-                <meshStandardMaterial color={WALKWAY_TRIM} roughness={0.7} transparent={seeThrough} opacity={opacity} />
-            </mesh>
-            <mesh position={[0, 0, 0.016]} raycast={() => null}>
-                <planeGeometry args={[length - 0.2, WALKWAY_WIDTH - 0.2]} />
-                <meshStandardMaterial color={WALKWAY_COLOR} roughness={0.9} transparent={seeThrough} opacity={opacity} />
-            </mesh>
+        <group>
+            {arms.map(arm => (
+                <group key={`trim-${arm.key}`} position={[arm.x, 0, arm.z]} rotation={[-Math.PI / 2, 0, arm.turn]}>
+                    <mesh position={[0, 0, 0.012]} raycast={() => null}>
+                        <planeGeometry args={[arm.length, WALKWAY_WIDTH]} />
+                        <meshStandardMaterial color={CARPET_TRIM} roughness={0.7} transparent={seeThrough} opacity={opacity} />
+                    </mesh>
+                </group>
+            ))}
+            {arms.map(arm => (
+                <group key={`field-${arm.key}`} position={[arm.x, 0, arm.z]} rotation={[-Math.PI / 2, 0, arm.turn]}>
+                    <mesh position={[0, 0, 0.016]} raycast={() => null}>
+                        <planeGeometry args={[arm.length - 0.2, WALKWAY_WIDTH - 0.2]} />
+                        <meshStandardMaterial color={CARPET_COLOR} roughness={0.9} transparent={seeThrough} opacity={opacity} />
+                    </mesh>
+                </group>
+            ))}
         </group>
     );
 }
 
-/** The main double door, in the middle of the left wall beside the foot of the stairs. */
-export function Doors({ width, seeThrough }: Omit<DoorsProps, 'depth'>) {
-    return <VictorianDoor position={[-width / 2, 0, DOOR_Z]} rotationY={Math.PI / 2} seeThrough={seeThrough} />;
+/** The doors at the ends of the carpet cross: the main double door in the west wall, and one in the north and south walls. */
+export function Doors({ hall, seeThrough }: { hall: number; seeThrough: boolean }) {
+    const doors = doorPositions(hall);
+
+    return (
+        <group>
+            <VictorianDoor position={[doors.west.x, 0, doors.west.z]} rotationY={Math.PI / 2} seeThrough={seeThrough} />
+            <VictorianDoor position={[doors.north.x, 0, doors.north.z]} rotationY={0} seeThrough={seeThrough} />
+            <VictorianDoor position={[doors.south.x, 0, doors.south.z]} rotationY={Math.PI} seeThrough={seeThrough} />
+        </group>
+    );
 }
 
 const COLUMN_COLOR = '#e8e0d0';
@@ -427,17 +478,24 @@ function WindowPane({ position, rotationY, seeThrough }: WindowPaneProps) {
     );
 }
 
-/** Windows along the back wall and the right wall; the left wall belongs to the door and the stairs. */
-export function Windows({ width, depth, seeThrough }: DoorsProps) {
-    const backXs = backWindowXs(width);
+interface WindowsProps {
+    hall: number;
+    /** How far the wings reach past the east edge of the hall. */
+    reach: number;
+    seeThrough: boolean;
+}
+
+/** Windows along the back wall (either side of the north door, then along the wings) and the building's east wall. */
+export function Windows({ hall, reach, seeThrough }: WindowsProps) {
+    const east = hall / 2 + reach;
 
     return (
         <group>
-            {backXs.map(x => (
-                <WindowPane key={`back-${x}`} position={[x, 0, -depth / 2]} rotationY={0} seeThrough={seeThrough} />
+            {backWindowXs(hall, reach).map(x => (
+                <WindowPane key={`back-${x}`} position={[x, 0, -hall / 2]} rotationY={0} seeThrough={seeThrough} />
             ))}
-            {[-depth / 4, depth / 4].map(z => (
-                <WindowPane key={`right-${z}`} position={[width / 2, 0, z]} rotationY={-Math.PI / 2} seeThrough={seeThrough} />
+            {[-hall / 4, hall / 4].map(z => (
+                <WindowPane key={`east-${z}`} position={[east, 0, z]} rotationY={-Math.PI / 2} seeThrough={seeThrough} />
             ))}
         </group>
     );
@@ -452,12 +510,14 @@ interface TableSetProps {
     /** Middle of each table along x. */
     xs: number[];
     depth: number;
+    /** Where the tables stand along z; the front strip of the hall unless given. */
+    z?: number;
     seeThrough: boolean;
 }
 
 /** Reading tables, each with a chair on either side. */
-export function TableSet({ xs: centres, depth, seeThrough }: TableSetProps) {
-    const z = tableZ(depth);
+export function TableSet({ xs: centres, depth, z: zAt, seeThrough }: TableSetProps) {
+    const z = zAt ?? tableZ(depth);
     const opacity = seeThrough ? 0.7 : 1;
 
     return (
@@ -529,9 +589,9 @@ function Chair({ position, rotationY, color, seeThrough }: ChairProps) {
 }
 
 /** The librarian's desk in the strip behind the shelves, with a monitor, a book stack and a chair behind it. */
-export function LibrarianDesk({ width, depth, seeThrough }: DoorsProps) {
+export function LibrarianDesk({ width, seeThrough }: Omit<DoorsProps, 'depth'>) {
     const opacity = seeThrough ? 0.7 : 1;
-    const { x, z } = deskPosition(width, depth);
+    const { x, z } = deskPosition(width);
 
     return (
         <group position={[x, 0, z]}>
@@ -610,36 +670,70 @@ export function Columns({ width, depth, height, seeThrough, xs }: ColumnsProps) 
 
 interface StairsProps {
     width: number;
-    depth: number;
     /** Height from this floor up to the next one. */
     storey: number;
-    direction: -1 | 1;
-    /** True when the next floor is drawn: its slab covers the landing, so the block stops under it. */
+    /** True when the next floor is drawn: its slab covers the top landing, so none is drawn here. */
     hasFloorAbove: boolean;
 }
 
-/** One solid, wide flight across the middle of the floor, climbing to a landing at the far end. */
-export function Stairs({ width, storey, direction, hasFloorAbove }: Omit<StairsProps, 'depth'>) {
+const TREAD_COLOR = '#8a5a35';
+const RISER_COLOR = '#6f4a2b';
+const RAIL_COLOR = '#4e3520';
+
+/**
+ * One wide wooden flight along the east arm of the carpet cross, with its foot facing the main door: treads on risers,
+ * carried by a stringer down each side (the space under the steps is open), with a handrail either side. Every floor's
+ * flight is the same, so they stand directly above each other.
+ */
+export function Stairs({ width, storey, hasFloorAbove }: StairsProps) {
     const { count, rise, run } = stairGeometry(storey);
-    const { length: flight, centre } = flightFrame(width);
-    const startX = centre - direction * (flight / 2 - STAIR_EDGE);
-    const landingHeight = hasFloorAbove ? storey - SLAB_THICKNESS : storey;
+    const { start, end } = flightFrame(width, storey);
+    const startX = start + STAIR_EDGE;
+    const climbed = count * rise;
+    const slope = Math.atan2(climbed, count * run);
+    const slopeLength = Math.hypot(count * run, climbed);
+    const midX = startX + (count * run) / 2;
+    const sides = [-1, 1];
+    const posts = Array.from({ length: Math.floor(count / 5) + 1 }, (_, i) => Math.min(count - 1, i * 5));
 
     return (
         <group>
-            {Array.from({ length: count }, (_, k) => {
-                const height = (k + 1) * rise;
-                return (
-                    <mesh key={k} position={[startX + direction * (k + 0.5) * run, height / 2, 0]}>
-                        <boxGeometry args={[run, height, STAIR_WIDTH]} />
-                        <meshStandardMaterial color={STAIR_COLOR} roughness={0.85} />
+            {Array.from({ length: count }, (_, k) => (
+                <group key={k}>
+                    <mesh position={[startX + k * run + 0.03, k * rise + rise / 2, 0]}>
+                        <boxGeometry args={[0.06, rise, STAIR_WIDTH]} />
+                        <meshStandardMaterial color={RISER_COLOR} roughness={0.75} />
                     </mesh>
-                );
-            })}
-            <mesh position={[centre + direction * (flight / 2 - STAIR_LANDING / 2), landingHeight / 2, 0]}>
-                <boxGeometry args={[STAIR_LANDING, landingHeight, STAIR_WIDTH]} />
-                <meshStandardMaterial color={STAIR_COLOR} roughness={0.85} />
-            </mesh>
+                    <mesh position={[startX + (k + 0.5) * run, (k + 1) * rise - 0.05, 0]}>
+                        <boxGeometry args={[run + 0.04, 0.1, STAIR_WIDTH + 0.06]} />
+                        <meshStandardMaterial color={TREAD_COLOR} roughness={0.6} />
+                    </mesh>
+                </group>
+            ))}
+            {sides.map(side => (
+                <group key={side}>
+                    <mesh position={[midX, climbed / 2 - 0.2, side * (STAIR_WIDTH / 2 + 0.02)]} rotation={[0, 0, slope]}>
+                        <boxGeometry args={[slopeLength, 0.4, 0.1]} />
+                        <meshStandardMaterial color={STAIR_COLOR} roughness={0.8} />
+                    </mesh>
+                    <mesh position={[midX, climbed / 2 + 0.95, side * (STAIR_WIDTH / 2 + 0.02)]} rotation={[0, 0, slope]}>
+                        <boxGeometry args={[slopeLength, 0.07, 0.07]} />
+                        <meshStandardMaterial color={RAIL_COLOR} roughness={0.5} />
+                    </mesh>
+                    {posts.map(k => (
+                        <mesh key={k} position={[startX + (k + 0.5) * run, (k + 1) * rise + 0.45, side * (STAIR_WIDTH / 2 + 0.02)]}>
+                            <boxGeometry args={[0.05, 0.9, 0.05]} />
+                            <meshStandardMaterial color={RAIL_COLOR} roughness={0.5} />
+                        </mesh>
+                    ))}
+                </group>
+            ))}
+            {!hasFloorAbove && (
+                <mesh position={[end - STAIR_LANDING / 2, storey - 0.075, 0]}>
+                    <boxGeometry args={[STAIR_LANDING, 0.15, STAIR_WIDTH]} />
+                    <meshStandardMaterial color={TREAD_COLOR} roughness={0.6} />
+                </mesh>
+            )}
         </group>
     );
 }

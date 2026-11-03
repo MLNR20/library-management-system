@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { hash01 } from '../../lib/libraryLayout.ts';
 import { DOOR_HALF, WINDOW_HEIGHT, WINDOW_SILL, backWindowXs } from './floorPlan.ts';
 
@@ -169,10 +170,66 @@ export function FlowerVase({ position, seed, seeThrough, scale = 1 }: FlowerVase
                     </mesh>
                 </group>
             ))}
-            <mesh position={[0, 0.27, 0]}>
-                <sphereGeometry args={[0.07, 10, 8]} />
-                {surface('#3f6b3a', seeThrough)}
-            </mesh>
+            <group position={[0, 0.22, 0]} scale={0.22}>
+                {[0, 1, 2, 3, 4].map(i => (
+                    <Frond
+                        key={i}
+                        yaw={(i / 5) * Math.PI * 2 + hash01(`${seed}ly${i}`)}
+                        pitch={0.5 + hash01(`${seed}lp${i}`) * 0.5}
+                        length={0.8 + hash01(`${seed}ll${i}`) * 0.4}
+                        width={0.35}
+                        color={LEAF_GREENS[i % LEAF_GREENS.length]}
+                        seeThrough={seeThrough}
+                    />
+                ))}
+            </group>
+        </group>
+    );
+}
+
+// A leaf blade as a flat lens, one unit long and one unit wide, standing along +y and facing +z. Built once and scaled per leaf.
+let sharedLeaf: THREE.ShapeGeometry | null = null;
+
+function leafGeometry() {
+    if (!sharedLeaf) {
+        const shape = new THREE.Shape();
+        shape.moveTo(0, 0);
+        shape.bezierCurveTo(0.9, 0.25, 0.7, 0.75, 0, 1);
+        shape.bezierCurveTo(-0.7, 0.75, -0.9, 0.25, 0, 0);
+        sharedLeaf = new THREE.ShapeGeometry(shape, 12);
+    }
+    return sharedLeaf;
+}
+
+const LEAF_GREENS = ['#2f6a33', '#3f7a3a', '#4b8a3f', '#2a5e30'];
+
+interface FrondProps extends SeeThrough {
+    yaw: number;
+    pitch: number;
+    length: number;
+    width: number;
+    color: string;
+}
+
+/** One frond: two leaf blades end to end, the second bending further over, so it arches like a real palm leaf. */
+function Frond({ yaw, pitch, length, width, color, seeThrough }: FrondProps) {
+    const leaf = leafGeometry();
+    const material = (
+        <meshStandardMaterial color={color} roughness={0.55} side={THREE.DoubleSide} transparent={seeThrough} opacity={seeThrough ? 0.7 : 1} />
+    );
+
+    return (
+        <group rotation={[0, yaw, 0]}>
+            <group rotation={[pitch, 0, 0]}>
+                <mesh geometry={leaf} scale={[width, length * 0.55, 1]}>
+                    {material}
+                </mesh>
+                <group position={[0, length * 0.55, 0]} rotation={[0.55, 0, 0]}>
+                    <mesh geometry={leaf} scale={[width * 0.85, length * 0.5, 1]}>
+                        {material}
+                    </mesh>
+                </group>
+            </group>
         </group>
     );
 }
@@ -182,96 +239,109 @@ interface PlanterProps extends SeeThrough {
     seed: string;
 }
 
-/** A terracotta pot with a leafy plant and a few flowers, standing on the floor. */
+/** A glazed-terracotta pot on a saucer with a full, leafy palm-like plant: fronds arching out at different lengths and heights. */
 export function Planter({ position, seed, seeThrough }: PlanterProps) {
-    const leaves = [0, 1, 2, 3, 4, 5, 6].map(i => ({
-        x: (hash01(`${seed}x${i}`) - 0.5) * 0.45,
-        y: 0.55 + hash01(`${seed}y${i}`) * 0.7,
-        z: (hash01(`${seed}z${i}`) - 0.5) * 0.45,
-        r: 0.16 + hash01(`${seed}r${i}`) * 0.12,
-    }));
-    const flowers = [0, 1, 2, 3].map(i => ({
-        x: (hash01(`${seed}fx${i}`) - 0.5) * 0.7,
-        y: 0.7 + hash01(`${seed}fy${i}`) * 0.7,
-        z: (hash01(`${seed}fz${i}`) - 0.5) * 0.7,
-        color: FLOWER_COLORS[Math.floor(hash01(`${seed}fc${i}`) * FLOWER_COLORS.length)],
+    const fronds = Array.from({ length: 16 }, (_, i) => ({
+        yaw: (i / 16) * Math.PI * 2 + hash01(`${seed}y${i}`) * 0.35,
+        // Low fronds spread wide, the later ones stand more upright.
+        pitch: 0.25 + (1 - i / 16) * 0.8 + hash01(`${seed}p${i}`) * 0.2,
+        length: 0.7 + (i / 16) * 0.5 + hash01(`${seed}l${i}`) * 0.3,
+        width: 0.2 + hash01(`${seed}w${i}`) * 0.08,
+        color: LEAF_GREENS[Math.floor(hash01(`${seed}c${i}`) * LEAF_GREENS.length)],
     }));
 
     return (
         <group position={position}>
-            <mesh position={[0, 0.2, 0]}>
-                <cylinderGeometry args={[0.27, 0.19, 0.4, 18]} />
-                {surface('#a35a38', seeThrough, 0.8)}
+            <mesh position={[0, 0.03, 0]}>
+                <cylinderGeometry args={[0.3, 0.32, 0.06, 20]} />
+                {surface('#7d4a2e', seeThrough, 0.7)}
             </mesh>
-            <mesh position={[0, 0.42, 0]}>
-                <cylinderGeometry args={[0.28, 0.28, 0.04, 18]} />
-                {surface('#8a4a2c', seeThrough, 0.8)}
+            <mesh position={[0, 0.25, 0]}>
+                <cylinderGeometry args={[0.28, 0.2, 0.4, 20]} />
+                {surface('#a35a38', seeThrough, 0.55)}
             </mesh>
-            {leaves.map((leaf, i) => (
-                <mesh key={i} position={[leaf.x, leaf.y, leaf.z]}>
-                    <sphereGeometry args={[leaf.r, 10, 8]} />
-                    {surface(i % 2 ? '#3f7a3a' : '#2f6a33', seeThrough)}
-                </mesh>
-            ))}
-            {flowers.map((flower, i) => (
-                <mesh key={i} position={[flower.x, flower.y, flower.z]}>
-                    <sphereGeometry args={[0.06, 10, 8]} />
-                    {surface(flower.color, seeThrough, 0.6)}
-                </mesh>
-            ))}
+            <mesh position={[0, 0.46, 0]}>
+                <cylinderGeometry args={[0.3, 0.28, 0.06, 20]} />
+                {surface('#8f4e30', seeThrough, 0.55)}
+            </mesh>
+            <mesh position={[0, 0.47, 0]}>
+                <cylinderGeometry args={[0.25, 0.25, 0.04, 20]} />
+                {surface('#3a2a1c', seeThrough, 0.95)}
+            </mesh>
+            <group position={[0, 0.48, 0]}>
+                {fronds.map((frond, i) => (
+                    <Frond key={i} {...frond} seeThrough={seeThrough} />
+                ))}
+            </group>
         </group>
     );
 }
 
 interface WallDecorProps extends SeeThrough {
-    width: number;
-    depth: number;
+    hall: number;
+    /** How far the wings reach past the east edge of the hall. */
+    reach: number;
 }
 
-/** Paintings with a lamp either side of each, on every wall, plus plants in the corners and by the door. */
-export function WallDecor({ width, depth, seeThrough }: WallDecorProps) {
+/** Paintings with a lamp either side of each, on every wall, plus plants in the corners and beside the doors. */
+export function WallDecor({ hall, reach, seeThrough }: WallDecorProps) {
     // Level with the middle of the windows.
     const y = WINDOW_SILL + WINDOW_HEIGHT / 2;
     const lampY = y + 0.1;
     const lampGap = 0.76;
+    const east = hall / 2 + reach;
+    const aroundDoor = DOOR_HALF + 0.9;
 
-    const windowXs = backWindowXs(width);
-    const backXs = [-width / 2 + 1.8, ...windowXs.slice(1).map((x, i) => (x + windowXs[i]) / 2)];
-    // The stairs end against the middle of the right wall, so its pictures hang either side of them.
-    const rightZs = [-(depth / 4 + depth / 8), depth / 4 + depth / 8];
-    const leftZs = [-depth / 4, depth / 4];
+    // Back wall: between windows that stand close together (the north door's gap is left alone), and above the lobby.
+    const windowXs = backWindowXs(hall, reach);
+    const backXs = [
+        -hall / 2 + 1.8,
+        ...windowXs
+            .slice(1)
+            .map((x, i) => [windowXs[i], x])
+            .filter(([a, b]) => b - a < 4)
+            .map(([a, b]) => (a + b) / 2),
+    ];
+    // The east wall is the building's outer wall, beyond the wings. The west wall has the main door in the middle.
+    const eastZs = [-(hall * 3) / 8, 0, (hall * 3) / 8];
+    const westZs = [-hall / 4, hall / 4];
 
     return (
         <group>
             {backXs.map(x => (
                 <group key={`back-${x}`}>
-                    <Painting position={[x, y, -depth / 2]} rotationY={0} seed={`b${x}`} seeThrough={seeThrough} />
+                    <Painting position={[x, y, -hall / 2]} rotationY={0} seed={`b${x}`} seeThrough={seeThrough} />
                     {[-1, 1].map(side => (
-                        <WallLamp key={side} position={[x + side * lampGap, lampY, -depth / 2]} rotationY={0} seeThrough={seeThrough} />
+                        <WallLamp key={side} position={[x + side * lampGap, lampY, -hall / 2]} rotationY={0} seeThrough={seeThrough} />
                     ))}
                 </group>
             ))}
-            {rightZs.map(z => (
-                <group key={`right-${z}`}>
-                    <Painting position={[width / 2, y, z]} rotationY={-Math.PI / 2} seed={`r${z}`} seeThrough={seeThrough} />
+            {eastZs.map(z => (
+                <group key={`east-${z}`}>
+                    <Painting position={[east, y, z]} rotationY={-Math.PI / 2} seed={`e${z}`} seeThrough={seeThrough} />
                     {[-1, 1].map(side => (
-                        <WallLamp key={side} position={[width / 2, lampY, z + side * lampGap]} rotationY={-Math.PI / 2} seeThrough={seeThrough} />
+                        <WallLamp key={side} position={[east, lampY, z + side * lampGap]} rotationY={-Math.PI / 2} seeThrough={seeThrough} />
                     ))}
                 </group>
             ))}
-            {leftZs.map(z => (
-                <group key={`left-${z}`}>
-                    <Painting position={[-width / 2, y, z]} rotationY={Math.PI / 2} seed={`l${z}`} seeThrough={seeThrough} />
+            {westZs.map(z => (
+                <group key={`west-${z}`}>
+                    <Painting position={[-hall / 2, y, z]} rotationY={Math.PI / 2} seed={`l${z}`} seeThrough={seeThrough} />
                     {[-1, 1].map(side => (
-                        <WallLamp key={side} position={[-width / 2, lampY, z + side * lampGap]} rotationY={Math.PI / 2} seeThrough={seeThrough} />
+                        <WallLamp key={side} position={[-hall / 2, lampY, z + side * lampGap]} rotationY={Math.PI / 2} seeThrough={seeThrough} />
                     ))}
                 </group>
             ))}
 
-            <Planter position={[-width / 2 + 0.6, 0, -depth / 2 + 0.6]} seed="corner-left" seeThrough={seeThrough} />
-            <Planter position={[width / 2 - 0.6, 0, -depth / 2 + 0.6]} seed="corner-right" seeThrough={seeThrough} />
+            <Planter position={[-hall / 2 + 0.6, 0, -hall / 2 + 0.6]} seed="corner-nw" seeThrough={seeThrough} />
+            <Planter position={[east - 0.6, 0, -hall / 2 + 0.6]} seed="corner-ne" seeThrough={seeThrough} />
+            <Planter position={[east - 0.6, 0, hall / 2 - 0.6]} seed="corner-se" seeThrough={seeThrough} />
             {[-1, 1].map(side => (
-                <Planter key={side} position={[-width / 2 + 0.55, 0, side * (DOOR_HALF + 0.9)]} seed={`by-door${side}`} seeThrough={seeThrough} />
+                <group key={side}>
+                    <Planter position={[-hall / 2 + 0.55, 0, side * aroundDoor]} seed={`west-door${side}`} seeThrough={seeThrough} />
+                    <Planter position={[side * aroundDoor, 0, -hall / 2 + 0.6]} seed={`north-door${side}`} seeThrough={seeThrough} />
+                    <Planter position={[side * aroundDoor, 0, hall / 2 - 0.6]} seed={`south-door${side}`} seeThrough={seeThrough} />
+                </group>
             ))}
         </group>
     );
