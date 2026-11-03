@@ -107,6 +107,7 @@ namespace LibraryManagementSystem.Server.Validators
             RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
             RuleFor(x => x.FloorId).NotEmpty();
             RuleFor(x => x.ShelfId).NotEmpty();
+            RuleFor(x => x.Model).IsInEnum();
         }
     }
 }

@@ -3,20 +3,24 @@ import { z } from 'zod';
 import { CrudPage } from '../components/crud/CrudPage.tsx';
 import { createDataTableColumnHelper } from '../components/data-table/tableConfig.ts';
 import type { FormField } from '../components/form/FormBuilder.tsx';
-import { floorHooks, sectionHooks, shelfHooks } from '../api/resources.ts';
-import type { Section } from '../api/resources.ts';
+import { floorHooks, sectionHooks, sectionModelLabels, shelfHooks } from '../api/resources.ts';
+import type { Section, SectionModel } from '../api/resources.ts';
 
 const helper = createDataTableColumnHelper<Section>();
 const columns = helper.columns([
     helper.accessor('name', { header: 'Name' }),
     helper.accessor('floorName', { header: 'Floor' }),
     helper.accessor('shelfName', { header: 'Shelf' }),
+    helper.accessor(section => sectionModelLabels[section.model], { id: 'model', header: 'Model' }),
 ]);
+
+const modelOptions = Object.entries(sectionModelLabels).map(([value, label]) => ({ value, label }));
 
 const sectionSchema = z.object({
     name: z.string().trim().min(1, 'Name is required').max(100, 'Name must be at most 100 characters'),
     floorId: z.string().min(1, 'Select a floor'),
     shelfId: z.string().min(1, 'Select a shelf'),
+    model: z.enum(['0', '1', '2']),
 });
 type SectionFormInput = z.input<typeof sectionSchema>;
 
@@ -42,6 +46,14 @@ export function SectionsPage() {
                 description: 'The shelf must be on the selected floor.',
                 options: (shelves ?? []).map(s => ({ value: s.id, label: `${s.floorName} › ${s.name}` })),
             },
+            {
+                name: 'model',
+                label: 'Model',
+                type: 'select',
+                description: 'A wing or reading room extends the floor on the 3D map to make room for this section.',
+                options: modelOptions,
+                span: 2,
+            },
         ],
         [floors, shelves],
     );
@@ -50,14 +62,24 @@ export function SectionsPage() {
         <CrudPage
             title="Sections"
             singular="section"
-            description="Named areas of the library, each assigned to a floor and a shelf."
+            description="Named areas of the library, each assigned to a floor and a shelf. A wing or reading room extends the floor."
             hooks={sectionHooks}
             columns={columns}
             schema={sectionSchema}
             fields={fields}
-            newDefaults={{ name: '', floorId: '', shelfId: '' }}
-            toFormValues={section => ({ name: section.name, floorId: section.floorId, shelfId: section.shelfId })}
-            toRequest={values => ({ name: values.name, floorId: values.floorId, shelfId: values.shelfId })}
+            newDefaults={{ name: '', floorId: '', shelfId: '', model: '0' }}
+            toFormValues={section => ({
+                name: section.name,
+                floorId: section.floorId,
+                shelfId: section.shelfId,
+                model: String(section.model) as SectionFormInput['model'],
+            })}
+            toRequest={values => ({
+                name: values.name,
+                floorId: values.floorId,
+                shelfId: values.shelfId,
+                model: Number(values.model) as SectionModel,
+            })}
             itemLabel={section => section.name}
         />
     );

@@ -493,6 +493,9 @@ namespace LibraryManagementSystem.Server.Migrations
                     b.Property<Guid>("FloorId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<int>("Model")
+                        .HasColumnType("int");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)

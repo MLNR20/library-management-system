@@ -1,10 +1,11 @@
-import { PLANK, SHELF_DEPTH, SHELF_WIDTH, STAIR_ZONE, TIER_HEIGHT } from '../../lib/libraryLayout.ts';
+import { PLANK, SHELF_DEPTH, SHELF_WIDTH, TIER_HEIGHT, shelfWorldX } from '../../lib/libraryLayout.ts';
 import type { FloorLayout, ShelfLayout } from '../../lib/libraryLayout.ts';
 import { buildGrid, findPath } from '../../lib/pathfinding.ts';
 import type { Box, Point2 } from '../../lib/pathfinding.ts';
 import {
     STAIR_EDGE,
     STAIR_LANDING,
+    flightFrame,
     entrancePoint,
     furnitureRects,
     stairDirection,
@@ -38,10 +39,10 @@ const CLEARANCE = 0.2;
 /** How far in front of a shelf the person stands. */
 const STAND_DISTANCE = SHELF_DEPTH / 2 + 0.65;
 
-function shelfBox(shelf: ShelfLayout): Box {
+function shelfBox(shelf: ShelfLayout, x: number): Box {
     const quarterTurn = shelf.shelf.rotation === 90;
     return {
-        x: shelf.x,
+        x,
         z: shelf.z,
         hx: quarterTurn ? SHELF_DEPTH / 2 : SHELF_WIDTH / 2,
         hz: quarterTurn ? SHELF_WIDTH / 2 : SHELF_DEPTH / 2,
@@ -83,10 +84,11 @@ export function buildRoute(floors: FloorLayout[], rowId: string, width: number, 
     const targetIndex = floors.findIndex(floor => floor.shelves.some(shelf => shelf.tiers.some(tier => tier.row.id === rowId)));
     if (targetIndex < 0) return null;
 
-    const laneX = width / 2 - STAIR_ZONE / 2;
-    // Where someone steps out of / into the stair strip, a little to its left.
-    const entryX = width / 2 - STAIR_ZONE - 0.5;
-    const { count, rise, run } = stairGeometry(depth, storey);
+    const { count, rise, run } = stairGeometry(storey);
+    const { length: flight, centre } = flightFrame(width);
+    // Where a flight starts and where its landing is, along x: the flights run across the middle of the floor (z = 0).
+    const footX = (direction: number) => centre - direction * (flight / 2 - STAIR_EDGE);
+    const topX = (direction: number) => centre + direction * (flight / 2 - STAIR_LANDING / 2);
 
     const segments: RouteSegment[] = [];
     const steps: string[] = [];
@@ -95,48 +97,55 @@ export function buildRoute(floors: FloorLayout[], rowId: string, width: number, 
 
     for (let index = 0; index <= targetIndex; index++) {
         const floor = floors[index];
+        // A wing or reading room widens the floor to the right.
         const grid = buildGrid(
-            width,
+            width + floor.extensionWidth,
             depth,
-            [...floor.shelves.map(shelfBox), ...furnitureRects(width, depth, floor.level === 0)],
+            [
+                ...floor.shelves.map(shelf => shelfBox(shelf, shelfWorldX(shelf, width))),
+                ...furnitureRects(width, depth, floor.level === 0, floor.extensions),
+            ],
             CLEARANCE,
             0.25,
+            floor.extensionWidth / 2,
         );
 
         let from: Point2;
         if (index === 0 && floor.level === 0) {
-            const door = entrancePoint(width, depth);
+            const door = entrancePoint(width);
             from = [door.x, door.z];
             entrance = { index, position: [door.x, WALK_HEIGHT, door.z] };
-            steps.push(`Come in through the main door at the back of the ${floor.floor.name.toLowerCase()}.`);
+            steps.push(`Come in through the main door in the left wall of the ${floor.floor.name.toLowerCase()}; the stairs face it at the far end of the red runner.`);
         } else if (index === 0) {
-            from = [entryX, 0];
+            from = [footX(stairDirection(0)) - 0.6, 0];
         } else {
             // Arrived from the flight below, on the landing at its far end.
-            from = [entryX, stairDirection(index - 1) * (depth / 2 - STAIR_LANDING / 2)];
+            from = [topX(stairDirection(index - 1)), 0];
         }
 
         const points: Point3[] = [];
 
         if (index < targetIndex) {
             const direction = stairDirection(index);
-            const startZ = -direction * (depth / 2 - STAIR_EDGE);
-            const walk = findPath(grid, from, [entryX, startZ]) ?? [from, [entryX, startZ]];
+            // The first flight starts at the left, facing the door: walk along the runner to its foot.
+            const foot: Point2 = [footX(direction) - (direction === 1 ? 0.6 : 0), 0];
+            const walk = findPath(grid, from, foot) ?? [from, foot];
             points.push(...lift(walk));
-            points.push([laneX, WALK_HEIGHT, startZ]);
+            points.push([footX(direction), WALK_HEIGHT, 0]);
             for (let step = 0; step < count; step++) {
-                points.push([laneX, (step + 1) * rise + WALK_HEIGHT, startZ + direction * (step + 0.5) * run]);
+                points.push([footX(direction) + direction * (step + 0.5) * run, (step + 1) * rise + WALK_HEIGHT, 0]);
             }
-            points.push([laneX, storey + WALK_HEIGHT, direction * (depth / 2 - STAIR_LANDING / 2)]);
+            points.push([topX(direction), storey + WALK_HEIGHT, 0]);
             steps.push(`Take the stairs up to the ${floors[index + 1].floor.name.toLowerCase()}.`);
         } else {
             const shelf = floor.shelves.find(s => s.tiers.some(tier => tier.row.id === rowId))!;
             const tierIndex = shelf.tiers.findIndex(tier => tier.row.id === rowId);
             const [fx, fz] = facing(shelf);
-            const stand: Point2 = [shelf.x + fx * STAND_DISTANCE, shelf.z + fz * STAND_DISTANCE];
+            const shelfX = shelfWorldX(shelf, width);
+            const stand: Point2 = [shelfX + fx * STAND_DISTANCE, shelf.z + fz * STAND_DISTANCE];
             const walk = findPath(grid, from, stand) ?? [from, stand];
             const book: Point3 = [
-                shelf.x + fx * (SHELF_DEPTH / 2 + 0.05),
+                shelfX + fx * (SHELF_DEPTH / 2 + 0.05),
                 tierIndex * TIER_HEIGHT + TIER_HEIGHT / 2 + PLANK / 2,
                 shelf.z + fz * (SHELF_DEPTH / 2 + 0.05),
             ];

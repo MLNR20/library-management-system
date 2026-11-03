@@ -18,5 +18,8 @@ namespace LibraryManagementSystem.Server.Models
         public Guid ShelfId { get; set; }
 
         public Shelf Shelf { get; set; } = null!;
+
+        // Anything but None extends the floor with a wing or reading room for this section.
+        public SectionModel Model { get; set; } = SectionModel.None;
     }
 }

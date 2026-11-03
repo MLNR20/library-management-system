@@ -89,6 +89,20 @@ export interface RowRequest {
     shelfId: string;
 }
 
+/** Numeric values match the server's SectionModel enum. */
+export const SectionModel = {
+    None: 0,
+    Wing: 1,
+    ReadingRoom: 2,
+} as const;
+export type SectionModel = (typeof SectionModel)[keyof typeof SectionModel];
+
+export const sectionModelLabels: Record<SectionModel, string> = {
+    [SectionModel.None]: 'None',
+    [SectionModel.Wing]: 'Wing',
+    [SectionModel.ReadingRoom]: 'Reading room',
+};
+
 export interface Section {
     id: string;
     name: string;
@@ -96,11 +110,14 @@ export interface Section {
     floorName: string;
     shelfId: string;
     shelfName: string;
+    /** Anything but None extends the section's floor with a wing or reading room. */
+    model: SectionModel;
 }
 export interface SectionRequest {
     name: string;
     floorId: string;
     shelfId: string;
+    model: SectionModel;
 }
 
 /** "Floor 1 › Shelf A › Row 3" */
