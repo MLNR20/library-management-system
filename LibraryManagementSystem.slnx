@@ -3,5 +3,6 @@
     <Build />
     <Deploy />
   </Project>
+  <Project Path="LibraryManagementSystem.Server.Tests/LibraryManagementSystem.Server.Tests.csproj" />
   <Project Path="LibraryManagementSystem.Server/LibraryManagementSystem.Server.csproj" />
 </Solution>
