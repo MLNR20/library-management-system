@@ -50,10 +50,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 // The response has the same shape as the saved session.
                 const { data } = await api.post<AuthSession>('/auth/login', request);
                 startSession(data);
+                return data;
             },
             register: async (request: RegisterRequest) => {
                 const { data } = await api.post<AuthSession>('/auth/register', request);
                 startSession(data);
+                return data;
             },
             // Only a deliberate sign-out is recorded; expiry and rejected tokens go through endSession directly.
             logout: () => {

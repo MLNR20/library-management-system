@@ -1,5 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router';
 import { Page } from '../components/layout/Page.tsx';
+import { homePathFor } from './homePath.ts';
 import { useAuth } from './useAuth.ts';
 
 /** Renders the nested routes only for a signed-in user; visitors to the site root see the landing page, everyone else the login page. */
@@ -44,10 +45,12 @@ export function RequireStaff() {
     return <Outlet />;
 }
 
-/** Login and register pages: a signed-in user has no business here. */
+/** Login and register pages: a signed-in user has no business here, so they go to the page they wanted or their role's home. */
 export function GuestOnly() {
-    const { user } = useAuth();
+    const { user, roles } = useAuth();
+    const location = useLocation();
 
-    if (user) return <Navigate to="/" replace />;
+    const from = (location.state as { from?: string } | null)?.from;
+    if (user) return <Navigate to={from ?? homePathFor(roles)} replace />;
     return <Outlet />;
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { z } from 'zod';
+import { homePathFor } from '../auth/homePath.ts';
 import { useAuth } from '../auth/useAuth.ts';
 import { FormBuilder } from '../components/form/FormBuilder.tsx';
 import type { FormField } from '../components/form/FormBuilder.tsx';
@@ -73,9 +74,9 @@ export function RegisterPage() {
                 onSubmit={async values => {
                     setFormError(undefined);
                     try {
-                        await register(values);
+                        const session = await register(values);
                         // Registering also signs the user in.
-                        navigate('/', { replace: true });
+                        navigate(homePathFor(session.roles), { replace: true });
                     } catch (error) {
                         setFormError(getErrorMessage(error));
                     }

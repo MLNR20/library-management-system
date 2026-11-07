@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { z } from 'zod';
+import { homePathFor } from '../auth/homePath.ts';
 import { useAuth } from '../auth/useAuth.ts';
 import { FormBuilder } from '../components/form/FormBuilder.tsx';
 import type { FormField } from '../components/form/FormBuilder.tsx';
@@ -23,8 +24,8 @@ export function LoginPage() {
     const location = useLocation();
     const [formError, setFormError] = useState<string>();
 
-    // RequireAuth leaves the page the user was heading to in the location state.
-    const from = (location.state as { from?: string } | null)?.from ?? '/';
+    // RequireAuth leaves the page the user was heading to in the location state; without one, go to the role's home.
+    const from = (location.state as { from?: string } | null)?.from;
 
     return (
         <AuthLayout
@@ -48,8 +49,8 @@ export function LoginPage() {
                 onSubmit={async values => {
                     setFormError(undefined);
                     try {
-                        await login(values);
-                        navigate(from, { replace: true });
+                        const session = await login(values);
+                        navigate(from ?? homePathFor(session.roles), { replace: true });
                     } catch (error) {
                         setFormError(getErrorMessage(error));
                     }

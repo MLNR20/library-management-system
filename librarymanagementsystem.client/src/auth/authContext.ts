@@ -21,8 +21,9 @@ export interface AuthContextValue {
     isAdmin: boolean;
     /** Librarian or administrator: the people who clock in and out. */
     isStaff: boolean;
-    login: (request: LoginRequest) => Promise<void>;
-    register: (request: RegisterRequest) => Promise<void>;
+    /** Resolves with the new session so callers can route by its roles. */
+    login: (request: LoginRequest) => Promise<AuthSession>;
+    register: (request: RegisterRequest) => Promise<AuthSession>;
     logout: () => void;
 }
 
