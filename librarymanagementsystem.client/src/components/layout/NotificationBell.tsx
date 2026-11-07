@@ -1,4 +1,9 @@
-import { useMarkAllNotificationsRead, useMarkNotificationRead, useNotifications } from '../../api/notifications.ts';
+import {
+    NotificationKind,
+    useMarkAllNotificationsRead,
+    useMarkNotificationRead,
+    useNotifications,
+} from '../../api/notifications.ts';
 
 /** Bell in the student header: due-soon and overdue reminders written by the daily reminder job. */
 export function NotificationBell() {
@@ -40,10 +45,10 @@ export function NotificationBell() {
                                 >
                                     <span className="flex items-center gap-2">
                                         <span
-                                            className={`badge badge-xs ${notification.kind === 'Overdue' ? 'badge-error' : 'badge-warning'}`}
+                                            className={`badge badge-xs ${notification.kind === NotificationKind.Overdue ? 'badge-error' : 'badge-warning'}`}
                                         />
                                         <span className="text-xs opacity-70">
-                                            {notification.kind === 'Overdue' ? 'Overdue' : 'Due soon'} ·{' '}
+                                            {notification.kind === NotificationKind.Overdue ? 'Overdue' : 'Due soon'} ·{' '}
                                             {new Date(notification.createdAtUtc).toLocaleDateString()}
                                         </span>
                                     </span>

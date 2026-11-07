@@ -3,10 +3,17 @@ import { api } from '../lib/api.ts';
 
 // Mirrors Dtos/Notifications in LibraryManagementSystem.Server. Everyone only ever sees their own.
 
+/** Numeric values match the server's NotificationKind enum. */
+export const NotificationKind = {
+    DueSoon: 0,
+    Overdue: 1,
+} as const;
+export type NotificationKind = (typeof NotificationKind)[keyof typeof NotificationKind];
+
 export interface AppNotification {
     id: string;
     borrowingId: string;
-    kind: 'DueSoon' | 'Overdue';
+    kind: NotificationKind;
     message: string;
     createdAtUtc: string;
     isRead: boolean;
