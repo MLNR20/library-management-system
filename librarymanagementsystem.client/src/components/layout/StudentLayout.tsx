@@ -22,6 +22,9 @@ export function StudentLayout() {
                     <NavLink to="/student/map" className={navLinkClass}>
                         Library map
                     </NavLink>
+                    <NavLink to="/student/tables" className={navLinkClass}>
+                        Reserve a table
+                    </NavLink>
                 </nav>
                 <label className="flex flex-none cursor-pointer items-center gap-2 pr-2 text-sm">
                     <span>Dark</span>

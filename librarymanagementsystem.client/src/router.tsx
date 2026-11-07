@@ -19,6 +19,9 @@ import { SectionsPage } from './pages/SectionsPage.tsx';
 import { ShelvesPage } from './pages/ShelvesPage.tsx';
 import { TimeCardsPage } from './pages/TimeCardsPage.tsx';
 import { StudentBooksPage } from './pages/StudentBooksPage.tsx';
+import { StudentTablesPage } from './pages/StudentTablesPage.tsx';
+import { ReservationsPage } from './pages/ReservationsPage.tsx';
+import { TablesPage } from './pages/TablesPage.tsx';
 import { AnnouncementsPage } from './pages/AnnouncementsPage.tsx';
 import { UsersPage } from './pages/UsersPage.tsx';
 
@@ -35,6 +38,7 @@ export const router = createBrowserRouter([
                 element: <StudentLayout />,
                 children: [
                     { index: true, element: <StudentBooksPage /> },
+                    { path: 'tables', element: <StudentTablesPage /> },
                     {
                         path: 'map',
                         lazy: async () => ({ Component: (await import('./pages/StudentMapPage.tsx')).StudentMapPage }),
@@ -53,7 +57,11 @@ export const router = createBrowserRouter([
                     { path: 'announcements', element: <AnnouncementsPage /> },
                     {
                         element: <RequireStaff />,
-                        children: [{ path: 'time-cards', element: <TimeCardsPage /> }],
+                        children: [
+                            { path: 'time-cards', element: <TimeCardsPage /> },
+                            { path: 'reservations', element: <ReservationsPage /> },
+                            { path: 'tables', element: <TablesPage /> },
+                        ],
                     },
                     {
                         // Loaded on demand so the 3D library only ships to people who open the map.

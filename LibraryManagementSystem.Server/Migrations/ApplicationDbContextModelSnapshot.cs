@@ -594,6 +594,90 @@ namespace LibraryManagementSystem.Server.Migrations
                         });
                 });
 
+            modelBuilder.Entity("LibraryManagementSystem.Server.Models.StudyTable", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("Seats")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("SectionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.HasIndex("SectionId");
+
+                    b.ToTable("StudyTables");
+                });
+
+            modelBuilder.Entity("LibraryManagementSystem.Server.Models.TableReservation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("DecidedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DecidedByName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("DecisionNote")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<DateTime>("EndUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<DateTime>("RequestedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("StartUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<Guid>("TableId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("TableId", "StartUtc");
+
+                    b.HasIndex("UserId", "StartUtc");
+
+                    b.ToTable("TableReservations");
+                });
+
             modelBuilder.Entity("LibraryManagementSystem.Server.Models.TimeCard", b =>
                 {
                     b.Property<Guid>("Id")
@@ -911,6 +995,35 @@ namespace LibraryManagementSystem.Server.Migrations
                     b.Navigation("Floor");
                 });
 
+            modelBuilder.Entity("LibraryManagementSystem.Server.Models.StudyTable", b =>
+                {
+                    b.HasOne("LibraryManagementSystem.Server.Models.Section", "Section")
+                        .WithMany()
+                        .HasForeignKey("SectionId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Section");
+                });
+
+            modelBuilder.Entity("LibraryManagementSystem.Server.Models.TableReservation", b =>
+                {
+                    b.HasOne("LibraryManagementSystem.Server.Models.StudyTable", "Table")
+                        .WithMany("Reservations")
+                        .HasForeignKey("TableId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("LibraryManagementSystem.Server.Data.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Table");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("LibraryManagementSystem.Server.Models.TimeCard", b =>
                 {
                     b.HasOne("LibraryManagementSystem.Server.Data.ApplicationUser", "User")
@@ -986,6 +1099,11 @@ namespace LibraryManagementSystem.Server.Migrations
             modelBuilder.Entity("LibraryManagementSystem.Server.Models.Shelf", b =>
                 {
                     b.Navigation("Rows");
+                });
+
+            modelBuilder.Entity("LibraryManagementSystem.Server.Models.StudyTable", b =>
+                {
+                    b.Navigation("Reservations");
                 });
 
             modelBuilder.Entity("LibraryManagementSystem.Server.Models.TimeCard", b =>

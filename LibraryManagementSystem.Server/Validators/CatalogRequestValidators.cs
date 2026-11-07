@@ -3,6 +3,7 @@ using LibraryManagementSystem.Server.Dtos.Announcements;
 using LibraryManagementSystem.Server.Dtos.Authors;
 using LibraryManagementSystem.Server.Dtos.Books;
 using LibraryManagementSystem.Server.Dtos.Floors;
+using LibraryManagementSystem.Server.Dtos.Reservations;
 using LibraryManagementSystem.Server.Dtos.Rows;
 using LibraryManagementSystem.Server.Dtos.Sections;
 using LibraryManagementSystem.Server.Dtos.Shelves;
@@ -89,6 +90,35 @@ namespace LibraryManagementSystem.Server.Validators
             RuleFor(x => x.Body).NotEmpty().MaximumLength(20000)
                 .Must(body => RichText.ToPlainText(RichText.Sanitize(body)).Length > 0).WithMessage("Write a message.");
             RuleFor(x => x.FloorId).NotEqual(Guid.Empty).When(x => x.FloorId is not null);
+        }
+    }
+
+    public class StudyTableRequestValidator : AbstractValidator<StudyTableRequest>
+    {
+        public StudyTableRequestValidator()
+        {
+            RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
+            RuleFor(x => x.Seats).InclusiveBetween(1, 50);
+            RuleFor(x => x.SectionId).NotEqual(Guid.Empty).When(x => x.SectionId is not null);
+        }
+    }
+
+    public class TableReservationRequestValidator : AbstractValidator<TableReservationRequest>
+    {
+        public TableReservationRequestValidator()
+        {
+            RuleFor(x => x.TableId).NotEmpty();
+            RuleFor(x => x.StartUtc).NotEqual(default(DateTime)).WithMessage("Start time is required.");
+            RuleFor(x => x.EndUtc).GreaterThan(x => x.StartUtc).WithMessage("The reservation must end after it starts.");
+            RuleFor(x => x.Note).MaximumLength(TableReservation.NoteMaxLength);
+        }
+    }
+
+    public class RejectReservationRequestValidator : AbstractValidator<RejectReservationRequest>
+    {
+        public RejectReservationRequestValidator()
+        {
+            RuleFor(x => x.Reason).MaximumLength(TableReservation.NoteMaxLength);
         }
     }
 

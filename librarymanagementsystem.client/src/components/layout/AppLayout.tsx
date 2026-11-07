@@ -27,6 +27,8 @@ interface NavItem {
     label: string;
     icon: ReactNode;
     end?: boolean;
+    /** Only librarians and administrators see it. */
+    staffOnly?: boolean;
 }
 
 interface NavGroup {
@@ -42,7 +44,7 @@ const navGroups: NavGroup[] = [
         items: [
             { to: '/', label: 'Dashboard', icon: <DashboardIcon className={iconClass} />, end: true },
             { to: '/student', label: 'Student view', icon: <BookIcon className={iconClass} /> },
-            { to: '/time-cards', label: 'Time cards', icon: <ClockIcon className={iconClass} /> },
+            { to: '/time-cards', label: 'Time cards', icon: <ClockIcon className={iconClass} />, staffOnly: true },
         ],
     },
     {
@@ -53,6 +55,13 @@ const navGroups: NavGroup[] = [
             { to: '/genres', label: 'Genres', icon: <GenreIcon className={iconClass} /> },
             { to: '/languages', label: 'Languages', icon: <LanguageIcon className={iconClass} /> },
             { to: '/announcements', label: 'Announcements', icon: <AnnouncementIcon className={iconClass} /> },
+        ],
+    },
+    {
+        title: 'Reading rooms',
+        items: [
+            { to: '/reservations', label: 'Table reservations', icon: <ClockIcon className={iconClass} />, staffOnly: true },
+            { to: '/tables', label: 'Tables', icon: <SectionIcon className={iconClass} />, staffOnly: true },
         ],
     },
     {
@@ -80,10 +89,10 @@ const adminGroup: NavGroup = {
 export function AppLayout() {
     const { user, isAdmin, isStaff, logout } = useAuth();
     const groups = isAdmin ? [...navGroups, adminGroup] : navGroups;
-    // Time cards belong to librarians and administrators only.
+    // Time cards, reservations and tables belong to librarians and administrators only.
     const visibleGroups = groups.map(group => ({
         ...group,
-        items: group.items.filter(item => isStaff || item.to !== '/time-cards'),
+        items: group.items.filter(item => isStaff || !item.staffOnly),
     }));
     const navigate = useNavigate();
     const handleLogout = () => {

@@ -43,6 +43,13 @@ namespace LibraryManagementSystem.Server.Services
                 return null;
             }
 
+            // Tables may only be in reading rooms, so a section that holds tables must stay one.
+            if (request.Model != SectionModel.ReadingRoom
+                && await unitOfWork.Repository<StudyTable>().AnyAsync(t => t.SectionId == id, cancellationToken))
+            {
+                throw new ArgumentException($"Section '{section.Name}' has tables, so it must stay a reading room. Move the tables first.");
+            }
+
             SectionMapper.Apply(request, section);
             await ResolveLocationAsync(section, request, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);

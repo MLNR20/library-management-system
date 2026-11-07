@@ -20,6 +20,11 @@ namespace LibraryManagementSystem.Server.Services
         public const string BookBorrowed = "Borrowing.Borrowed";
         public const string BookReturned = "Borrowing.Returned";
 
+        public const string TableRequested = "Table.Requested";
+        public const string TableApproved = "Table.Approved";
+        public const string TableRejected = "Table.Rejected";
+        public const string TableCancelled = "Table.Cancelled";
+
         public const string UserActivated = "User.Activated";
         public const string UserDeactivated = "User.Deactivated";
 

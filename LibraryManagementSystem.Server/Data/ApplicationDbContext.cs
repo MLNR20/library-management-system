@@ -23,6 +23,8 @@ namespace LibraryManagementSystem.Server.Data
         public DbSet<Borrowing> Borrowings => Set<Borrowing>();
         public DbSet<Contact> Contacts => Set<Contact>();
         public DbSet<Notification> Notifications => Set<Notification>();
+        public DbSet<StudyTable> StudyTables => Set<StudyTable>();
+        public DbSet<TableReservation> TableReservations => Set<TableReservation>();
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -123,6 +125,24 @@ namespace LibraryManagementSystem.Server.Data
                 notification.HasIndex(n => new { n.UserId, n.CreatedAtUtc });
                 notification.HasOne(n => n.User).WithMany().HasForeignKey(n => n.UserId).OnDelete(DeleteBehavior.Cascade);
                 notification.HasOne(n => n.Borrowing).WithMany().HasForeignKey(n => n.BorrowingId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // StudyTable 1-* TableReservation. Reservations are history: a table or user that has them cannot be deleted.
+            // Deleting a section leaves its tables in the library, just unassigned.
+            builder.Entity<StudyTable>(table =>
+            {
+                table.HasIndex(t => t.Name).IsUnique();
+                table.HasOne(t => t.Section).WithMany().HasForeignKey(t => t.SectionId).OnDelete(DeleteBehavior.SetNull);
+            });
+
+            builder.Entity<TableReservation>(reservation =>
+            {
+                reservation.Property(r => r.Status).HasConversion<string>().HasMaxLength(20);
+                reservation.HasIndex(r => new { r.TableId, r.StartUtc });
+                reservation.HasIndex(r => new { r.UserId, r.StartUtc });
+                reservation.HasIndex(r => r.Status);
+                reservation.HasOne(r => r.Table).WithMany(t => t.Reservations).HasForeignKey(r => r.TableId).OnDelete(DeleteBehavior.Restrict);
+                reservation.HasOne(r => r.User).WithMany().HasForeignKey(r => r.UserId).OnDelete(DeleteBehavior.Restrict);
             });
 
             // Two contacts cannot share an email address; listings sort by name.

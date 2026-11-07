@@ -153,6 +153,10 @@ try
         }, "Reminders:TimeZoneId is not a known time zone.")
         .ValidateOnStart();
     builder.Services.AddScoped<INotificationService, NotificationService>();
+
+    // Tables: students file reservation requests, librarians approve or reject them.
+    builder.Services.AddScoped<IStudyTableService, StudyTableService>();
+    builder.Services.AddScoped<ITableReservationService, TableReservationService>();
     builder.Services.AddHostedService<DueRemindersJob>();
 
     builder.Services.AddAuthorization();
@@ -189,6 +193,12 @@ try
 
     // Needs the latest migration applied (dotnet ef database update).
     await IdentitySeeder.SeedAsync(app.Services, app.Configuration);
+
+    // Development sample data: 150 shelved books. Opt in with "Seed": { "SampleCatalogue": true }.
+    if (app.Configuration.GetValue<bool>("Seed:SampleCatalogue"))
+    {
+        await CatalogueSeeder.SeedAsync(app.Services);
+    }
 
     app.UseExceptionHandler();
 
