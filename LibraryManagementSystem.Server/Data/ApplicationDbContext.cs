@@ -22,6 +22,7 @@ namespace LibraryManagementSystem.Server.Data
         public DbSet<ClockEntry> ClockEntries => Set<ClockEntry>();
         public DbSet<Borrowing> Borrowings => Set<Borrowing>();
         public DbSet<Contact> Contacts => Set<Contact>();
+        public DbSet<Notification> Notifications => Set<Notification>();
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -111,6 +112,17 @@ namespace LibraryManagementSystem.Server.Data
                 borrowing.HasIndex(b => b.DueAtUtc);
                 borrowing.HasOne(b => b.Book).WithMany().HasForeignKey(b => b.BookId).OnDelete(DeleteBehavior.Restrict);
                 borrowing.HasOne(b => b.User).WithMany().HasForeignKey(b => b.UserId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // One reminder per loan, kind and day, so the reminder job can safely run more than once a day. Notifications
+            // go with their user or loan. Restrict on the loan side avoids multiple cascade paths in SQL Server.
+            builder.Entity<Notification>(notification =>
+            {
+                notification.Property(n => n.Kind).HasConversion<string>().HasMaxLength(20);
+                notification.HasIndex(n => new { n.BorrowingId, n.Kind, n.Day }).IsUnique();
+                notification.HasIndex(n => new { n.UserId, n.CreatedAtUtc });
+                notification.HasOne(n => n.User).WithMany().HasForeignKey(n => n.UserId).OnDelete(DeleteBehavior.Cascade);
+                notification.HasOne(n => n.Borrowing).WithMany().HasForeignKey(n => n.BorrowingId).OnDelete(DeleteBehavior.Restrict);
             });
 
             // Two contacts cannot share an email address; listings sort by name.

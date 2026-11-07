@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router';
 import { useAuth } from '../../auth/useAuth.ts';
+import { NotificationBell } from './NotificationBell.tsx';
 import { useDarkTheme } from './useDarkTheme.ts';
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) => `btn btn-sm ${isActive ? 'btn-primary' : 'btn-ghost'}`;
@@ -33,6 +34,7 @@ export function StudentLayout() {
                     />
                 </label>
                 <div className="flex flex-none items-center gap-2">
+                    <NotificationBell />
                     <NavLink to="/" className="btn btn-ghost btn-sm">
                         Staff view
                     </NavLink>

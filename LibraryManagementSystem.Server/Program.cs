@@ -135,6 +135,26 @@ try
     builder.Services.AddSingleton<IBorrowingNotifier, SignalRBorrowingNotifier>();
     builder.Services.AddHostedService<OverdueBorrowingMonitor>();
 
+    // Due-books reminders: a daily job that writes in-app notifications for students.
+    builder.Services.AddOptions<ReminderSettings>()
+        .BindConfiguration(ReminderSettings.SectionName)
+        .ValidateDataAnnotations()
+        .Validate(settings =>
+        {
+            try
+            {
+                settings.ResolveTimeZone();
+                return true;
+            }
+            catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneException)
+            {
+                return false;
+            }
+        }, "Reminders:TimeZoneId is not a known time zone.")
+        .ValidateOnStart();
+    builder.Services.AddScoped<INotificationService, NotificationService>();
+    builder.Services.AddHostedService<DueRemindersJob>();
+
     builder.Services.AddAuthorization();
 
     // Rate limiting: a global per-client cap, plus a stricter "auth" policy for login/register endpoints.

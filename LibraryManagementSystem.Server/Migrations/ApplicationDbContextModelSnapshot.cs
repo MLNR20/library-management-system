@@ -467,6 +467,49 @@ namespace LibraryManagementSystem.Server.Migrations
                     b.ToTable("Languages");
                 });
 
+            modelBuilder.Entity("LibraryManagementSystem.Server.Models.Notification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("BorrowingId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateOnly>("Day")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("ReadAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "CreatedAtUtc");
+
+                    b.HasIndex("BorrowingId", "Kind", "Day")
+                        .IsUnique();
+
+                    b.ToTable("Notifications");
+                });
+
             modelBuilder.Entity("LibraryManagementSystem.Server.Models.Row", b =>
                 {
                     b.Property<Guid>("Id")
@@ -806,6 +849,25 @@ namespace LibraryManagementSystem.Server.Migrations
                         .IsRequired();
 
                     b.Navigation("TimeCard");
+                });
+
+            modelBuilder.Entity("LibraryManagementSystem.Server.Models.Notification", b =>
+                {
+                    b.HasOne("LibraryManagementSystem.Server.Models.Borrowing", "Borrowing")
+                        .WithMany()
+                        .HasForeignKey("BorrowingId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("LibraryManagementSystem.Server.Data.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Borrowing");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("LibraryManagementSystem.Server.Models.Row", b =>
