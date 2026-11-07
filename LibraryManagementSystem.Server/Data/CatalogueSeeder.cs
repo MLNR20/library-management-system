@@ -277,6 +277,18 @@ namespace LibraryManagementSystem.Server.Data
                 added++;
             }
 
+            // A welcome notice for the landing page, only when no announcement is meant for the whole library yet.
+            if (!await db.Announcements.AnyAsync(a => a.FloorId == null, cancellationToken))
+            {
+                db.Announcements.Add(new Announcement
+                {
+                    Id = Guid.NewGuid(),
+                    Title = "Welcome to Alexandria",
+                    Body = "<p>Our catalogue is open. You can now <strong>reserve a reading-room table</strong> from your student page; a librarian will confirm your request.</p>",
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+
             // Some tables for students to reserve, only when the library has none.
             if (!await db.StudyTables.AnyAsync(cancellationToken))
             {

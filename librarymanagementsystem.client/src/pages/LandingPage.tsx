@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useAuth } from '../auth/useAuth.ts';
+import { useLatestAnnouncements } from '../api/publicAnnouncements.ts';
 import { SiteNavbar } from '../components/layout/SiteNavbar.tsx';
+import { RichText } from '../components/ui/RichText.tsx';
 import { AnnouncementIcon, BookIcon, ClockIcon, LoanIcon, MapIcon, ShieldIcon } from '../components/ui/icons.tsx';
 
 interface Feature {
@@ -52,14 +54,15 @@ const steps = [
 /** Public front door: what the library offers and where to sign in or sign up. */
 export function LandingPage() {
     const { user, isStaff } = useAuth();
+    const announcements = useLatestAnnouncements().data ?? [];
     const home = isStaff ? '/' : '/student';
 
     return (
         <div className="flex min-h-screen flex-col bg-base-100">
-            <SiteNavbar themeToggle={false} />
+            <SiteNavbar />
 
             <main className="flex-1">
-                {/* The photo is public/hero-reading-room.jpg; the warm gradient shows until it is added. */}
+                {/* The photo is public/hero-reading-room.webp (see .hero-photo in index.css). */}
                 <section className="hero-photo relative isolate text-white">
                     <div className="absolute inset-0 -z-10 bg-gradient-to-r from-black/80 via-black/55 to-black/20" aria-hidden="true" />
                     <div className="flex min-h-[28rem] items-center px-6 py-20 md:min-h-[34rem] md:px-32 md:py-28">
@@ -93,6 +96,30 @@ export function LandingPage() {
                         </div>
                     </div>
                 </section>
+
+                {announcements.length > 0 && (
+                    <section id="announcements" className="border-b border-base-300 bg-base-200" aria-labelledby="announcements-heading">
+                        <div className="mx-auto max-w-6xl px-4 py-12">
+                            <h2 id="announcements-heading" className="flex items-center justify-center gap-2 text-2xl font-bold">
+                                <AnnouncementIcon className="h-6 w-6 text-primary" />
+                                Announcements
+                            </h2>
+                            <div className="mt-6 grid gap-4 md:grid-cols-3">
+                                {announcements.map(announcement => (
+                                    <article key={announcement.id} className="card card-border bg-base-100 shadow-sm md:first:col-span-1">
+                                        <div className="card-body gap-2">
+                                            <time className="text-xs opacity-70" dateTime={announcement.createdAt}>
+                                                {new Date(announcement.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}
+                                            </time>
+                                            <h3 className="card-title">{announcement.title}</h3>
+                                            <RichText html={announcement.body} className="text-sm opacity-80" />
+                                        </div>
+                                    </article>
+                                ))}
+                            </div>
+                        </div>
+                    </section>
+                )}
 
                 <section id="features" className="mx-auto max-w-6xl scroll-mt-16 px-4 py-16" aria-labelledby="features-heading">
                     <div className="mx-auto max-w-2xl text-center">

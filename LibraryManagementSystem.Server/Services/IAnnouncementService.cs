@@ -7,6 +7,9 @@ namespace LibraryManagementSystem.Server.Services
         // Newest first.
         Task<IReadOnlyList<AnnouncementDto>> GetAllAsync(CancellationToken cancellationToken = default);
 
+        // The newest announcements meant for the whole library (no floor), at most `count`. Shown to visitors who are not signed in.
+        Task<IReadOnlyList<AnnouncementDto>> GetLatestForEveryoneAsync(int count, CancellationToken cancellationToken = default);
+
         Task<AnnouncementDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
         // Throws KeyNotFoundException when a floor is given and does not exist.

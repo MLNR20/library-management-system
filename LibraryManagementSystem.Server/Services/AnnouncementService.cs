@@ -18,6 +18,18 @@ namespace LibraryManagementSystem.Server.Services
             return announcements.Select(AnnouncementMapper.ToDto).ToList();
         }
 
+        public async Task<IReadOnlyList<AnnouncementDto>> GetLatestForEveryoneAsync(int count, CancellationToken cancellationToken = default)
+        {
+            var announcements = await unitOfWork.Repository<Announcement>().Query()
+                .Include(a => a.Floor)
+                .Where(a => a.FloorId == null)
+                .OrderByDescending(a => a.CreatedAt)
+                .Take(count)
+                .ToListAsync(cancellationToken);
+
+            return announcements.Select(AnnouncementMapper.ToDto).ToList();
+        }
+
         public async Task<AnnouncementDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
         {
             var announcement = await unitOfWork.Repository<Announcement>().Query()

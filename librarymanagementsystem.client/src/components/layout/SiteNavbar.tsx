@@ -1,18 +1,13 @@
 import { Link, useLocation } from 'react-router';
 import { useAuth } from '../../auth/useAuth.ts';
-import { useDarkTheme } from './useDarkTheme.ts';
+import { useLightTheme } from './useLightTheme.ts';
 
-interface SiteNavbarProps {
-    /** Show the dark theme switch. On by default; the landing page turns it off. */
-    themeToggle?: boolean;
-}
-
-/** Public top bar shared by the landing, login and registration pages. */
-export function SiteNavbar({ themeToggle = true }: SiteNavbarProps) {
+/** Public top bar shared by the landing, login and registration pages. These pages are always in the light theme. */
+export function SiteNavbar() {
     const { user, isStaff, logout } = useAuth();
-    const [dark, setDark] = useDarkTheme();
     const { pathname } = useLocation();
     const home = isStaff ? '/' : '/student';
+    useLightTheme();
 
     return (
         <header className="navbar sticky top-0 z-30 border-b border-base-300 bg-base-100/90 backdrop-blur">
@@ -20,18 +15,6 @@ export function SiteNavbar({ themeToggle = true }: SiteNavbarProps) {
                 <Link to="/welcome" className="flex-1 font-brand text-2xl font-bold tracking-wide whitespace-nowrap text-primary">
                     Alexandria
                 </Link>
-                {themeToggle && (
-                    <label className="flex cursor-pointer items-center gap-2 pr-2 text-sm">
-                        <span className="hidden sm:inline">Dark</span>
-                        <input
-                            type="checkbox"
-                            className="toggle"
-                            checked={dark}
-                            onChange={event => setDark(event.target.checked)}
-                            aria-label="Dark theme"
-                        />
-                    </label>
-                )}
                 {user ? (
                     <>
                         <span className="hidden text-sm sm:inline">{user.userName}</span>

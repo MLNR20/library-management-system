@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace LibraryManagementSystem.Server.Controllers
 {
-    // Every action needs a valid JWT; anonymous callers get 401.
+    // Every action needs a valid JWT (anonymous callers get 401) except GET latest.
     [ApiController]
     [Authorize]
     [Route("api/announcements")]
@@ -14,6 +14,12 @@ namespace LibraryManagementSystem.Server.Controllers
         [HttpGet]
         public async Task<ActionResult<IReadOnlyList<AnnouncementDto>>> GetAll(CancellationToken cancellationToken) =>
             Ok(await announcements.GetAllAsync(cancellationToken));
+
+        // Open to anyone (the landing page shows it): only library-wide announcements, newest three, read-only.
+        [HttpGet("latest")]
+        [AllowAnonymous]
+        public async Task<ActionResult<IReadOnlyList<AnnouncementDto>>> GetLatest(CancellationToken cancellationToken) =>
+            Ok(await announcements.GetLatestForEveryoneAsync(3, cancellationToken));
 
         [HttpGet("{id:guid}")]
         public async Task<ActionResult<AnnouncementDto>> GetById(Guid id, CancellationToken cancellationToken)
