@@ -86,6 +86,23 @@ try
             // Browsers cannot set an Authorization header on a WebSocket, so SignalR sends the token as ?access_token=.
             options.Events = new JwtBearerEvents
             {
+                // A signed token is not enough: its session must not have been revoked (sign-out, "sign out other
+                // devices", token reuse). Tokens issued before sessions existed have no session claim and pass until they expire.
+                OnTokenValidated = async context =>
+                {
+                    var claim = context.Principal?.FindFirst(SessionClaim.Name)?.Value;
+                    if (claim is null)
+                    {
+                        return;
+                    }
+
+                    var sessions = context.HttpContext.RequestServices.GetRequiredService<ISessionService>();
+                    if (!Guid.TryParse(claim, out var sessionId) || !await sessions.IsActiveAsync(sessionId, context.HttpContext.RequestAborted))
+                    {
+                        context.Fail("The session has ended.");
+                    }
+                },
+
                 OnMessageReceived = context =>
                 {
                     var token = context.Request.Query["access_token"];
@@ -100,6 +117,7 @@ try
         });
 
     builder.Services.AddSingleton<ITokenService, TokenService>();
+    builder.Services.AddScoped<ISessionService, SessionService>();
 
     // Generic repository + unit of work (both share the request-scoped DbContext).
     builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));

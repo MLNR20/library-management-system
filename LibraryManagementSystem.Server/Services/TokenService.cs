@@ -12,14 +12,21 @@ namespace LibraryManagementSystem.Server.Services
 
     public interface ITokenService
     {
-        AccessToken CreateAccessToken(ApplicationUser user, IEnumerable<string> roles);
+        // sessionId ties the token to a UserSession so revoking the session also stops the token (see SessionClaim).
+        AccessToken CreateAccessToken(ApplicationUser user, IEnumerable<string> roles, Guid sessionId);
+    }
+
+    public static class SessionClaim
+    {
+        // A custom name, so JwtBearer's claim-type mapping leaves it alone.
+        public const string Name = "session_id";
     }
 
     public class TokenService(IOptions<JwtSettings> options) : ITokenService
     {
         private readonly JsonWebTokenHandler _handler = new();
 
-        public AccessToken CreateAccessToken(ApplicationUser user, IEnumerable<string> roles)
+        public AccessToken CreateAccessToken(ApplicationUser user, IEnumerable<string> roles, Guid sessionId)
         {
             var settings = options.Value;
             var now = DateTime.UtcNow;
@@ -28,7 +35,8 @@ namespace LibraryManagementSystem.Server.Services
             var claims = new List<Claim>
             {
                 new(JwtRegisteredClaimNames.Sub, user.Id),
-                new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+                new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                new(SessionClaim.Name, sessionId.ToString())
             };
 
             if (user.Email is not null)

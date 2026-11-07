@@ -23,6 +23,7 @@ namespace LibraryManagementSystem.Server.Data
         public DbSet<Borrowing> Borrowings => Set<Borrowing>();
         public DbSet<Contact> Contacts => Set<Contact>();
         public DbSet<Notification> Notifications => Set<Notification>();
+        public DbSet<UserSession> UserSessions => Set<UserSession>();
         public DbSet<StudyTable> StudyTables => Set<StudyTable>();
         public DbSet<TableReservation> TableReservations => Set<TableReservation>();
 
@@ -125,6 +126,13 @@ namespace LibraryManagementSystem.Server.Data
                 notification.HasIndex(n => new { n.UserId, n.CreatedAtUtc });
                 notification.HasOne(n => n.User).WithMany().HasForeignKey(n => n.UserId).OnDelete(DeleteBehavior.Cascade);
                 notification.HasOne(n => n.Borrowing).WithMany().HasForeignKey(n => n.BorrowingId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // One row per sign-in; removing a user removes their sessions. Looked up by id, listed per user.
+            builder.Entity<UserSession>(session =>
+            {
+                session.HasIndex(s => new { s.UserId, s.LastSeenAtUtc });
+                session.HasOne(s => s.User).WithMany().HasForeignKey(s => s.UserId).OnDelete(DeleteBehavior.Cascade);
             });
 
             // StudyTable 1-* TableReservation. Reservations are history: a table or user that has them cannot be deleted.

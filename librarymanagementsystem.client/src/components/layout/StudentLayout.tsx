@@ -41,6 +41,9 @@ export function StudentLayout() {
                     <NavLink to="/" className="btn btn-ghost btn-sm">
                         Staff view
                     </NavLink>
+                    <NavLink to="/student/sessions" className="btn btn-ghost btn-sm">
+                        Sessions
+                    </NavLink>
                     <span className="hidden text-sm sm:inline">{user?.userName}</span>
                     <button
                         className="btn btn-ghost btn-sm"

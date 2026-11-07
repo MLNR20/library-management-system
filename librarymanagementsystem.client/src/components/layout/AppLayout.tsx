@@ -44,6 +44,7 @@ const navGroups: NavGroup[] = [
         items: [
             { to: '/', label: 'Dashboard', icon: <DashboardIcon className={iconClass} />, end: true },
             { to: '/student', label: 'Student view', icon: <BookIcon className={iconClass} /> },
+            { to: '/sessions', label: 'My sessions', icon: <ShieldIcon className={iconClass} /> },
             { to: '/time-cards', label: 'Time cards', icon: <ClockIcon className={iconClass} />, staffOnly: true },
         ],
     },

@@ -16,7 +16,12 @@ namespace LibraryManagementSystem.Server.Settings
         [Required, MinLength(32)]
         public string SigningKey { get; set; } = string.Empty;
 
+        // Short on purpose: a revoked session stops working within this time, and the refresh token keeps people signed in.
         [Range(1, 1440)]
-        public int AccessTokenMinutes { get; set; } = 60;
+        public int AccessTokenMinutes { get; set; } = 15;
+
+        // A session survives this long without a refresh; every refresh starts the clock again.
+        [Range(1, 90)]
+        public int RefreshTokenDays { get; set; } = 14;
     }
 }

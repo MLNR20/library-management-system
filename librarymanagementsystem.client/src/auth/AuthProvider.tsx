@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { ADMIN_ROLE, LIBRARIAN_ROLE } from '../api/admin.ts';
-import { api, setUnauthorizedHandler } from '../lib/api.ts';
+import { api, refreshSession, setSessionRefreshedHandler, setUnauthorizedHandler } from '../lib/api.ts';
 import { clearSession, loadSession, saveSession } from '../lib/authStorage.ts';
 import type { AuthSession } from '../lib/authStorage.ts';
 import { AuthContext } from './authContext.ts';
@@ -30,12 +30,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return () => setUnauthorizedHandler(undefined);
     }, [endSession]);
 
-    // Sign out on the client the moment the token expires, instead of waiting for a failed request.
+    // The state follows whatever session was stored last, whether this tab refreshed it or another one did.
+    useEffect(() => {
+        setSessionRefreshedHandler(setSession);
+        const onStorage = () => {
+            const stored = loadSession();
+            if (stored) setSession(stored);
+            else endSession();
+        };
+        window.addEventListener('storage', onStorage);
+        return () => {
+            setSessionRefreshedHandler(undefined);
+            window.removeEventListener('storage', onStorage);
+        };
+    }, [endSession]);
+
+    // Renew the access token a minute before it runs out, so requests rarely meet an expired one. The server ending
+    // the session (revoked, signed out elsewhere) is the only thing that signs this tab out.
     useEffect(() => {
         if (!session) return;
         const msLeft = Date.parse(session.expiresAtUtc) - Date.now();
-        // setTimeout overflows (fires immediately) past ~24.8 days; tokens last at most a day.
-        const timer = setTimeout(endSession, Math.max(msLeft, 0));
+        const timer = setTimeout(() => {
+            refreshSession()
+                .then(next => {
+                    if (!next) endSession();
+                })
+                .catch(() => {
+                    // Offline: the next request tries again.
+                });
+        }, Math.max(msLeft - 60_000, 0));
         return () => clearTimeout(timer);
     }, [session, endSession]);
 
@@ -60,10 +83,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // Only a deliberate sign-out is recorded; expiry and rejected tokens go through endSession directly.
             logout: () => {
                 if (session) {
-                    // Sent with the token explicitly because endSession clears the stored one first.
-                    api.post('/auth/logout', null, { headers: { Authorization: `Bearer ${session.accessToken}` } }).catch(() => {
-                        // The audit entry is best effort; signing out must not depend on it.
-                    });
+                    // The refresh token is the proof, so this works even when the access token has expired. Ending the
+                    // session on the server is best effort; signing out here must not depend on it.
+                    api.post('/auth/logout', { refreshToken: session.refreshToken }).catch(() => {});
                 }
                 endSession();
             },

@@ -6,25 +6,26 @@ export interface AuthUser {
 }
 
 export interface AuthSession {
+    /** Short-lived; sent with every request. */
     accessToken: string;
+    /** When the access token stops working. After that the refresh token gets a new one. */
     expiresAtUtc: string;
+    /** Long-lived and single-use: every refresh returns a new one. */
+    refreshToken: string;
     user: AuthUser;
     roles: string[];
 }
 
 const STORAGE_KEY = 'lms.auth';
 
-function isExpired(session: AuthSession): boolean {
-    return Date.parse(session.expiresAtUtc) <= Date.now();
-}
-
-/** The saved session, or null when there is none, it is unreadable, or the token has expired. */
+/** The saved session, or null when there is none or it is unreadable. Its access token may have expired: see refreshSession. */
 export function loadSession(): AuthSession | null {
     try {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (!raw) return null;
         const session = JSON.parse(raw) as AuthSession;
-        if (!session.accessToken || isExpired(session)) {
+        // A session saved before refresh tokens existed has none; it cannot be renewed, so sign in again.
+        if (!session.accessToken || !session.refreshToken) {
             clearSession();
             return null;
         }

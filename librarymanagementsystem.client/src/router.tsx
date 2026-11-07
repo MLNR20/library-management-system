@@ -20,6 +20,7 @@ import { ShelvesPage } from './pages/ShelvesPage.tsx';
 import { TimeCardsPage } from './pages/TimeCardsPage.tsx';
 import { StudentBooksPage } from './pages/StudentBooksPage.tsx';
 import { StudentTablesPage } from './pages/StudentTablesPage.tsx';
+import { SessionsPage } from './pages/SessionsPage.tsx';
 import { ReservationsPage } from './pages/ReservationsPage.tsx';
 import { TablesPage } from './pages/TablesPage.tsx';
 import { AnnouncementsPage } from './pages/AnnouncementsPage.tsx';
@@ -39,6 +40,7 @@ export const router = createBrowserRouter([
                 children: [
                     { index: true, element: <StudentBooksPage /> },
                     { path: 'tables', element: <StudentTablesPage /> },
+                    { path: 'sessions', element: <SessionsPage /> },
                     {
                         path: 'map',
                         lazy: async () => ({ Component: (await import('./pages/StudentMapPage.tsx')).StudentMapPage }),
@@ -50,6 +52,7 @@ export const router = createBrowserRouter([
                 element: <AppLayout />,
                 children: [
                     { index: true, element: <DashboardPage /> },
+                    { path: 'sessions', element: <SessionsPage /> },
                     { path: 'books', element: <BooksPage /> },
                     { path: 'authors', element: <AuthorsPage /> },
                     { path: 'genres', element: <GenresPage /> },

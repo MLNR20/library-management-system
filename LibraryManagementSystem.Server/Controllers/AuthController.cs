@@ -1,6 +1,7 @@
 using LibraryManagementSystem.Server.Data;
 using LibraryManagementSystem.Server.Dtos.Auth;
 using LibraryManagementSystem.Server.Mapping;
+using LibraryManagementSystem.Server.Models;
 using LibraryManagementSystem.Server.Services;
 using LibraryManagementSystem.Server.Settings;
 using Microsoft.AspNetCore.Authorization;
@@ -17,6 +18,7 @@ namespace LibraryManagementSystem.Server.Controllers
     public class AuthController(
         UserManager<ApplicationUser> userManager,
         ITokenService tokenService,
+        ISessionService sessions,
         IAuditService audit,
         ILogger<AuthController> logger) : ControllerBase
     {
@@ -99,26 +101,76 @@ namespace LibraryManagementSystem.Server.Controllers
             return Ok(new CurrentUserResponse(AuthMapper.ToDto(user), roles));
         }
 
-        // Tokens are stateless, so this only records the sign-out; the client discards its token.
-        [Authorize]
+        // Ends the session the refresh token belongs to, so neither it nor that session's access token works again.
+        // Open to callers whose access token has already expired: the refresh token is the proof. Always 204, so the
+        // response says nothing about whether the token was real.
+        [AllowAnonymous]
         [DisableRateLimiting]
         [HttpPost("logout")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        public async Task<IActionResult> Logout()
+        public async Task<IActionResult> Logout(RefreshRequest request)
         {
-            await audit.WriteAsync(AuditActions.Logout);
+            var ended = await sessions.RevokeByRefreshTokenAsync(request.RefreshToken, "Signed out");
+            if (ended is not null)
+            {
+                var user = await userManager.FindByIdAsync(ended.UserId);
+                await audit.WriteAsync(AuditActions.Logout, target: user?.UserName, userId: ended.UserId, userName: user?.UserName);
+            }
 
             return NoContent();
         }
 
+        // Trades a refresh token for a new access token and a new refresh token (the old one stops working).
+        // Showing an old, replaced token again revokes the whole session.
+        [AllowAnonymous]
+        [HttpPost("refresh")]
+        [ProducesResponseType<AuthResponse>(StatusCodes.Status200OK)]
+        [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> Refresh(RefreshRequest request)
+        {
+            var result = await sessions.RefreshAsync(request.RefreshToken);
+
+            if (result.Outcome == RefreshOutcome.Reused && result.Session is { } reused)
+            {
+                logger.LogWarning("Refresh token reuse on session {SessionId}; the session was revoked", reused.Id);
+                await audit.WriteAsync(AuditActions.TokenRefreshReused, success: false, target: reused.UserId, details: $"Session {reused.Id} revoked", userId: reused.UserId);
+            }
+
+            if (result is not { Outcome: RefreshOutcome.Rotated, Session: { } session, RefreshToken: { } refreshToken })
+            {
+                return SessionEnded();
+            }
+
+            var user = await userManager.FindByIdAsync(session.UserId);
+            if (user is null || !user.IsActive || await userManager.IsLockedOutAsync(user))
+            {
+                await sessions.RevokeAsync(session.Id, session.UserId, "Account unavailable");
+
+                return SessionEnded();
+            }
+
+            return Ok(await ToResponseAsync(user, session.Id, refreshToken));
+        }
+
+        // A new sign-in: opens a session for this device and returns its first tokens.
         private async Task<AuthResponse> BuildResponseAsync(ApplicationUser user)
         {
-            var roles = await userManager.GetRolesAsync(user);
-            var token = tokenService.CreateAccessToken(user, roles);
+            var issued = await sessions.StartAsync(
+                user.Id, HttpContext.Connection.RemoteIpAddress?.ToString(), Request.Headers.UserAgent.ToString());
 
-            return new AuthResponse(token.Token, token.ExpiresAtUtc, AuthMapper.ToDto(user), roles);
+            return await ToResponseAsync(user, issued.Session.Id, issued.RefreshToken);
         }
+
+        private async Task<AuthResponse> ToResponseAsync(ApplicationUser user, Guid sessionId, string refreshToken)
+        {
+            var roles = await userManager.GetRolesAsync(user);
+            var token = tokenService.CreateAccessToken(user, roles, sessionId);
+
+            return new AuthResponse(token.Token, token.ExpiresAtUtc, refreshToken, AuthMapper.ToDto(user), roles);
+        }
+
+        private ObjectResult SessionEnded() =>
+            Problem(statusCode: StatusCodes.Status401Unauthorized, title: "The session has ended. Sign in again.");
 
         private ObjectResult InvalidCredentials() =>
             Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Invalid user name or password.");

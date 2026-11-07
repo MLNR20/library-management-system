@@ -6,6 +6,8 @@ namespace LibraryManagementSystem.Server.Services
         public const string LoginFailed = "Auth.LoginFailed";
         public const string Logout = "Auth.Logout";
         public const string Register = "Auth.Register";
+        public const string TokenRefreshReused = "Auth.RefreshReuse";
+        public const string SessionRevoked = "Session.Revoked";
 
         public const string RoleCreated = "Role.Created";
         public const string RoleRenamed = "Role.Renamed";
