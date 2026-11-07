@@ -3,6 +3,7 @@
 
 @theme {
   --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-script: "Great Vibes", "Brush Script MT", cursive;
 }
 
 /* Formatted messages (announcements): the editor and the places that show them. */

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useAuth } from '../auth/useAuth.ts';
-import { useDarkTheme } from '../components/layout/useDarkTheme.ts';
+import { SiteNavbar } from '../components/layout/SiteNavbar.tsx';
 import { AnnouncementIcon, BookIcon, ClockIcon, LoanIcon, MapIcon, ShieldIcon } from '../components/ui/icons.tsx';
 
 interface Feature {
@@ -51,49 +51,12 @@ const steps = [
 
 /** Public front door: what the library offers and where to sign in or sign up. */
 export function LandingPage() {
-    const { user, isStaff, logout } = useAuth();
-    const [dark, setDark] = useDarkTheme();
+    const { user, isStaff } = useAuth();
     const home = isStaff ? '/' : '/student';
 
     return (
         <div className="flex min-h-screen flex-col bg-base-100">
-            <header className="navbar sticky top-0 z-30 border-b border-base-300 bg-base-100/90 backdrop-blur">
-                <div className="mx-auto flex w-full max-w-6xl items-center gap-2 px-2">
-                    <Link to="/welcome" className="flex-1 text-xl font-bold whitespace-nowrap">
-                        📚 Library
-                    </Link>
-                    <label className="flex cursor-pointer items-center gap-2 pr-2 text-sm">
-                        <span className="hidden sm:inline">Dark</span>
-                        <input
-                            type="checkbox"
-                            className="toggle"
-                            checked={dark}
-                            onChange={event => setDark(event.target.checked)}
-                            aria-label="Dark theme"
-                        />
-                    </label>
-                    {user ? (
-                        <>
-                            <span className="hidden text-sm sm:inline">{user.userName}</span>
-                            <button className="btn btn-ghost btn-sm" onClick={logout}>
-                                Sign out
-                            </button>
-                            <Link to={home} className="btn btn-primary btn-sm">
-                                Open library
-                            </Link>
-                        </>
-                    ) : (
-                        <>
-                            <Link to="/login" className="btn btn-ghost btn-sm">
-                                Sign in
-                            </Link>
-                            <Link to="/register" className="btn btn-primary btn-sm">
-                                Create account
-                            </Link>
-                        </>
-                    )}
-                </div>
-            </header>
+            <SiteNavbar />
 
             <main className="flex-1">
                 <section className="bg-gradient-to-b from-primary/10 to-transparent">
@@ -131,7 +94,7 @@ export function LandingPage() {
                     </div>
                 </section>
 
-                <section className="mx-auto max-w-6xl px-4 py-16" aria-labelledby="features-heading">
+                <section id="features" className="mx-auto max-w-6xl scroll-mt-16 px-4 py-16" aria-labelledby="features-heading">
                     <div className="mx-auto max-w-2xl text-center">
                         <h2 id="features-heading" className="text-3xl font-bold">
                             Everything a library needs
@@ -155,7 +118,7 @@ export function LandingPage() {
                     </div>
                 </section>
 
-                <section className="bg-base-200" aria-labelledby="steps-heading">
+                <section id="how-it-works" className="scroll-mt-16 bg-base-200" aria-labelledby="steps-heading">
                     <div className="mx-auto max-w-6xl px-4 py-16">
                         <h2 id="steps-heading" className="text-center text-3xl font-bold">
                             From search to shelf in three steps
@@ -198,8 +161,60 @@ export function LandingPage() {
                 )}
             </main>
 
-            <footer className="footer footer-center border-t border-base-300 p-6 text-sm opacity-70">
-                <p>📚 Library Management System</p>
+            <footer className="border-t border-base-300 bg-base-200">
+                <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-2 md:grid-cols-3">
+                    <div>
+                        <p className="font-script text-4xl leading-none text-primary">Alexandria</p>
+                        <p className="mt-3 max-w-xs text-sm opacity-70">
+                            Search the collection, borrow with confidence and find every book on the map.
+                        </p>
+                    </div>
+
+                    <nav aria-label="Explore">
+                        <h2 className="footer-title">Explore</h2>
+                        <ul className="mt-2 flex flex-col gap-2 text-sm">
+                            <li>
+                                <a href="#features" className="link link-hover">
+                                    Features
+                                </a>
+                            </li>
+                            <li>
+                                <a href="#how-it-works" className="link link-hover">
+                                    How it works
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+
+                    <nav aria-label="Student access">
+                        <h2 className="footer-title">Students</h2>
+                        <ul className="mt-2 flex flex-col gap-2 text-sm">
+                            {user ? (
+                                <li>
+                                    <Link to={home} className="link link-hover">
+                                        Open the library
+                                    </Link>
+                                </li>
+                            ) : (
+                                <>
+                                    <li>
+                                        <Link to="/login" className="link link-hover">
+                                            Student sign in
+                                        </Link>
+                                    </li>
+                                    <li>
+                                        <Link to="/register" className="link link-hover">
+                                            Create an account
+                                        </Link>
+                                    </li>
+                                </>
+                            )}
+                        </ul>
+                    </nav>
+                </div>
+                <div className="border-t border-base-300 py-4 text-center text-xs opacity-60">
+                    © {new Date().getFullYear()} Alexandria Library Management System
+                </div>
             </footer>
         </div>
     );
