@@ -56,19 +56,21 @@ export function LandingPage() {
 
     return (
         <div className="flex min-h-screen flex-col bg-base-100">
-            <SiteNavbar />
+            <SiteNavbar themeToggle={false} />
 
             <main className="flex-1">
-                <section className="bg-gradient-to-b from-primary/10 to-transparent">
-                    <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 md:grid-cols-2 md:py-24">
-                        <div>
-                            <span className="badge badge-primary badge-soft mb-4">Welcome to the library</span>
-                            <h1 className="text-4xl leading-tight font-extrabold tracking-tight sm:text-5xl">
+                {/* The photo is public/hero-reading-room.jpg; the warm gradient shows until it is added. */}
+                <section className="hero-photo relative isolate text-white">
+                    <div className="absolute inset-0 -z-10 bg-gradient-to-r from-black/80 via-black/55 to-black/20" aria-hidden="true" />
+                    <div className="flex min-h-[28rem] items-center px-6 py-20 md:min-h-[34rem] md:px-32 md:py-28">
+                        <div className="max-w-2xl">
+                            <span className="badge mb-4 border-white/30 bg-white/15 text-white">Welcome to Alexandria</span>
+                            <h1 className="text-4xl leading-tight font-extrabold tracking-tight sm:text-6xl">
                                 Every book,
                                 <br />
                                 right where you need it.
                             </h1>
-                            <p className="mt-4 max-w-prose text-lg opacity-75">
+                            <p className="mt-4 max-w-prose text-lg text-white/85">
                                 Search our collection, see what is available today and let the interactive map walk
                                 you to the exact shelf. No more wandering the aisles.
                             </p>
@@ -82,15 +84,13 @@ export function LandingPage() {
                                         <Link to="/register" className="btn btn-primary btn-lg">
                                             Get started
                                         </Link>
-                                        <Link to="/login" className="btn btn-outline btn-lg">
+                                        <Link to="/login" className="btn btn-lg border-white/60 bg-transparent text-white hover:bg-white/15">
                                             Sign in
                                         </Link>
                                     </>
                                 )}
                             </div>
                         </div>
-
-                        <ShelfIllustration />
                     </div>
                 </section>
 
@@ -164,7 +164,7 @@ export function LandingPage() {
             <footer className="border-t border-base-300 bg-base-200">
                 <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-2 md:grid-cols-3">
                     <div>
-                        <p className="font-script text-4xl leading-none text-primary">Alexandria</p>
+                        <p className="font-brand text-2xl font-bold tracking-wide text-primary">Alexandria</p>
                         <p className="mt-3 max-w-xs text-sm opacity-70">
                             Search the collection, borrow with confidence and find every book on the map.
                         </p>
@@ -216,34 +216,6 @@ export function LandingPage() {
                     © {new Date().getFullYear()} Alexandria Library Management System
                 </div>
             </footer>
-        </div>
-    );
-}
-
-// Decorative bookshelf: a few rows of spines in the theme's own colours.
-const shelves = [
-    ['bg-primary', 'bg-secondary', 'bg-accent', 'bg-primary/60', 'bg-neutral', 'bg-secondary/70', 'bg-accent/70'],
-    ['bg-accent/80', 'bg-primary', 'bg-neutral', 'bg-secondary', 'bg-primary/70', 'bg-accent', 'bg-secondary/60'],
-    ['bg-secondary', 'bg-neutral', 'bg-primary/80', 'bg-accent', 'bg-secondary/80', 'bg-primary', 'bg-neutral'],
-];
-const spineHeights = ['h-20', 'h-24', 'h-16', 'h-24', 'h-20', 'h-16', 'h-24'];
-
-function ShelfIllustration() {
-    return (
-        <div
-            className="mx-auto w-full max-w-md rounded-box border border-base-300 bg-base-200 p-5 shadow-md"
-            aria-hidden="true"
-        >
-            {shelves.map((row, rowIndex) => (
-                <div key={rowIndex} className="flex items-end gap-1.5 border-b-8 border-base-content/30 px-2 pt-4">
-                    {row.map((color, index) => (
-                        <div
-                            key={index}
-                            className={`w-full max-w-9 flex-1 rounded-t-sm ${color} ${spineHeights[(index + rowIndex) % spineHeights.length]}`}
-                        />
-                    ))}
-                </div>
-            ))}
         </div>
     );
 }

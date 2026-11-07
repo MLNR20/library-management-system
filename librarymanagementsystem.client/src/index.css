@@ -3,7 +3,14 @@
 
 @theme {
   --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
-  --font-script: "Great Vibes", "Brush Script MT", cursive;
+  --font-brand: "Playfair Display", Georgia, "Times New Roman", serif;
+}
+
+/* Landing page hero: the reading-room photo in public/, over a warm gradient that shows until the photo is added. */
+.hero-photo {
+  background-image: url("/hero-reading-room.jpg"), linear-gradient(135deg, #2b1a0e 0%, #6b4423 55%, #b9873f 100%);
+  background-size: cover;
+  background-position: center;
 }
 
 /* Formatted messages (announcements): the editor and the places that show them. */
