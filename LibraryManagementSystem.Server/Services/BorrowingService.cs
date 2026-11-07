@@ -36,8 +36,7 @@ namespace LibraryManagementSystem.Server.Services
             loans = filter switch
             {
                 BorrowingFilter.Active => loans.Where(b => b.ReturnedAtUtc == null),
-                BorrowingFilter.Overdue => loans.Where(b =>
-                    (b.ReturnedAtUtc == null && b.DueAtUtc < now) || (b.ReturnedAtUtc != null && b.ReturnedAtUtc > b.DueAtUtc)),
+                BorrowingFilter.Overdue => loans.Where(BorrowingRules.Overdue(now)),
                 BorrowingFilter.Returned => loans.Where(b => b.ReturnedAtUtc != null),
                 _ => loans
             };
@@ -100,7 +99,7 @@ namespace LibraryManagementSystem.Server.Services
         {
             var now = DateTime.UtcNow;
             var overdue = await WithRelations(unitOfWork.Repository<Borrowing>().Query(asNoTracking: false))
-                .Where(b => b.ReturnedAtUtc == null && b.DueAtUtc < now)
+                .Where(BorrowingRules.OpenOverdue(now))
                 .ToListAsync(cancellationToken);
 
             var changed = new List<Borrowing>();

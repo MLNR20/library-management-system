@@ -105,7 +105,7 @@ namespace LibraryManagementSystem.Server.Models
             return end <= DueAtUtc ? 0 : (int)Math.Ceiling((end - DueAtUtc).TotalDays);
         }
 
-        public bool IsOverdue(DateTime asOfUtc) => OverdueDays(asOfUtc) > 0;
+        public bool IsOverdue(DateTime asOfUtc) => BorrowingRules.IsOverdue(this, asOfUtc);
 
         public decimal CalculatePenalty(DateTime asOfUtc, decimal penaltyPerDay) => OverdueDays(asOfUtc) * penaltyPerDay;
     }
