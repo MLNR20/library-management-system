@@ -3,6 +3,7 @@ using LibraryManagementSystem.Server.Dtos.Announcements;
 using LibraryManagementSystem.Server.Dtos.Authors;
 using LibraryManagementSystem.Server.Dtos.Books;
 using LibraryManagementSystem.Server.Dtos.Floors;
+using LibraryManagementSystem.Server.Dtos.News;
 using LibraryManagementSystem.Server.Dtos.Reservations;
 using LibraryManagementSystem.Server.Dtos.Rows;
 using LibraryManagementSystem.Server.Dtos.Sections;
@@ -93,7 +94,30 @@ namespace LibraryManagementSystem.Server.Validators
         }
     }
 
-    public class StudyTableRequestValidator : AbstractValidator<StudyTableRequest>
+    public class NewsPostRequestValidator : AbstractValidator<NewsPostRequest>
+    {
+        public NewsPostRequestValidator()
+        {
+            RuleFor(x => x.Title).NotEmpty().MaximumLength(150);
+            RuleFor(x => x.Body).NotEmpty().MaximumLength(50000)
+                .Must(body => RichText.ToPlainText(RichText.Sanitize(body)).Length > 0).WithMessage("Write the article.");
+            RuleFor(x => x.ImageFileName).Must(NewsImageStore.IsValidName).WithMessage("The cover image is not valid.")
+                .When(x => x.ImageFileName is not null);
+        }
+    }
+
+    public class FaqRequestValidator : AbstractValidator<FaqRequest>
+    {
+        public FaqRequestValidator()
+        {
+            RuleFor(x => x.Question).NotEmpty().MaximumLength(250);
+            RuleFor(x => x.Answer).NotEmpty().MaximumLength(20000)
+                .Must(answer => RichText.ToPlainText(RichText.Sanitize(answer)).Length > 0).WithMessage("Write an answer.");
+            RuleFor(x => x.Position).InclusiveBetween(0, 10000);
+        }
+    }
+
+    public class StudyTableRequestValidator: AbstractValidator<StudyTableRequest>
     {
         public StudyTableRequestValidator()
         {

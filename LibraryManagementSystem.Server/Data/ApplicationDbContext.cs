@@ -17,6 +17,8 @@ namespace LibraryManagementSystem.Server.Data
         public DbSet<Row> Rows => Set<Row>();
         public DbSet<Section> Sections => Set<Section>();
         public DbSet<Announcement> Announcements => Set<Announcement>();
+        public DbSet<NewsPost> NewsPosts => Set<NewsPost>();
+        public DbSet<Faq> Faqs => Set<Faq>();
         public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
         public DbSet<TimeCard> TimeCards => Set<TimeCard>();
         public DbSet<ClockEntry> ClockEntries => Set<ClockEntry>();
@@ -68,6 +70,10 @@ namespace LibraryManagementSystem.Server.Data
                 announcement.HasIndex(a => a.CreatedAt);
                 announcement.HasOne(a => a.Floor).WithMany().HasForeignKey(a => a.FloorId).OnDelete(DeleteBehavior.Cascade);
             });
+
+            // News is read newest-first; FAQs are listed by position.
+            builder.Entity<NewsPost>().HasIndex(n => n.CreatedAt);
+            builder.Entity<Faq>().HasIndex(f => new { f.Position, f.CreatedAt });
 
             builder.Entity<Row>(row =>
             {

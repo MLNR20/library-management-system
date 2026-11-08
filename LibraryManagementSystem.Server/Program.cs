@@ -136,6 +136,9 @@ try
     builder.Services.AddScoped<IShelfService, ShelfService>();
     builder.Services.AddScoped<IAnnouncementService, AnnouncementService>();
     builder.Services.AddScoped<IContactService, ContactService>();
+    builder.Services.AddScoped<INewsService, NewsService>();
+    builder.Services.AddScoped<IFaqService, FaqService>();
+    builder.Services.AddSingleton<INewsImageStore, NewsImageStore>();
     builder.Services.AddScoped<IRowService, RowService>();
     builder.Services.AddScoped<ISectionService, SectionService>();
     builder.Services.AddScoped<IRoleService, RoleService>();

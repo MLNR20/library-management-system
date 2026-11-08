@@ -2,9 +2,24 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useAuth } from '../auth/useAuth.ts';
 import { useLatestAnnouncements } from '../api/publicAnnouncements.ts';
+import { useLatestNews, usePublicFaqs } from '../api/publicNews.ts';
 import { SiteNavbar } from '../components/layout/SiteNavbar.tsx';
+import { FaqList } from '../components/news/FaqList.tsx';
+import { NewsGrid } from '../components/news/NewsGrid.tsx';
 import { RichText } from '../components/ui/RichText.tsx';
-import { AnnouncementIcon, BookIcon, ClockIcon, LoanIcon, MapIcon, ShieldIcon } from '../components/ui/icons.tsx';
+import {
+    AnnouncementIcon,
+    BookIcon,
+    ClockIcon,
+    LoanIcon,
+    MapIcon,
+    NewsIcon,
+    QuestionIcon,
+    ShieldIcon,
+} from '../components/ui/icons.tsx';
+
+/** A 3x3 grid. One more than this is fetched so the page knows whether to offer "View more". */
+const NEWS_ON_LANDING = 9;
 
 interface Feature {
     icon: ReactNode;
@@ -55,6 +70,8 @@ const steps = [
 export function LandingPage() {
     const { user, isStaff } = useAuth();
     const announcements = useLatestAnnouncements().data ?? [];
+    const news = useLatestNews(NEWS_ON_LANDING + 1).data ?? [];
+    const faqs = usePublicFaqs().data ?? [];
     const home = isStaff ? '/' : '/student';
 
     return (
@@ -116,6 +133,42 @@ export function LandingPage() {
                                         </div>
                                     </article>
                                 ))}
+                            </div>
+                        </div>
+                    </section>
+                )}
+
+                {news.length > 0 && (
+                    <section id="news" className="scroll-mt-16 border-b border-base-300" aria-labelledby="news-heading">
+                        <div className="mx-auto max-w-6xl px-4 py-12">
+                            <h2 id="news-heading" className="flex items-center justify-center gap-2 text-2xl font-bold">
+                                <NewsIcon className="h-6 w-6 text-primary" />
+                                News
+                            </h2>
+                            <div className="mt-6">
+                                <NewsGrid posts={news.slice(0, NEWS_ON_LANDING)} />
+                            </div>
+                            {/* The ninth article fills the 3x3 grid; anything beyond it is on the News page. */}
+                            {news.length > NEWS_ON_LANDING && (
+                                <div className="mt-8 flex justify-center">
+                                    <Link to="/welcome/news" className="btn btn-outline btn-primary">
+                                        View more
+                                    </Link>
+                                </div>
+                            )}
+                        </div>
+                    </section>
+                )}
+
+                {faqs.length > 0 && (
+                    <section id="faqs" className="scroll-mt-16 bg-base-200" aria-labelledby="faqs-heading">
+                        <div className="mx-auto max-w-6xl px-4 py-12">
+                            <h2 id="faqs-heading" className="flex items-center justify-center gap-2 text-2xl font-bold">
+                                <QuestionIcon className="h-6 w-6 text-primary" />
+                                Frequently asked questions
+                            </h2>
+                            <div className="mt-6">
+                                <FaqList faqs={faqs} />
                             </div>
                         </div>
                     </section>

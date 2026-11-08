@@ -10,6 +10,7 @@ import type {
 } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { z } from 'zod';
+import { ImageUploadControl } from './ImageUploadControl.tsx';
 import { RichTextEditor } from './RichTextEditor.tsx';
 
 export interface FieldOption {
@@ -37,6 +38,8 @@ export type FormField<TValues extends FieldValues> =
     | (BaseField<TValues> & { type: 'textarea'; rows?: number })
     /** Formatted text (bold, lists, links); the value is HTML. */
     | (BaseField<TValues> & { type: 'richText' })
+    /** Uploads a picture on selection; the value is the name `upload` returns ('' for none). */
+    | (BaseField<TValues> & { type: 'image'; upload: (file: File) => Promise<string>; urlFor: (value: string) => string })
     | (BaseField<TValues> & { type: 'select' | 'radio'; options: FieldOption[] })
     /** Multiple checkboxes bound to a string[] value. */
     | (BaseField<TValues> & { type: 'checkboxGroup'; options: FieldOption[] })
@@ -137,7 +140,7 @@ function FieldControl<TValues extends FieldValues>({
     const id = `field-${field.name}`;
     const error = (get(errors, field.name) as { message?: string } | undefined)?.message;
     const describedBy = error ? `${id}-error` : field.description ? `${id}-description` : undefined;
-    const fullWidth = field.span === 2 || (field.span === undefined && ['textarea', 'richText', 'checkbox', 'toggle'].includes(field.type));
+    const fullWidth = field.span === 2 || (field.span === undefined && ['textarea', 'richText', 'image', 'checkbox', 'toggle'].includes(field.type));
     const errorClass = error ? 'input-error' : '';
     const common = {
         id,
@@ -172,6 +175,25 @@ function FieldControl<TValues extends FieldValues>({
                             onChange={onChange}
                             onBlur={onBlur}
                             invalid={!!error}
+                            disabled={field.disabled}
+                            describedBy={describedBy}
+                        />
+                    )}
+                />
+            );
+            break;
+        case 'image':
+            control = (
+                <Controller
+                    control={formControl}
+                    name={field.name}
+                    render={({ field: { value, onChange } }) => (
+                        <ImageUploadControl
+                            id={id}
+                            value={typeof value === 'string' ? value : ''}
+                            onChange={onChange}
+                            upload={field.upload}
+                            urlFor={field.urlFor}
                             disabled={field.disabled}
                             describedBy={describedBy}
                         />

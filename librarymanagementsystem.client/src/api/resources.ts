@@ -169,6 +169,37 @@ export interface AnnouncementRequest {
     floorId: string | null;
 }
 
+export interface NewsPost {
+    id: string;
+    title: string;
+    /** HTML from the rich text editor, already cleaned by the server. */
+    body: string;
+    /** Where the cover image is served from; null when the article has none. */
+    imageUrl: string | null;
+    createdAt: string;
+}
+export interface NewsPostRequest {
+    title: string;
+    body: string;
+    /** The name the image upload returned; null for no cover image. */
+    imageFileName: string | null;
+}
+
+export interface Faq {
+    id: string;
+    question: string;
+    /** HTML from the rich text editor, already cleaned by the server. */
+    answer: string;
+    /** Lowest first. */
+    position: number;
+    createdAt: string;
+}
+export interface FaqRequest {
+    question: string;
+    answer: string;
+    position: number;
+}
+
 export const bookHooks =createCrudHooks<Book, BookRequest>('books');
 export const authorHooks = createCrudHooks<Author, AuthorRequest>('authors');
 export const genreHooks = createCrudHooks<Genre, GenreRequest>('genres');
@@ -178,3 +209,5 @@ export const shelfHooks = createCrudHooks<Shelf, ShelfRequest>('shelves');
 export const rowHooks = createCrudHooks<Row, RowRequest>('rows');
 export const sectionHooks = createCrudHooks<Section, SectionRequest>('sections');
 export const announcementHooks = createCrudHooks<Announcement, AnnouncementRequest>('announcements');
+export const newsHooks = createCrudHooks<NewsPost, NewsPostRequest>('news');
+export const faqHooks = createCrudHooks<Faq, FaqRequest>('faqs');

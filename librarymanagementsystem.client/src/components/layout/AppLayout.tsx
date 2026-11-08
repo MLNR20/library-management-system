@@ -15,6 +15,7 @@ import {
     GenreIcon,
     LanguageIcon,
     MapIcon,
+    NewsIcon,
     RowIcon,
     SectionIcon,
     ShelfIcon,
@@ -56,6 +57,7 @@ const navGroups: NavGroup[] = [
             { to: '/genres', label: 'Genres', icon: <GenreIcon className={iconClass} /> },
             { to: '/languages', label: 'Languages', icon: <LanguageIcon className={iconClass} /> },
             { to: '/announcements', label: 'Announcements', icon: <AnnouncementIcon className={iconClass} /> },
+            { to: '/news', label: 'News & FAQs', icon: <NewsIcon className={iconClass} />, staffOnly: true },
         ],
     },
     {

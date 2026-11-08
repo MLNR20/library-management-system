@@ -393,6 +393,34 @@ namespace LibraryManagementSystem.Server.Migrations
                     b.ToTable("Contacts");
                 });
 
+            modelBuilder.Entity("LibraryManagementSystem.Server.Models.Faq", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Answer")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Question")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Position", "CreatedAt");
+
+                    b.ToTable("Faqs");
+                });
+
             modelBuilder.Entity("LibraryManagementSystem.Server.Models.Floor", b =>
                 {
                     b.Property<Guid>("Id")
@@ -465,6 +493,35 @@ namespace LibraryManagementSystem.Server.Migrations
                         .IsUnique();
 
                     b.ToTable("Languages");
+                });
+
+            modelBuilder.Entity("LibraryManagementSystem.Server.Models.NewsPost", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ImageFileName")
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.ToTable("NewsPosts");
                 });
 
             modelBuilder.Entity("LibraryManagementSystem.Server.Models.Notification", b =>

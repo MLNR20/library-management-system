@@ -24,11 +24,14 @@ import { SessionsPage } from './pages/SessionsPage.tsx';
 import { ReservationsPage } from './pages/ReservationsPage.tsx';
 import { TablesPage } from './pages/TablesPage.tsx';
 import { AnnouncementsPage } from './pages/AnnouncementsPage.tsx';
+import { NewsListPage } from './pages/NewsListPage.tsx';
+import { NewsPage } from './pages/NewsPage.tsx';
 import { UsersPage } from './pages/UsersPage.tsx';
 
 export const router = createBrowserRouter([
     // Public front door, open to guests and signed-in users alike.
     { path: '/welcome', element: <LandingPage /> },
+    { path: '/welcome/news', element: <NewsListPage /> },
     {
         // Everything inside needs a signed-in user.
         element: <RequireAuth />,
@@ -64,6 +67,7 @@ export const router = createBrowserRouter([
                             { path: 'time-cards', element: <TimeCardsPage /> },
                             { path: 'reservations', element: <ReservationsPage /> },
                             { path: 'tables', element: <TablesPage /> },
+                            { path: 'news', element: <NewsPage /> },
                         ],
                     },
                     {
