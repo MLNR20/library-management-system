@@ -26,7 +26,7 @@ namespace LibraryManagementSystem.Server.Controllers
         [HttpPost("register")]
         [ProducesResponseType<AuthResponse>(StatusCodes.Status201Created)]
         [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> Register(RegisterRequest request)
+        public async Task<IActionResult> Register(RegisterRequest request, CancellationToken cancellationToken)
         {
             var user = AuthMapper.ToUser(request);
             var result = await userManager.CreateAsync(user, request.Password);
@@ -41,9 +41,9 @@ namespace LibraryManagementSystem.Server.Controllers
             }
 
             logger.LogInformation("Registered user {UserId}", user.Id);
-            await audit.WriteAsync(AuditActions.Register, target: user.UserName, userId: user.Id, userName: user.UserName);
+            await audit.WriteAsync(AuditActions.Register, target: user.UserName, userId: user.Id, userName: user.UserName, cancellationToken: cancellationToken);
 
-            return StatusCode(StatusCodes.Status201Created, await BuildResponseAsync(user));
+            return StatusCode(StatusCodes.Status201Created, await BuildResponseAsync(user, cancellationToken));
         }
 
         [AllowAnonymous]
@@ -51,12 +51,12 @@ namespace LibraryManagementSystem.Server.Controllers
         [ProducesResponseType<AuthResponse>(StatusCodes.Status200OK)]
         [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
         [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
-        public async Task<IActionResult> Login(LoginRequest request)
+        public async Task<IActionResult> Login(LoginRequest request, CancellationToken cancellationToken)
         {
             var user = await userManager.FindByNameAsync(request.UserName);
             if (user is null)
             {
-                await audit.WriteAsync(AuditActions.LoginFailed, success: false, target: request.UserName, details: "Unknown user", userName: request.UserName);
+                await audit.WriteAsync(AuditActions.LoginFailed, success: false, target: request.UserName, details: "Unknown user", userName: request.UserName, cancellationToken: cancellationToken);
                 return InvalidCredentials();
             }
 
@@ -65,21 +65,21 @@ namespace LibraryManagementSystem.Server.Controllers
             if (await userManager.IsLockedOutAsync(user))
             {
                 logger.LogWarning("Login rejected for locked-out user {UserId}", user.Id);
-                await audit.WriteAsync(AuditActions.LoginFailed, success: false, target: user.UserName, details: "Account is locked out", userId: user.Id, userName: user.UserName);
+                await audit.WriteAsync(AuditActions.LoginFailed, success: false, target: user.UserName, details: "Account is locked out", userId: user.Id, userName: user.UserName, cancellationToken: cancellationToken);
                 return InvalidCredentials();
             }
 
             if (!await userManager.CheckPasswordAsync(user, request.Password))
             {
                 await userManager.AccessFailedAsync(user);
-                await audit.WriteAsync(AuditActions.LoginFailed, success: false, target: user.UserName, details: "Wrong password", userId: user.Id, userName: user.UserName);
+                await audit.WriteAsync(AuditActions.LoginFailed, success: false, target: user.UserName, details: "Wrong password", userId: user.Id, userName: user.UserName, cancellationToken: cancellationToken);
                 return InvalidCredentials();
             }
 
             await userManager.ResetAccessFailedCountAsync(user);
-            await audit.WriteAsync(AuditActions.Login, target: user.UserName, userId: user.Id, userName: user.UserName);
+            await audit.WriteAsync(AuditActions.Login, target: user.UserName, userId: user.Id, userName: user.UserName, cancellationToken: cancellationToken);
 
-            return Ok(await BuildResponseAsync(user));
+            return Ok(await BuildResponseAsync(user, cancellationToken));
         }
 
         // Not subject to the strict "auth" policy (that is for credential guessing); the global limit still applies.
@@ -108,13 +108,13 @@ namespace LibraryManagementSystem.Server.Controllers
         [DisableRateLimiting]
         [HttpPost("logout")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
-        public async Task<IActionResult> Logout(RefreshRequest request)
+        public async Task<IActionResult> Logout(RefreshRequest request, CancellationToken cancellationToken)
         {
-            var ended = await sessions.RevokeByRefreshTokenAsync(request.RefreshToken, "Signed out");
+            var ended = await sessions.RevokeByRefreshTokenAsync(request.RefreshToken, "Signed out", cancellationToken);
             if (ended is not null)
             {
                 var user = await userManager.FindByIdAsync(ended.UserId);
-                await audit.WriteAsync(AuditActions.Logout, target: user?.UserName, userId: ended.UserId, userName: user?.UserName);
+                await audit.WriteAsync(AuditActions.Logout, target: user?.UserName, userId: ended.UserId, userName: user?.UserName, cancellationToken: cancellationToken);
             }
 
             return NoContent();
@@ -126,14 +126,14 @@ namespace LibraryManagementSystem.Server.Controllers
         [HttpPost("refresh")]
         [ProducesResponseType<AuthResponse>(StatusCodes.Status200OK)]
         [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
-        public async Task<IActionResult> Refresh(RefreshRequest request)
+        public async Task<IActionResult> Refresh(RefreshRequest request, CancellationToken cancellationToken)
         {
-            var result = await sessions.RefreshAsync(request.RefreshToken);
+            var result = await sessions.RefreshAsync(request.RefreshToken, cancellationToken);
 
             if (result.Outcome == RefreshOutcome.Reused && result.Session is { } reused)
             {
                 logger.LogWarning("Refresh token reuse on session {SessionId}; the session was revoked", reused.Id);
-                await audit.WriteAsync(AuditActions.TokenRefreshReused, success: false, target: reused.UserId, details: $"Session {reused.Id} revoked", userId: reused.UserId);
+                await audit.WriteAsync(AuditActions.TokenRefreshReused, success: false, target: reused.UserId, details: $"Session {reused.Id} revoked", userId: reused.UserId, cancellationToken: cancellationToken);
             }
 
             if (result is not { Outcome: RefreshOutcome.Rotated, Session: { } session, RefreshToken: { } refreshToken })
@@ -144,7 +144,7 @@ namespace LibraryManagementSystem.Server.Controllers
             var user = await userManager.FindByIdAsync(session.UserId);
             if (user is null || !user.IsActive || await userManager.IsLockedOutAsync(user))
             {
-                await sessions.RevokeAsync(session.Id, session.UserId, "Account unavailable");
+                await sessions.RevokeAsync(session.Id, session.UserId, "Account unavailable", cancellationToken);
 
                 return SessionEnded();
             }
@@ -153,10 +153,10 @@ namespace LibraryManagementSystem.Server.Controllers
         }
 
         // A new sign-in: opens a session for this device and returns its first tokens.
-        private async Task<AuthResponse> BuildResponseAsync(ApplicationUser user)
+        private async Task<AuthResponse> BuildResponseAsync(ApplicationUser user, CancellationToken cancellationToken)
         {
             var issued = await sessions.StartAsync(
-                user.Id, HttpContext.Connection.RemoteIpAddress?.ToString(), Request.Headers.UserAgent.ToString());
+                user.Id, HttpContext.Connection.RemoteIpAddress?.ToString(), Request.Headers.UserAgent.ToString(), cancellationToken);
 
             return await ToResponseAsync(user, issued.Session.Id, issued.RefreshToken);
         }
