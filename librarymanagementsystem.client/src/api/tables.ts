@@ -139,8 +139,15 @@ function useReservationMutation<TVars>(fn: (vars: TVars) => Promise<TableReserva
     });
 }
 
+/**
+ * Files a request. `idempotencyKey` makes a retry or double submit of the same request return the reservation already
+ * filed instead of creating another; reuse the key for retries and use a fresh one for a different request.
+ */
 export const useRequestReservation = () =>
-    useReservationMutation(async (body: TableReservationRequest) => (await api.post<TableReservation>('/table-reservations', body)).data);
+    useReservationMutation(
+        async ({ idempotencyKey, ...body }: TableReservationRequest & { idempotencyKey: string }) =>
+            (await api.post<TableReservation>('/table-reservations', body, { headers: { 'Idempotency-Key': idempotencyKey } })).data,
+    );
 
 export const useApproveReservation = () =>
     useReservationMutation(async (id: string) => (await api.post<TableReservation>(`/table-reservations/${id}/approve`)).data);

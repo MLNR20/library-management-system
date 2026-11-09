@@ -15,6 +15,8 @@ namespace LibraryManagementSystem.Server.Controllers
     [Route("api/table-reservations")]
     public class TableReservationsController(ITableReservationService reservations) : ControllerBase
     {
+        private const string IdempotencyKeyHeader = "Idempotency-Key";
+
         private static readonly TimeSpan MaxAvailabilityWindow = TimeSpan.FromDays(7);
 
         [HttpGet]
@@ -41,9 +43,23 @@ namespace LibraryManagementSystem.Server.Controllers
             return Ok(await reservations.GetBusySlotsAsync(from, to, cancellationToken));
         }
 
+        // Send an Idempotency-Key header (any unique string up to 64 characters, e.g. a GUID) to make retries safe: repeating
+        // the request returns the reservation already filed instead of creating another.
         [HttpPost]
-        public Task<ActionResult<TableReservationDto>> Create(TableReservationRequest request, CancellationToken cancellationToken) =>
-            RunAsync(async () => await reservations.RequestAsync(CurrentUserId(), request, cancellationToken));
+        public async Task<ActionResult<TableReservationDto>> Create(
+            TableReservationRequest request,
+            [FromHeader(Name = IdempotencyKeyHeader)] string? idempotencyKey,
+            CancellationToken cancellationToken)
+        {
+            if (idempotencyKey?.Trim().Length > TableReservation.IdempotencyKeyMaxLength)
+            {
+                return Problem(
+                    statusCode: StatusCodes.Status400BadRequest,
+                    detail: $"{IdempotencyKeyHeader} can be at most {TableReservation.IdempotencyKeyMaxLength} characters.");
+            }
+
+            return await RunAsync(async () => await reservations.RequestAsync(CurrentUserId(), request, idempotencyKey, cancellationToken));
+        }
 
         [HttpPost("{id:guid}/approve")]
         [Authorize(Roles = AppRoles.Staff)]

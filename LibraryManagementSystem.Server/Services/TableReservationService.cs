@@ -16,7 +16,10 @@ namespace LibraryManagementSystem.Server.Services
         Task<IReadOnlyList<TableBusySlotDto>> GetBusySlotsAsync(DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken = default);
 
         // Files a pending request. Throws KeyNotFoundException (table or user missing) and ReservationException (rule broken).
-        Task<TableReservationDto> RequestAsync(string requesterId, TableReservationRequest request, CancellationToken cancellationToken = default);
+        // With an idempotencyKey a repeat of the same request by the same user returns the reservation it already filed
+        // instead of a second one; the same key for a different table or time is a ReservationException.
+        Task<TableReservationDto> RequestAsync(
+            string requesterId, TableReservationRequest request, string? idempotencyKey = null, CancellationToken cancellationToken = default);
 
         // The next three return null when the reservation does not exist and throw ReservationException when the rules forbid it.
         Task<TableReservationDto?> ApproveAsync(Guid id, string deciderName, CancellationToken cancellationToken = default);
@@ -62,19 +65,48 @@ namespace LibraryManagementSystem.Server.Services
                 .ToListAsync(cancellationToken);
         }
 
-        public async Task<TableReservationDto> RequestAsync(string requesterId, TableReservationRequest request, CancellationToken cancellationToken = default)
+        public async Task<TableReservationDto> RequestAsync(
+            string requesterId, TableReservationRequest request, string? idempotencyKey = null, CancellationToken cancellationToken = default)
         {
+            idempotencyKey = string.IsNullOrWhiteSpace(idempotencyKey) ? null : idempotencyKey.Trim();
+            var startUtc = AsUtc(request.StartUtc);
+            var endUtc = AsUtc(request.EndUtc);
+
+            if (idempotencyKey is not null)
+            {
+                var replay = await FindByKeyAsync(requesterId, idempotencyKey, request.TableId, startUtc, endUtc, cancellationToken);
+                if (replay is not null)
+                {
+                    return replay;
+                }
+            }
+
             var user = await userManager.FindByIdAsync(requesterId)
                 ?? throw new KeyNotFoundException($"User {requesterId} was not found.");
             var table = await unitOfWork.Repository<StudyTable>().GetByIdAsync(request.TableId, cancellationToken)
                 ?? throw new KeyNotFoundException($"Table {request.TableId} was not found.");
 
             var roles = await userManager.GetRolesAsync(user);
-            var reservation = TableReservation.Request(
-                table, user, roles, AsUtc(request.StartUtc), AsUtc(request.EndUtc), request.Note, DateTime.UtcNow);
+            var reservation = TableReservation.Request(table, user, roles, startUtc, endUtc, request.Note, DateTime.UtcNow);
+            reservation.IdempotencyKey = idempotencyKey;
 
             await unitOfWork.Repository<TableReservation>().AddAsync(reservation, cancellationToken);
-            await unitOfWork.SaveChangesAsync(cancellationToken);
+            try
+            {
+                await unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateException) when (idempotencyKey is not null)
+            {
+                // Two copies of the same request raced and the other one saved first: answer with its reservation.
+                var winner = await FindByKeyAsync(requesterId, idempotencyKey, request.TableId, startUtc, endUtc, cancellationToken);
+                if (winner is null)
+                {
+                    throw;
+                }
+
+                return winner;
+            }
+
             await audit.WriteAsync(
                 AuditActions.TableRequested,
                 target: $"{table.Name}: {user.UserName}",
@@ -147,6 +179,26 @@ namespace LibraryManagementSystem.Server.Services
                 cancellationToken: cancellationToken);
 
             return ToDto(reservation);
+        }
+
+        // The reservation this user already filed under the key, or null. Throws when the key was used for something else.
+        private async Task<TableReservationDto?> FindByKeyAsync(
+            string userId, string key, Guid tableId, DateTime startUtc, DateTime endUtc, CancellationToken cancellationToken)
+        {
+            var existing = await WithRelations(unitOfWork.Repository<TableReservation>().Query())
+                .FirstOrDefaultAsync(r => r.UserId == userId && r.IdempotencyKey == key, cancellationToken);
+
+            if (existing is null)
+            {
+                return null;
+            }
+
+            if (!existing.IsSameRequestAs(tableId, startUtc, endUtc))
+            {
+                throw new ReservationException("This Idempotency-Key was already used for a different reservation request.");
+            }
+
+            return ToDto(existing);
         }
 
         private Task<TableReservation?> FindTrackedAsync(Guid id, CancellationToken cancellationToken) =>

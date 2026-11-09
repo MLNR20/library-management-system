@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Page } from '../components/layout/Page.tsx';
 import {
@@ -36,6 +36,7 @@ export function StudentTablesPage() {
     const [note, setNote] = useState('');
     const [error, setError] = useState<string>();
     const [sent, setSent] = useState(false);
+    const attempt = useRef<{ signature: string; key: string } | null>(null);
 
     const availability = useTableAvailability(date);
     const slots = availability.data ?? [];
@@ -57,11 +58,21 @@ export function StudentTablesPage() {
 
         if (reserved) return setError('That table is already reserved for part of that time. Pick a free slot in the availability view.');
 
+        if (request.isPending) return;
+
+        // The same key for the same request, so a double click or a retry after a dropped response cannot book twice.
+        const body = { tableId, startUtc: start.toISOString(), endUtc: end.toISOString(), note: note.trim() || null };
+        const signature = JSON.stringify(body);
+        if (attempt.current?.signature !== signature) {
+            attempt.current = { signature, key: crypto.randomUUID() };
+        }
+
         setError(undefined);
         request.mutate(
-            { tableId, startUtc: start.toISOString(), endUtc: end.toISOString(), note: note.trim() || null },
+            { ...body, idempotencyKey: attempt.current.key },
             {
                 onSuccess: () => {
+                    attempt.current = null;
                     setSent(true);
                     setNote('');
                 },

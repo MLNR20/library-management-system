@@ -701,6 +701,10 @@ namespace LibraryManagementSystem.Server.Migrations
                     b.Property<DateTime>("EndUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("IdempotencyKey")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
                     b.Property<string>("Note")
                         .HasMaxLength(300)
                         .HasColumnType("nvarchar(300)");
@@ -729,6 +733,10 @@ namespace LibraryManagementSystem.Server.Migrations
                     b.HasIndex("Status");
 
                     b.HasIndex("TableId", "StartUtc");
+
+                    b.HasIndex("UserId", "IdempotencyKey")
+                        .IsUnique()
+                        .HasFilter("[IdempotencyKey] IS NOT NULL");
 
                     b.HasIndex("UserId", "StartUtc");
 

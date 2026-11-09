@@ -27,11 +27,22 @@ namespace LibraryManagementSystem.Server.Models
 
         public const int NoteMaxLength = 300;
 
+        public const int IdempotencyKeyMaxLength = 64;
+
+        // A retry of the same request asks for the same table and time; reusing a key for something else is a client bug.
+        public bool IsSameRequestAs(Guid tableId, DateTime startUtc, DateTime endUtc) =>
+            TableId == tableId && StartUtc == startUtc && EndUtc == endUtc;
+
         public Guid Id { get; set; }
 
         public Guid TableId { get; set; }
 
         public StudyTable Table { get; set; } = null!;
+
+        // The client's Idempotency-Key for the request that created this reservation. With UserId it is unique, so a
+        // retried or double-submitted request finds this reservation instead of filing a second one. Null when none was sent.
+        [StringLength(IdempotencyKeyMaxLength)]
+        public string? IdempotencyKey { get; set; }
 
         [Required]
         [StringLength(450)]

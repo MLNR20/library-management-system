@@ -155,6 +155,7 @@ namespace LibraryManagementSystem.Server.Data
                 reservation.HasIndex(r => new { r.TableId, r.StartUtc });
                 reservation.HasIndex(r => new { r.UserId, r.StartUtc });
                 reservation.HasIndex(r => r.Status);
+                reservation.HasIndex(r => new { r.UserId, r.IdempotencyKey }).IsUnique().HasFilter("[IdempotencyKey] IS NOT NULL");
                 reservation.HasOne(r => r.Table).WithMany(t => t.Reservations).HasForeignKey(r => r.TableId).OnDelete(DeleteBehavior.Restrict);
                 reservation.HasOne(r => r.User).WithMany().HasForeignKey(r => r.UserId).OnDelete(DeleteBehavior.Restrict);
             });
