@@ -12,6 +12,9 @@ namespace LibraryManagementSystem.Server.Services
         // Newest first, at most 200. Staff see everyone's, optionally narrowed to one status; everyone else only their own.
         Task<IReadOnlyList<TableReservationDto>> GetAsync(string requesterId, bool isStaff, ReservationStatus? status, CancellationToken cancellationToken = default);
 
+        // Pending and approved reservations that overlap [fromUtc, toUtc), earliest first, without who made them.
+        Task<IReadOnlyList<TableBusySlotDto>> GetBusySlotsAsync(DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken = default);
+
         // Files a pending request. Throws KeyNotFoundException (table or user missing) and ReservationException (rule broken).
         Task<TableReservationDto> RequestAsync(string requesterId, TableReservationRequest request, CancellationToken cancellationToken = default);
 
@@ -47,6 +50,16 @@ namespace LibraryManagementSystem.Server.Services
             var page = await reservations.OrderByDescending(r => r.StartUtc).Take(200).ToListAsync(cancellationToken);
 
             return page.Select(ToDto).ToList();
+        }
+
+        public async Task<IReadOnlyList<TableBusySlotDto>> GetBusySlotsAsync(
+            DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken = default)
+        {
+            return await unitOfWork.Repository<TableReservation>().Query()
+                .Where(TableReservation.OccupiesWindow(AsUtc(fromUtc), AsUtc(toUtc)))
+                .OrderBy(r => r.StartUtc)
+                .Select(r => new TableBusySlotDto(r.TableId, r.StartUtc, r.EndUtc, r.Status))
+                .ToListAsync(cancellationToken);
         }
 
         public async Task<TableReservationDto> RequestAsync(string requesterId, TableReservationRequest request, CancellationToken cancellationToken = default)

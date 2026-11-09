@@ -85,6 +85,52 @@ export function useReservations() {
     });
 }
 
+/** A taken slot on a table: Approved holds it, Pending is requested but undecided. Carries no user details. */
+export interface TableBusySlot {
+    tableId: string;
+    startUtc: string;
+    endUtc: string;
+    status: ReservationStatus;
+}
+
+/** Slots taken on `date` (a local yyyy-MM-dd), refreshed every 30 seconds so the view stays live. */
+export function useTableAvailability(date: string) {
+    return useQuery({
+        queryKey: [...reservationsKey, 'availability', date],
+        queryFn: async () => {
+            const from = new Date(`${date}T00:00`);
+            const to = new Date(from);
+            to.setDate(to.getDate() + 1);
+            const response = await api.get<TableBusySlot[]>('/table-reservations/availability', {
+                params: { from: from.toISOString(), to: to.toISOString() },
+            });
+            return response.data;
+        },
+        refetchInterval: 30 * 1000,
+    });
+}
+
+/** The first slot on `tableId` with the given status that overlaps the local `from`–`to` range on `date`, if any. */
+export function findOverlap(
+    slots: TableBusySlot[],
+    tableId: string,
+    status: ReservationStatus,
+    date: string,
+    from: string,
+    to: string,
+) {
+    const start = new Date(`${date}T${from}`).getTime();
+    const end = new Date(`${date}T${to}`).getTime();
+    if (!(end > start)) return undefined;
+    return slots.find(
+        slot =>
+            slot.tableId === tableId &&
+            slot.status === status &&
+            new Date(slot.startUtc).getTime() < end &&
+            new Date(slot.endUtc).getTime() > start,
+    );
+}
+
 function useReservationMutation<TVars>(fn: (vars: TVars) => Promise<TableReservation>) {
     const queryClient = useQueryClient();
     return useMutation<TableReservation, Error, TVars>({

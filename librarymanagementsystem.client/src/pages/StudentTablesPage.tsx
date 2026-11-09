@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Page } from '../components/layout/Page.tsx';
 import {
+    findOverlap,
     formatReservationTime,
     MAX_RESERVATION_HOURS,
     ReservationStatus,
@@ -11,7 +12,9 @@ import {
     useCancelReservation,
     useRequestReservation,
     useReservations,
+    useTableAvailability,
 } from '../api/tables.ts';
+import { TableAvailability } from '../components/tables/TableAvailability.tsx';
 import { getErrorMessage } from '../lib/api.ts';
 
 const todayLocal = () => {
@@ -34,6 +37,11 @@ export function StudentTablesPage() {
     const [error, setError] = useState<string>();
     const [sent, setSent] = useState(false);
 
+    const availability = useTableAvailability(date);
+    const slots = availability.data ?? [];
+    const reserved = tableId ? findOverlap(slots, tableId, ReservationStatus.Approved, date, from, to) : undefined;
+    const alsoRequested = tableId && !reserved ? findOverlap(slots, tableId, ReservationStatus.Pending, date, from, to) : undefined;
+
     const submit = (event: FormEvent) => {
         event.preventDefault();
         setSent(false);
@@ -46,6 +54,8 @@ export function StudentTablesPage() {
         if ((end.getTime() - start.getTime()) / 3600000 > MAX_RESERVATION_HOURS) {
             return setError(`A reservation can last at most ${MAX_RESERVATION_HOURS} hours.`);
         }
+
+        if (reserved) return setError('That table is already reserved for part of that time. Pick a free slot in the availability view.');
 
         setError(undefined);
         request.mutate(
@@ -114,6 +124,16 @@ export function StudentTablesPage() {
 
                         <p className="text-xs opacity-60">Up to {MAX_RESERVATION_HOURS} hours per reservation.</p>
 
+                        {reserved && !error && (
+                            <div role="alert" className="alert alert-error alert-soft">
+                                That table is already reserved for part of that time.
+                            </div>
+                        )}
+                        {alsoRequested && !error && (
+                            <div role="status" className="alert alert-warning alert-soft">
+                                Someone has already asked for this table at that time. A librarian will decide who gets it.
+                            </div>
+                        )}
                         {error && (
                             <div role="alert" className="alert alert-error alert-soft">
                                 {error}
@@ -130,6 +150,18 @@ export function StudentTablesPage() {
                         </button>
                     </div>
                 </form>
+
+                <div className="flex min-w-0 flex-col gap-6">
+                <TableAvailability
+                    tables={tables.data ?? []}
+                    slots={slots}
+                    isError={availability.isError}
+                    date={date}
+                    from={from}
+                    to={to}
+                    selectedTableId={tableId}
+                    onSelectTable={setTableId}
+                />
 
                 <section aria-labelledby="my-reservations">
                     <h2 id="my-reservations" className="mb-3 text-lg font-bold">
@@ -191,6 +223,7 @@ export function StudentTablesPage() {
                         </div>
                     )}
                 </section>
+                </div>
             </div>
         </Page>
     );

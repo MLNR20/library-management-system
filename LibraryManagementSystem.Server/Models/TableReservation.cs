@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Linq.Expressions;
 using LibraryManagementSystem.Server.Data;
 using LibraryManagementSystem.Server.Settings;
 
@@ -63,6 +64,12 @@ namespace LibraryManagementSystem.Server.Models
         // Two reservations clash when they are for the same table and their times overlap; touching ends do not clash.
         public bool ClashesWith(TableReservation other) =>
             TableId == other.TableId && StartUtc < other.EndUtc && other.StartUtc < EndUtc;
+
+        // What the availability view shows: pending and approved reservations that overlap [fromUtc, toUtc).
+        // An expression so it runs in the database; touching ends do not overlap.
+        public static Expression<Func<TableReservation, bool>> OccupiesWindow(DateTime fromUtc, DateTime toUtc) =>
+            r => (r.Status == ReservationStatus.Pending || r.Status == ReservationStatus.Approved)
+                && r.StartUtc < toUtc && r.EndUtc > fromUtc;
 
         // Only active students and visitors may reserve, only active tables, and only for a future slot of up to four hours.
         public static TableReservation Request(

@@ -15,10 +15,31 @@ namespace LibraryManagementSystem.Server.Controllers
     [Route("api/table-reservations")]
     public class TableReservationsController(ITableReservationService reservations) : ControllerBase
     {
+        private static readonly TimeSpan MaxAvailabilityWindow = TimeSpan.FromDays(7);
+
         [HttpGet]
         public async Task<ActionResult<IReadOnlyList<TableReservationDto>>> GetAll(
             [FromQuery] ReservationStatus? status, CancellationToken cancellationToken) =>
             Ok(await reservations.GetAsync(CurrentUserId(), IsStaff(), status, cancellationToken));
+
+        // When tables are taken in a window of at most a week. Open to every signed-in user and free of names, so students
+        // can pick a free slot before they ask.
+        [HttpGet("availability")]
+        public async Task<ActionResult<IReadOnlyList<TableBusySlotDto>>> GetAvailability(
+            [FromQuery] DateTime from, [FromQuery] DateTime to, CancellationToken cancellationToken)
+        {
+            if (to <= from)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest, detail: "'to' must be after 'from'.");
+            }
+
+            if (to - from > MaxAvailabilityWindow)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest, detail: $"Ask for at most {MaxAvailabilityWindow.TotalDays:0} days at a time.");
+            }
+
+            return Ok(await reservations.GetBusySlotsAsync(from, to, cancellationToken));
+        }
 
         [HttpPost]
         public Task<ActionResult<TableReservationDto>> Create(TableReservationRequest request, CancellationToken cancellationToken) =>

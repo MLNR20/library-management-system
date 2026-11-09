@@ -27,4 +27,8 @@ namespace LibraryManagementSystem.Server.Dtos.Reservations
     public record TableReservationRequest(Guid TableId, DateTime StartUtc, DateTime EndUtc, string? Note);
 
     public record RejectReservationRequest(string? Reason);
+
+    // A taken slot on a table. Deliberately carries no user or note: any signed-in user may see when a table is busy.
+    // Status is Approved (the table is held) or Pending (requested, a librarian has not decided yet).
+    public record TableBusySlotDto(Guid TableId, DateTime StartUtc, DateTime EndUtc, ReservationStatus Status);
 }
