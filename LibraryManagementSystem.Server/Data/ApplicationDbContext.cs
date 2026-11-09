@@ -28,6 +28,7 @@ namespace LibraryManagementSystem.Server.Data
         public DbSet<UserSession> UserSessions => Set<UserSession>();
         public DbSet<StudyTable> StudyTables => Set<StudyTable>();
         public DbSet<TableReservation> TableReservations => Set<TableReservation>();
+        public DbSet<RoomReservation> RoomReservations => Set<RoomReservation>();
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -157,6 +158,18 @@ namespace LibraryManagementSystem.Server.Data
                 reservation.HasIndex(r => r.Status);
                 reservation.HasIndex(r => new { r.UserId, r.IdempotencyKey }).IsUnique().HasFilter("[IdempotencyKey] IS NOT NULL");
                 reservation.HasOne(r => r.Table).WithMany(t => t.Reservations).HasForeignKey(r => r.TableId).OnDelete(DeleteBehavior.Restrict);
+                reservation.HasOne(r => r.User).WithMany().HasForeignKey(r => r.UserId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // Reading-room reservations are history too: a section or user that has them cannot be deleted.
+            builder.Entity<RoomReservation>(reservation =>
+            {
+                reservation.Property(r => r.Status).HasConversion<string>().HasMaxLength(20);
+                reservation.HasIndex(r => new { r.SectionId, r.StartUtc });
+                reservation.HasIndex(r => new { r.UserId, r.StartUtc });
+                reservation.HasIndex(r => r.Status);
+                reservation.HasIndex(r => new { r.UserId, r.IdempotencyKey }).IsUnique().HasFilter("[IdempotencyKey] IS NOT NULL");
+                reservation.HasOne(r => r.Section).WithMany().HasForeignKey(r => r.SectionId).OnDelete(DeleteBehavior.Restrict);
                 reservation.HasOne(r => r.User).WithMany().HasForeignKey(r => r.UserId).OnDelete(DeleteBehavior.Restrict);
             });
 

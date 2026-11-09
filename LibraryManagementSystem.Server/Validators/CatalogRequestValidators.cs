@@ -138,6 +138,17 @@ namespace LibraryManagementSystem.Server.Validators
         }
     }
 
+    public class RoomReservationRequestValidator : AbstractValidator<RoomReservationRequest>
+    {
+        public RoomReservationRequestValidator()
+        {
+            RuleFor(x => x.SectionId).NotEmpty();
+            RuleFor(x => x.StartUtc).NotEqual(default(DateTime)).WithMessage("Start time is required.");
+            RuleFor(x => x.EndUtc).GreaterThan(x => x.StartUtc).WithMessage("The reservation must end after it starts.");
+            RuleFor(x => x.Note).MaximumLength(ReservationBase.NoteMaxLength);
+        }
+    }
+
     public class RejectReservationRequestValidator : AbstractValidator<RejectReservationRequest>
     {
         public RejectReservationRequestValidator()

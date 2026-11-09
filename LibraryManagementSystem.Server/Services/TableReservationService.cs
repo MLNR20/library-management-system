@@ -58,11 +58,22 @@ namespace LibraryManagementSystem.Server.Services
         public async Task<IReadOnlyList<TableBusySlotDto>> GetBusySlotsAsync(
             DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken = default)
         {
-            return await unitOfWork.Repository<TableReservation>().Query()
-                .Where(TableReservation.OccupiesWindow(AsUtc(fromUtc), AsUtc(toUtc)))
-                .OrderBy(r => r.StartUtc)
+            var windowStart = AsUtc(fromUtc);
+            var windowEnd = AsUtc(toUtc);
+
+            var own = await unitOfWork.Repository<TableReservation>().Query()
+                .Where(TableReservation.OccupiesWindow(windowStart, windowEnd))
                 .Select(r => new TableBusySlotDto(r.TableId, r.StartUtc, r.EndUtc, r.Status))
                 .ToListAsync(cancellationToken);
+
+            // A reserved reading room takes all of its tables for the time, so it shows on each of them.
+            var viaRoom = await (
+                from room in unitOfWork.Repository<RoomReservation>().Query().Where(RoomReservation.OccupiesWindow(windowStart, windowEnd))
+                join table in unitOfWork.Repository<StudyTable>().Query() on room.SectionId equals table.SectionId
+                select new TableBusySlotDto(table.Id, room.StartUtc, room.EndUtc, room.Status))
+                .ToListAsync(cancellationToken);
+
+            return own.Concat(viaRoom).OrderBy(slot => slot.StartUtc).Select(WithUtcKinds).ToList();
         }
 
         public async Task<TableReservationDto> RequestAsync(
@@ -129,7 +140,15 @@ namespace LibraryManagementSystem.Server.Services
                 .Where(r => r.TableId == reservation.TableId && r.Status == ReservationStatus.Approved && r.EndUtc > now)
                 .ToListAsync(cancellationToken);
 
-            reservation.Approve(deciderName, now, approved);
+            // A table in a reserved reading room is part of that room for the time.
+            var sectionId = reservation.Table.SectionId;
+            var approvedRooms = sectionId is null
+                ? []
+                : await unitOfWork.Repository<RoomReservation>().Query()
+                    .Where(r => r.SectionId == sectionId && r.Status == ReservationStatus.Approved && r.EndUtc > now)
+                    .ToListAsync(cancellationToken);
+
+            reservation.Approve(deciderName, now, approved, approvedRooms);
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await audit.WriteAsync(
                 AuditActions.TableApproved,
@@ -212,8 +231,15 @@ namespace LibraryManagementSystem.Server.Services
         private static DateTime AsUtc(DateTime value) =>
             value.Kind == DateTimeKind.Local ? value.ToUniversalTime() : DateTime.SpecifyKind(value, DateTimeKind.Utc);
 
+        // SQL Server hands dates back with Kind Unspecified, which JSON writes without a "Z" and a browser then reads as
+        // local time. Everything stored here is UTC, so say so.
+        private static DateTime? AsUtc(DateTime? value) => value is null ? null : AsUtc(value.Value);
+
+        private static TableBusySlotDto WithUtcKinds(TableBusySlotDto slot) =>
+            slot with { StartUtc = AsUtc(slot.StartUtc), EndUtc = AsUtc(slot.EndUtc) };
+
         private static TableReservationDto ToDto(TableReservation r) => new(
-            r.Id, r.TableId, r.Table.Name, r.Table.Section?.Name, r.UserId, r.User.UserName ?? r.UserId, r.StartUtc, r.EndUtc, r.Note,
-            r.Status, r.RequestedAtUtc, r.DecidedAtUtc, r.DecidedByName, r.DecisionNote);
+            r.Id, r.TableId, r.Table.Name, r.Table.Section?.Name, r.UserId, r.User.UserName ?? r.UserId, AsUtc(r.StartUtc), AsUtc(r.EndUtc), r.Note,
+            r.Status, AsUtc(r.RequestedAtUtc), AsUtc(r.DecidedAtUtc), r.DecidedByName, r.DecisionNote);
     }
 }

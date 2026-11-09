@@ -28,6 +28,27 @@ namespace LibraryManagementSystem.Server.Dtos.Reservations
 
     public record RejectReservationRequest(string? Reason);
 
+    public record RoomReservationDto(
+        Guid Id,
+        Guid SectionId,
+        string RoomName,
+        string UserId,
+        string UserName,
+        DateTime StartUtc,
+        DateTime EndUtc,
+        string? Note,
+        ReservationStatus Status,
+        DateTime RequestedAtUtc,
+        DateTime? DecidedAtUtc,
+        string? DecidedByName,
+        string? DecisionNote);
+
+    // Times are UTC instants; the browser converts from the student's local date and time. SectionId must be a reading room.
+    public record RoomReservationRequest(Guid SectionId, DateTime StartUtc, DateTime EndUtc, string? Note);
+
+    // A taken slot in a reading room. Like TableBusySlotDto it carries no user or note.
+    public record RoomBusySlotDto(Guid SectionId, DateTime StartUtc, DateTime EndUtc, ReservationStatus Status);
+
     // A taken slot on a table. Deliberately carries no user or note: any signed-in user may see when a table is busy.
     // Status is Approved (the table is held) or Pending (requested, a librarian has not decided yet).
     public record TableBusySlotDto(Guid TableId, DateTime StartUtc, DateTime EndUtc, ReservationStatus Status);

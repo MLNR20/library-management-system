@@ -55,7 +55,17 @@ namespace LibraryManagementSystem.Server.Controllers
         }
 
         [HttpDelete("{id:guid}")]
-        public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken) =>
-            await sections.DeleteAsync(id, cancellationToken) ? NoContent() : NotFound();
+        public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+        {
+            try
+            {
+                return await sections.DeleteAsync(id, cancellationToken) ? NoContent() : NotFound();
+            }
+            catch (InvalidOperationException ex)
+            {
+                // The room has reservations, which are kept as history.
+                return Problem(statusCode: StatusCodes.Status409Conflict, detail: ex.Message);
+            }
+        }
     }
 }

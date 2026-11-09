@@ -64,6 +64,7 @@ const navGroups: NavGroup[] = [
         title: 'Reading rooms',
         items: [
             { to: '/reservations', label: 'Table reservations', icon: <ClockIcon className={iconClass} />, staffOnly: true },
+            { to: '/room-reservations', label: 'Room reservations', icon: <ClockIcon className={iconClass} />, staffOnly: true },
             { to: '/tables', label: 'Tables', icon: <SectionIcon className={iconClass} />, staffOnly: true },
         ],
     },

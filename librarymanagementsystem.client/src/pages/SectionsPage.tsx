@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { CrudPage } from '../components/crud/CrudPage.tsx';
 import { createDataTableColumnHelper } from '../components/data-table/tableConfig.ts';
 import type { FormField } from '../components/form/FormBuilder.tsx';
+import { RoomCell } from '../components/tables/RoomCell.tsx';
 import { floorHooks, sectionHooks, sectionModelLabels, shelfHooks } from '../api/resources.ts';
 import type { Section, SectionModel } from '../api/resources.ts';
 
@@ -12,6 +13,9 @@ const columns = helper.columns([
     helper.accessor('floorName', { header: 'Floor' }),
     helper.accessor('shelfName', { header: 'Shelf' }),
     helper.accessor(section => sectionModelLabels[section.model], { id: 'model', header: 'Model' }),
+    // A reading room also shows what it holds and how it is booked.
+    helper.display({ id: 'room', header: 'Room', cell: info => <RoomCell section={info.row.original} part="furnishing" /> }),
+    helper.display({ id: 'roomBookings', header: 'Room reservations', cell: info => <RoomCell section={info.row.original} part="bookings" /> }),
 ]);
 
 const modelOptions = Object.entries(sectionModelLabels).map(([value, label]) => ({ value, label }));

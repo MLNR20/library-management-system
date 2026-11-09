@@ -50,6 +50,13 @@ namespace LibraryManagementSystem.Server.Services
                 throw new ArgumentException($"Section '{section.Name}' has tables, so it must stay a reading room. Move the tables first.");
             }
 
+            // Reservations of a whole reading room only make sense while it is one.
+            if (request.Model != SectionModel.ReadingRoom
+                && await unitOfWork.Repository<RoomReservation>().AnyAsync(r => r.SectionId == id, cancellationToken))
+            {
+                throw new ArgumentException($"Section '{section.Name}' has room reservations, so it must stay a reading room.");
+            }
+
             SectionMapper.Apply(request, section);
             await ResolveLocationAsync(section, request, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -63,6 +70,11 @@ namespace LibraryManagementSystem.Server.Services
             if (section is null)
             {
                 return false;
+            }
+
+            if (await unitOfWork.Repository<RoomReservation>().AnyAsync(r => r.SectionId == id, cancellationToken))
+            {
+                throw new InvalidOperationException("A reading room with reservations cannot be deleted. Its reservations are kept as history.");
             }
 
             unitOfWork.Sections.Remove(section);

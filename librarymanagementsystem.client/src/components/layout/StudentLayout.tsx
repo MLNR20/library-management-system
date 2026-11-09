@@ -25,6 +25,9 @@ export function StudentLayout() {
                     <NavLink to="/student/tables" className={navLinkClass}>
                         Reserve a table
                     </NavLink>
+                    <NavLink to="/student/rooms" className={navLinkClass}>
+                        Reserve a room
+                    </NavLink>
                 </nav>
                 <label className="flex flex-none cursor-pointer items-center gap-2 pr-2 text-sm">
                     <span>Dark</span>

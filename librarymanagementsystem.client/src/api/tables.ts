@@ -110,10 +110,9 @@ export function useTableAvailability(date: string) {
     });
 }
 
-/** The first slot on `tableId` with the given status that overlaps the local `from`–`to` range on `date`, if any. */
-export function findOverlap(
-    slots: TableBusySlot[],
-    tableId: string,
+/** The first of `slots` (one table's or one room's) with the given status that overlaps the local `from`–`to` range on `date`, if any. */
+export function findOverlap<T extends { startUtc: string; endUtc: string; status: ReservationStatus }>(
+    slots: T[],
     status: ReservationStatus,
     date: string,
     from: string,
@@ -123,19 +122,25 @@ export function findOverlap(
     const end = new Date(`${date}T${to}`).getTime();
     if (!(end > start)) return undefined;
     return slots.find(
-        slot =>
-            slot.tableId === tableId &&
-            slot.status === status &&
-            new Date(slot.startUtc).getTime() < end &&
-            new Date(slot.endUtc).getTime() > start,
+        slot => slot.status === status && new Date(slot.startUtc).getTime() < end && new Date(slot.endUtc).getTime() > start,
     );
 }
 
-function useReservationMutation<TVars>(fn: (vars: TVars) => Promise<TableReservation>) {
+/**
+ * Table and room reservations hold each other's time (a reserved room takes its tables), so a change to either must
+ * refresh both lists and both availability views.
+ */
+export const roomReservationsKey = ['room-reservations'] as const;
+
+export function useReservationMutation<TData, TVars>(fn: (vars: TVars) => Promise<TData>) {
     const queryClient = useQueryClient();
-    return useMutation<TableReservation, Error, TVars>({
+    return useMutation<TData, Error, TVars>({
         mutationFn: fn,
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: reservationsKey }),
+        onSuccess: () =>
+            Promise.all([
+                queryClient.invalidateQueries({ queryKey: reservationsKey }),
+                queryClient.invalidateQueries({ queryKey: roomReservationsKey }),
+            ]),
     });
 }
 

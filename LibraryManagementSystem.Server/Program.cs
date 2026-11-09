@@ -178,6 +178,7 @@ try
     // Tables: students file reservation requests, librarians approve or reject them.
     builder.Services.AddScoped<IStudyTableService, StudyTableService>();
     builder.Services.AddScoped<ITableReservationService, TableReservationService>();
+    builder.Services.AddScoped<IRoomReservationService, RoomReservationService>();
     builder.Services.AddHostedService<DueRemindersJob>();
 
     builder.Services.AddAuthorization();

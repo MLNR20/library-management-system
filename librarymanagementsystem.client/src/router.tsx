@@ -20,8 +20,10 @@ import { ShelvesPage } from './pages/ShelvesPage.tsx';
 import { TimeCardsPage } from './pages/TimeCardsPage.tsx';
 import { StudentBooksPage } from './pages/StudentBooksPage.tsx';
 import { StudentTablesPage } from './pages/StudentTablesPage.tsx';
+import { StudentRoomsPage } from './pages/StudentRoomsPage.tsx';
 import { SessionsPage } from './pages/SessionsPage.tsx';
 import { ReservationsPage } from './pages/ReservationsPage.tsx';
+import { RoomReservationsPage } from './pages/RoomReservationsPage.tsx';
 import { TablesPage } from './pages/TablesPage.tsx';
 import { AnnouncementsPage } from './pages/AnnouncementsPage.tsx';
 import { NewsListPage } from './pages/NewsListPage.tsx';
@@ -43,6 +45,7 @@ export const router = createBrowserRouter([
                 children: [
                     { index: true, element: <StudentBooksPage /> },
                     { path: 'tables', element: <StudentTablesPage /> },
+                    { path: 'rooms', element: <StudentRoomsPage /> },
                     { path: 'sessions', element: <SessionsPage /> },
                     {
                         path: 'map',
@@ -66,6 +69,7 @@ export const router = createBrowserRouter([
                         children: [
                             { path: 'time-cards', element: <TimeCardsPage /> },
                             { path: 'reservations', element: <ReservationsPage /> },
+                            { path: 'room-reservations', element: <RoomReservationsPage /> },
                             { path: 'tables', element: <TablesPage /> },
                             { path: 'news', element: <NewsPage /> },
                         ],

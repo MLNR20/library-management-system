@@ -1,9 +1,4 @@
-import {
-    ReservationStatus,
-    reservationStatusLabels,
-    type StudyTable,
-    type TableBusySlot,
-} from '../../api/tables.ts';
+import { ReservationStatus, reservationStatusLabels } from '../../api/tables.ts';
 
 /** The hours the grid shows, in the viewer's local time. */
 const DAY_START_HOUR = 8;
@@ -12,18 +7,38 @@ const HOURS = Array.from({ length: DAY_END_HOUR - DAY_START_HOUR + 1 }, (_, i) =
 
 const timeFormatter = new Intl.DateTimeFormat(undefined, { timeStyle: 'short' });
 
+/** One row of the grid: a table or a reading room. */
+export interface AvailabilityRow {
+    id: string;
+    name: string;
+    /** Tooltip for the row's name, e.g. its seats and where it is. */
+    title?: string;
+}
+
+/** A taken stretch of one row. Approved holds it; Pending is requested but undecided. */
+export interface AvailabilitySlot {
+    rowId: string;
+    startUtc: string;
+    endUtc: string;
+    status: ReservationStatus;
+}
+
 interface Props {
-    tables: StudyTable[];
-    /** What is taken on `date`, from useTableAvailability. */
-    slots: TableBusySlot[];
+    rows: AvailabilityRow[];
+    /** What is taken on `date`. */
+    slots: AvailabilitySlot[];
     isError: boolean;
+    /** Shown when there are no rows, e.g. "There are no tables to reserve yet." */
+    emptyText: string;
+    /** Ends the footnote, e.g. "A table is only yours once a librarian approves." */
+    footnote: string;
     /** Local date, yyyy-MM-dd. */
     date: string;
-    /** The slot the student is about to ask for, as local "HH:mm"; drawn as an outline on the chosen table. */
+    /** The slot the student is about to ask for, as local "HH:mm"; drawn as an outline on the chosen row. */
     from: string;
     to: string;
-    selectedTableId: string;
-    onSelectTable: (tableId: string) => void;
+    selectedId: string;
+    onSelect: (id: string) => void;
 }
 
 /** Position of an instant on the grid, as a percentage of the visible hours (clamped to the grid). */
@@ -33,10 +48,8 @@ function percentOf(instant: Date, date: string) {
     return Math.min(100, Math.max(0, ((instant.getTime() - dayStart) / span) * 100));
 }
 
-/** When each table is taken on one day, refreshed live. Green is free; amber is requested; red is held. */
-export function TableAvailability({ tables, slots, isError, date, from, to, selectedTableId, onSelectTable }: Props) {
-    const activeTables = tables.filter(table => table.isActive);
-
+/** When each table or room is taken on one day. Green is free; amber is requested; red is held. */
+export function AvailabilityGrid({ rows, slots, isError, emptyText, footnote, date, from, to, selectedId, onSelect }: Props) {
     const previewStart = new Date(`${date}T${from}`);
     const previewEnd = new Date(`${date}T${to}`);
     const previewValid = previewEnd > previewStart;
@@ -65,8 +78,8 @@ export function TableAvailability({ tables, slots, isError, date, from, to, sele
                     <div role="alert" className="alert alert-error alert-soft">
                         Could not load availability.
                     </div>
-                ) : activeTables.length === 0 ? (
-                    <p className="opacity-70">There are no tables to reserve yet.</p>
+                ) : rows.length === 0 ? (
+                    <p className="opacity-70">{emptyText}</p>
                 ) : (
                     <div className="overflow-x-auto">
                         <div className="min-w-[36rem]">
@@ -83,21 +96,21 @@ export function TableAvailability({ tables, slots, isError, date, from, to, sele
                             </div>
 
                             <ul className="flex flex-col gap-2">
-                                {activeTables.map(table => {
-                                    const tableSlots = slots.filter(slot => slot.tableId === table.id);
-                                    const selected = table.id === selectedTableId;
+                                {rows.map(row => {
+                                    const rowSlots = slots.filter(slot => slot.rowId === row.id);
+                                    const selected = row.id === selectedId;
                                     return (
-                                        <li key={table.id} className="flex items-center gap-2">
+                                        <li key={row.id} className="flex items-center gap-2">
                                             <button
                                                 type="button"
-                                                onClick={() => onSelectTable(table.id)}
+                                                onClick={() => onSelect(row.id)}
                                                 aria-pressed={selected}
                                                 className={`w-26 shrink-0 truncate rounded px-2 py-1 text-left text-sm ${
                                                     selected ? 'bg-primary text-primary-content font-bold' : 'hover:bg-base-200'
                                                 }`}
-                                                title={`${table.name} · ${table.seats} seats${table.sectionName ? ` · ${table.sectionName}` : ''}`}
+                                                title={row.title ?? row.name}
                                             >
-                                                {table.name}
+                                                {row.name}
                                             </button>
 
                                             <div className="relative h-8 flex-1 overflow-hidden rounded bg-success/20">
@@ -110,7 +123,7 @@ export function TableAvailability({ tables, slots, isError, date, from, to, sele
                                                     />
                                                 ))}
 
-                                                {tableSlots.map((slot, index) => {
+                                                {rowSlots.map((slot, index) => {
                                                     const left = percentOf(new Date(slot.startUtc), date);
                                                     const right = percentOf(new Date(slot.endUtc), date);
                                                     if (right <= left) return null;
@@ -120,7 +133,7 @@ export function TableAvailability({ tables, slots, isError, date, from, to, sele
                                                         <span
                                                             key={`${slot.startUtc}-${index}`}
                                                             title={label}
-                                                            aria-label={`${table.name} ${label}`}
+                                                            aria-label={`${row.name} ${label}`}
                                                             role="img"
                                                             className={`absolute inset-y-0 ${approved ? 'bg-error' : 'bg-warning'}`}
                                                             style={{ left: `${left}%`, width: `${right - left}%` }}
@@ -148,7 +161,7 @@ export function TableAvailability({ tables, slots, isError, date, from, to, sele
                 )}
 
                 <p className="text-xs opacity-60">
-                    Shows {DAY_START_HOUR}:00–{DAY_END_HOUR}:00 in your local time and updates on its own. A table is only yours once a librarian approves.
+                    Shows {DAY_START_HOUR}:00–{DAY_END_HOUR}:00 in your local time and updates on its own. {footnote}
                 </p>
             </div>
         </section>

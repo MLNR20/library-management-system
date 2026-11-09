@@ -27,6 +27,11 @@ namespace LibraryManagementSystem.Server.Services
         public const string TableRejected = "Table.Rejected";
         public const string TableCancelled = "Table.Cancelled";
 
+        public const string RoomRequested = "Room.Requested";
+        public const string RoomApproved = "Room.Approved";
+        public const string RoomRejected = "Room.Rejected";
+        public const string RoomCancelled = "Room.Cancelled";
+
         public const string UserActivated = "User.Activated";
         public const string UserDeactivated = "User.Deactivated";
 

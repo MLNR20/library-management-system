@@ -1,80 +1,21 @@
-using System.ComponentModel.DataAnnotations;
 using System.Linq.Expressions;
 using LibraryManagementSystem.Server.Data;
-using LibraryManagementSystem.Server.Settings;
 
 namespace LibraryManagementSystem.Server.Models
 {
-    public enum ReservationStatus
-    {
-        // Filed by a student, waiting for a librarian.
-        Pending,
-
-        // A librarian approved it; the table is held for that time.
-        Approved,
-
-        // A librarian declined it.
-        Rejected,
-
-        // Withdrawn before it happened, by the student or by staff.
-        Cancelled
-    }
-
     // One student's request for one table for one stretch of time. It only holds the table once a librarian approves it.
-    public class TableReservation
+    public class TableReservation : ReservationBase
     {
-        public static readonly TimeSpan MaxDuration = TimeSpan.FromHours(4);
+        public Guid TableId { get; set; }
 
-        public const int NoteMaxLength = 300;
-
-        public const int IdempotencyKeyMaxLength = 64;
+        public StudyTable Table { get; set; } = null!;
 
         // A retry of the same request asks for the same table and time; reusing a key for something else is a client bug.
         public bool IsSameRequestAs(Guid tableId, DateTime startUtc, DateTime endUtc) =>
             TableId == tableId && StartUtc == startUtc && EndUtc == endUtc;
 
-        public Guid Id { get; set; }
-
-        public Guid TableId { get; set; }
-
-        public StudyTable Table { get; set; } = null!;
-
-        // The client's Idempotency-Key for the request that created this reservation. With UserId it is unique, so a
-        // retried or double-submitted request finds this reservation instead of filing a second one. Null when none was sent.
-        [StringLength(IdempotencyKeyMaxLength)]
-        public string? IdempotencyKey { get; set; }
-
-        [Required]
-        [StringLength(450)]
-        public string UserId { get; set; } = string.Empty;
-
-        public ApplicationUser User { get; set; } = null!;
-
-        public DateTime StartUtc { get; set; }
-
-        public DateTime EndUtc { get; set; }
-
-        // What the student wants the table for.
-        [StringLength(NoteMaxLength)]
-        public string? Note { get; set; }
-
-        public ReservationStatus Status { get; set; } = ReservationStatus.Pending;
-
-        public DateTime RequestedAtUtc { get; set; }
-
-        // Set when a librarian approves or rejects it.
-        public DateTime? DecidedAtUtc { get; set; }
-
-        [StringLength(256)]
-        public string? DecidedByName { get; set; }
-
-        // The librarian's reason, mainly for a rejection.
-        [StringLength(NoteMaxLength)]
-        public string? DecisionNote { get; set; }
-
         // Two reservations clash when they are for the same table and their times overlap; touching ends do not clash.
-        public bool ClashesWith(TableReservation other) =>
-            TableId == other.TableId && StartUtc < other.EndUtc && other.StartUtc < EndUtc;
+        public bool ClashesWith(TableReservation other) => TableId == other.TableId && OverlapsInTime(other);
 
         // What the availability view shows: pending and approved reservations that overlap [fromUtc, toUtc).
         // An expression so it runs in the database; touching ends do not overlap.
@@ -86,35 +27,14 @@ namespace LibraryManagementSystem.Server.Models
         public static TableReservation Request(
             StudyTable table, ApplicationUser user, IEnumerable<string> roles, DateTime startUtc, DateTime endUtc, string? note, DateTime nowUtc)
         {
-            if (!user.IsActive)
-            {
-                throw new ReservationException("This account is not active and cannot reserve tables.");
-            }
-
-            if (!roles.Any(role => AppRoles.Borrowers.Contains(role, StringComparer.OrdinalIgnoreCase)))
-            {
-                throw new ReservationException($"Only users with the {AppRoles.Student} or {AppRoles.Visitor} role can reserve tables.");
-            }
+            EnsureCanReserve(user, roles, "tables");
 
             if (!table.IsActive)
             {
                 throw new ReservationException($"'{table.Name}' is out of service and cannot be reserved.");
             }
 
-            if (endUtc <= startUtc)
-            {
-                throw new ReservationException("The reservation must end after it starts.");
-            }
-
-            if (startUtc <= nowUtc)
-            {
-                throw new ReservationException("The reservation must start in the future.");
-            }
-
-            if (endUtc - startUtc > MaxDuration)
-            {
-                throw new ReservationException($"A reservation can last at most {MaxDuration.TotalHours:0} hours.");
-            }
+            EnsureValidTimes(startUtc, endUtc, nowUtc);
 
             return new TableReservation
             {
@@ -132,63 +52,22 @@ namespace LibraryManagementSystem.Server.Models
         }
 
         // A librarian approves it. approvedOnSameTable are the table's already approved reservations: the new one may not
-        // clash with any, because an approval is a promise that the table is free.
-        public void Approve(string deciderName, DateTime nowUtc, IEnumerable<TableReservation> approvedOnSameTable)
+        // clash with any, because an approval is a promise that the table is free. approvedRoomHolds are the approved
+        // reservations of the whole reading room the table is in: while one is on, the table is part of it.
+        public void Approve(
+            string deciderName,
+            DateTime nowUtc,
+            IEnumerable<TableReservation> approvedOnSameTable,
+            IEnumerable<RoomReservation>? approvedRoomHolds = null)
         {
-            EnsurePending("approved");
+            var clash =
+                approvedOnSameTable.Any(other => other.Id != Id && other.Status == ReservationStatus.Approved && ClashesWith(other))
+                    ? $"'{Table.Name}' is already reserved for part of that time."
+                : approvedRoomHolds?.Any(room => room.Status == ReservationStatus.Approved && OverlapsInTime(room)) == true
+                    ? $"'{Table.Name}' is in a reading room that is reserved for part of that time."
+                    : null;
 
-            if (EndUtc <= nowUtc)
-            {
-                throw new ReservationException("This reservation has already passed and cannot be approved.");
-            }
-
-            if (approvedOnSameTable.Any(other => other.Id != Id && other.Status == ReservationStatus.Approved && ClashesWith(other)))
-            {
-                throw new ReservationException($"'{Table.Name}' is already reserved for part of that time.");
-            }
-
-            Decide(ReservationStatus.Approved, deciderName, nowUtc, null);
-        }
-
-        public void Reject(string deciderName, DateTime nowUtc, string? reason)
-        {
-            EnsurePending("rejected");
-            Decide(ReservationStatus.Rejected, deciderName, nowUtc, reason);
-        }
-
-        // Withdrawn by the student or by staff while it is pending or approved and has not finished.
-        public void Cancel(DateTime nowUtc)
-        {
-            if (Status is not (ReservationStatus.Pending or ReservationStatus.Approved))
-            {
-                throw new ReservationException($"A {Status.ToString().ToLowerInvariant()} reservation cannot be cancelled.");
-            }
-
-            if (EndUtc <= nowUtc)
-            {
-                throw new ReservationException("This reservation has already finished.");
-            }
-
-            Status = ReservationStatus.Cancelled;
-        }
-
-        private void EnsurePending(string verb)
-        {
-            if (Status != ReservationStatus.Pending)
-            {
-                throw new ReservationException($"Only a pending reservation can be {verb}; this one is {Status.ToString().ToLowerInvariant()}.");
-            }
-        }
-
-        private void Decide(ReservationStatus status, string deciderName, DateTime nowUtc, string? note)
-        {
-            Status = status;
-            DecidedAtUtc = nowUtc;
-            DecidedByName = deciderName;
-            DecisionNote = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
+            ApproveUnlessClashing(deciderName, nowUtc, clash);
         }
     }
-
-    // A reservation rule was broken (ineligible student, table out of service, bad time, clash, wrong status).
-    public class ReservationException(string message) : InvalidOperationException(message);
 }

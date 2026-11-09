@@ -567,6 +567,68 @@ namespace LibraryManagementSystem.Server.Migrations
                     b.ToTable("Notifications");
                 });
 
+            modelBuilder.Entity("LibraryManagementSystem.Server.Models.RoomReservation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("DecidedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DecidedByName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("DecisionNote")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<DateTime>("EndUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("IdempotencyKey")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<DateTime>("RequestedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("SectionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("StartUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("SectionId", "StartUtc");
+
+                    b.HasIndex("UserId", "IdempotencyKey")
+                        .IsUnique()
+                        .HasFilter("[IdempotencyKey] IS NOT NULL");
+
+                    b.HasIndex("UserId", "StartUtc");
+
+                    b.ToTable("RoomReservations");
+                });
+
             modelBuilder.Entity("LibraryManagementSystem.Server.Models.Row", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1066,6 +1128,25 @@ namespace LibraryManagementSystem.Server.Migrations
                         .IsRequired();
 
                     b.Navigation("Borrowing");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("LibraryManagementSystem.Server.Models.RoomReservation", b =>
+                {
+                    b.HasOne("LibraryManagementSystem.Server.Models.Section", "Section")
+                        .WithMany()
+                        .HasForeignKey("SectionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("LibraryManagementSystem.Server.Data.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Section");
 
                     b.Navigation("User");
                 });
