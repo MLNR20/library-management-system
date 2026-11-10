@@ -10,6 +10,7 @@ import { DashboardPage } from './pages/DashboardPage.tsx';
 import { FloorsPage } from './pages/FloorsPage.tsx';
 import { GenresPage } from './pages/GenresPage.tsx';
 import { LandingPage } from './pages/LandingPage.tsx';
+import { LegalPage } from './pages/LegalPage.tsx';
 import { LanguagesPage } from './pages/LanguagesPage.tsx';
 import { LoginPage } from './pages/LoginPage.tsx';
 import { RegisterPage } from './pages/RegisterPage.tsx';
@@ -34,6 +35,9 @@ export const router = createBrowserRouter([
     // Public front door, open to guests and signed-in users alike.
     { path: '/welcome', element: <LandingPage /> },
     { path: '/welcome/news', element: <NewsListPage /> },
+    { path: '/welcome/privacy', element: <LegalPage document="privacy" /> },
+    { path: '/welcome/terms', element: <LegalPage document="terms" /> },
+    { path: '/welcome/legal', element: <LegalPage document="legal" /> },
     {
         // Everything inside needs a signed-in user.
         element: <RequireAuth />,

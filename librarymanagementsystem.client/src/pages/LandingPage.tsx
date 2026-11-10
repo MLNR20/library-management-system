@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { useAuth } from '../auth/useAuth.ts';
 import { useLatestAnnouncements } from '../api/publicAnnouncements.ts';
 import { useLatestNews, usePublicFaqs } from '../api/publicNews.ts';
+import { SiteFooter } from '../components/layout/SiteFooter.tsx';
 import { SiteNavbar } from '../components/layout/SiteNavbar.tsx';
 import { FaqList } from '../components/news/FaqList.tsx';
 import { NewsGrid } from '../components/news/NewsGrid.tsx';
@@ -82,7 +83,7 @@ export function LandingPage() {
                 {/* The photo is public/hero-reading-room.webp (see .hero-photo in index.css). */}
                 <section className="hero-photo relative isolate text-white">
                     <div className="absolute inset-0 -z-10 bg-gradient-to-r from-black/80 via-black/55 to-black/20" aria-hidden="true" />
-                    <div className="flex min-h-[28rem] items-center px-6 py-20 md:min-h-[34rem] md:px-32 md:py-28">
+                    <div className="flex min-h-[28rem] items-center px-6 py-20 md:min-h-[34rem] md:px-44 md:py-28">
                         <div className="max-w-2xl">
                             <span className="badge mb-4 border-white/30 bg-white/15 text-white">Welcome to Alexandria</span>
                             <h1 className="text-4xl leading-tight font-extrabold tracking-tight sm:text-6xl">
@@ -241,61 +242,7 @@ export function LandingPage() {
                 )}
             </main>
 
-            <footer className="border-t border-base-300 bg-base-200">
-                <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-2 md:grid-cols-3">
-                    <div>
-                        <p className="font-brand text-2xl font-bold tracking-wide text-primary">Alexandria</p>
-                        <p className="mt-3 max-w-xs text-sm opacity-70">
-                            Search the collection, borrow with confidence and find every book on the map.
-                        </p>
-                    </div>
-
-                    <nav aria-label="Explore">
-                        <h2 className="footer-title">Explore</h2>
-                        <ul className="mt-2 flex flex-col gap-2 text-sm">
-                            <li>
-                                <a href="#features" className="link link-hover">
-                                    Features
-                                </a>
-                            </li>
-                            <li>
-                                <a href="#how-it-works" className="link link-hover">
-                                    How it works
-                                </a>
-                            </li>
-                        </ul>
-                    </nav>
-
-                    <nav aria-label="Student access">
-                        <h2 className="footer-title">Students</h2>
-                        <ul className="mt-2 flex flex-col gap-2 text-sm">
-                            {user ? (
-                                <li>
-                                    <Link to={home} className="link link-hover">
-                                        Open the library
-                                    </Link>
-                                </li>
-                            ) : (
-                                <>
-                                    <li>
-                                        <Link to="/login" className="link link-hover">
-                                            Student sign in
-                                        </Link>
-                                    </li>
-                                    <li>
-                                        <Link to="/register" className="link link-hover">
-                                            Create an account
-                                        </Link>
-                                    </li>
-                                </>
-                            )}
-                        </ul>
-                    </nav>
-                </div>
-                <div className="border-t border-base-300 py-4 text-center text-xs opacity-60">
-                    © {new Date().getFullYear()} Alexandria Library Management System
-                </div>
-            </footer>
+            <SiteFooter />
         </div>
     );
 }

@@ -18,22 +18,22 @@ export function SiteNavbar() {
                 {user ? (
                     <>
                         <span className="hidden text-sm sm:inline">{user.userName}</span>
-                        <button className="btn btn-ghost btn-sm" onClick={logout}>
+                        <button className="btn btn-ghost btn-sm text-[1.15rem]" onClick={logout}>
                             Sign out
                         </button>
-                        <Link to={home} className="btn btn-primary btn-sm">
+                        <Link to={home} className="btn btn-primary btn-sm text-[1.15rem]">
                             Open library
                         </Link>
                     </>
                 ) : (
                     <>
                         {pathname !== '/login' && (
-                            <Link to="/login" className="btn btn-ghost btn-sm">
+                            <Link to="/login" className="btn btn-ghost btn-sm text-[1.15rem]">
                                 Sign in
                             </Link>
                         )}
                         {pathname !== '/register' && (
-                            <Link to="/register" className="btn btn-primary btn-sm">
+                            <Link to="/register" className="btn btn-primary btn-sm text-[1.15rem]">
                                 Create account
                             </Link>
                         )}
