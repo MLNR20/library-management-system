@@ -2,6 +2,9 @@
 export interface AuthUser {
     id: string;
     userName: string;
+    /** Empty for accounts made before names were collected. */
+    firstName: string;
+    lastName: string;
     email: string;
 }
 

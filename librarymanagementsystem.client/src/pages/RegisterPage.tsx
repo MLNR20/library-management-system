@@ -17,6 +17,8 @@ const registerSchema = z
             .min(3, 'User name must be at least 3 characters')
             .max(50, 'User name must be at most 50 characters')
             .regex(/^[A-Za-z0-9._@+-]+$/, 'Use only letters, digits and . _ @ + -'),
+        firstName: z.string().trim().min(1, 'First name is required').max(50, 'First name must be at most 50 characters'),
+        lastName: z.string().trim().min(1, 'Last name is required').max(50, 'Last name must be at most 50 characters'),
         email: z.string().trim().max(256, 'Email must be at most 256 characters').pipe(z.email('Enter a valid email address')),
         password: z
             .string()
@@ -35,6 +37,8 @@ const registerSchema = z
 
 const fields: FormField<z.input<typeof registerSchema>>[] = [
     { name: 'userName', label: 'User name', type: 'text', autoComplete: 'username', span: 2 },
+    { name: 'firstName', label: 'First name', type: 'text', autoComplete: 'given-name' },
+    { name: 'lastName', label: 'Last name', type: 'text', autoComplete: 'family-name' },
     { name: 'email', label: 'Email', type: 'email', autoComplete: 'email', span: 2 },
     {
         name: 'password',
@@ -68,7 +72,7 @@ export function RegisterPage() {
             <FormBuilder
                 schema={registerSchema}
                 fields={fields}
-                defaultValues={{ userName: '', email: '', password: '', confirmPassword: '' }}
+                defaultValues={{ userName: '', firstName: '', lastName: '', email: '', password: '', confirmPassword: '' }}
                 submitLabel="Create account"
                 formError={formError}
                 onSubmit={async values => {

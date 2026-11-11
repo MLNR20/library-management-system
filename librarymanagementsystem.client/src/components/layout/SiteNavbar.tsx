@@ -18,10 +18,10 @@ export function SiteNavbar() {
                 {user ? (
                     <>
                         <span className="hidden text-sm sm:inline">{user.userName}</span>
-                        <button className="btn btn-ghost btn-sm text-[1.15rem]" onClick={logout}>
+                        <button className="btn btn-ghost btn-sm" onClick={logout}>
                             Sign out
                         </button>
-                        <Link to={home} className="btn btn-primary btn-sm text-[1.15rem]">
+                        <Link to={home} className="btn btn-primary btn-sm">
                             Open library
                         </Link>
                     </>

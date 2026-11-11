@@ -15,6 +15,14 @@ namespace LibraryManagementSystem.Server.Validators
                 .Matches("^[A-Za-z0-9._@+-]+$")
                 .WithMessage("User name may only contain letters, digits and . _ @ + -");
 
+            RuleFor(x => x.FirstName)
+                .NotEmpty()
+                .MaximumLength(50);
+
+            RuleFor(x => x.LastName)
+                .NotEmpty()
+                .MaximumLength(50);
+
             RuleFor(x => x.Email)
                 .NotEmpty()
                 .EmailAddress()

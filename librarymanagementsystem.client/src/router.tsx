@@ -19,6 +19,7 @@ import { RowsPage } from './pages/RowsPage.tsx';
 import { SectionsPage } from './pages/SectionsPage.tsx';
 import { ShelvesPage } from './pages/ShelvesPage.tsx';
 import { TimeCardsPage } from './pages/TimeCardsPage.tsx';
+import { StudentDashboardPage } from './pages/StudentDashboardPage.tsx';
 import { StudentBooksPage } from './pages/StudentBooksPage.tsx';
 import { StudentTablesPage } from './pages/StudentTablesPage.tsx';
 import { StudentRoomsPage } from './pages/StudentRoomsPage.tsx';
@@ -47,7 +48,8 @@ export const router = createBrowserRouter([
                 path: '/student',
                 element: <StudentLayout />,
                 children: [
-                    { index: true, element: <StudentBooksPage /> },
+                    { index: true, element: <StudentDashboardPage /> },
+                    { path: 'books', element: <StudentBooksPage /> },
                     { path: 'tables', element: <StudentTablesPage /> },
                     { path: 'rooms', element: <StudentRoomsPage /> },
                     { path: 'sessions', element: <SessionsPage /> },

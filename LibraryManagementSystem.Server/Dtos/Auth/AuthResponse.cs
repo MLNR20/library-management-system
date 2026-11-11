@@ -1,6 +1,6 @@
 namespace LibraryManagementSystem.Server.Dtos.Auth
 {
-    public record UserDto(string Id, string UserName, string Email);
+    public record UserDto(string Id, string UserName, string FirstName, string LastName, string Email);
 
     public record CurrentUserResponse(UserDto User, IList<string> Roles);
 

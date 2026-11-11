@@ -17,6 +17,9 @@ export function StudentLayout() {
                 <div className="flex-none px-2 text-xl font-bold">📚 Library</div>
                 <nav className="flex flex-1 items-center gap-1" aria-label="Student">
                     <NavLink to="/student" end className={navLinkClass}>
+                        Dashboard
+                    </NavLink>
+                    <NavLink to="/student/books" className={navLinkClass}>
                         Find a book
                     </NavLink>
                     <NavLink to="/student/map" className={navLinkClass}>
@@ -41,22 +44,33 @@ export function StudentLayout() {
                 </label>
                 <div className="flex flex-none items-center gap-2">
                     <NotificationBell />
-                    <NavLink to="/" className="btn btn-ghost btn-sm">
-                        Staff view
-                    </NavLink>
-                    <NavLink to="/student/sessions" className="btn btn-ghost btn-sm">
-                        Sessions
-                    </NavLink>
-                    <span className="hidden text-sm sm:inline">{user?.userName}</span>
-                    <button
-                        className="btn btn-ghost btn-sm"
-                        onClick={() => {
-                            logout();
-                            navigate('/login', { replace: true });
-                        }}
-                    >
-                        Sign out
-                    </button>
+                    <div className="dropdown dropdown-end">
+                        <button
+                            type="button"
+                            tabIndex={0}
+                            className="btn btn-circle btn-primary btn-sm"
+                            aria-label="Account menu"
+                        >
+                            {(user?.userName ?? '?').charAt(0).toUpperCase()}
+                        </button>
+                        <ul
+                            tabIndex={0}
+                            className="dropdown-content menu z-40 mt-2 w-48 rounded-box border border-base-300 bg-base-100 p-2 shadow-lg"
+                        >
+                            <li className="menu-title truncate">{user?.userName}</li>
+                            <li>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        logout();
+                                        navigate('/login', { replace: true });
+                                    }}
+                                >
+                                    Sign out
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
             </header>
 
