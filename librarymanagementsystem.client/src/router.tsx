@@ -26,6 +26,8 @@ import { StudentRoomsPage } from './pages/StudentRoomsPage.tsx';
 import { SessionsPage } from './pages/SessionsPage.tsx';
 import { ReservationsPage } from './pages/ReservationsPage.tsx';
 import { RoomReservationsPage } from './pages/RoomReservationsPage.tsx';
+import { RoomCalendarPage } from './pages/RoomCalendarPage.tsx';
+import { ReadingRoomsPage } from './pages/ReadingRoomsPage.tsx';
 import { TablesPage } from './pages/TablesPage.tsx';
 import { AnnouncementsPage } from './pages/AnnouncementsPage.tsx';
 import { NewsListPage } from './pages/NewsListPage.tsx';
@@ -76,6 +78,8 @@ export const router = createBrowserRouter([
                             { path: 'time-cards', element: <TimeCardsPage /> },
                             { path: 'reservations', element: <ReservationsPage /> },
                             { path: 'room-reservations', element: <RoomReservationsPage /> },
+                            { path: 'room-calendar', element: <RoomCalendarPage /> },
+                            { path: 'reading-rooms', element: <ReadingRoomsPage /> },
                             { path: 'tables', element: <TablesPage /> },
                             { path: 'news', element: <NewsPage /> },
                         ],

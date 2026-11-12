@@ -30,6 +30,8 @@ interface CrudPageProps<TDto extends { id: string }, TRequest, TSchema extends z
     toRequest: (values: z.output<TSchema>) => TRequest;
     /** Short name of an item, shown in the delete confirmation. */
     itemLabel: (item: TDto) => string;
+    /** Show only the items that pass, for a page that manages one kind of a shared resource. Must be stable. */
+    filterItems?: (item: TDto) => boolean;
 }
 
 type Editing<TDto> = { mode: 'create' } | { mode: 'edit'; item: TDto };
@@ -52,8 +54,10 @@ export function CrudPage<
     toFormValues,
     toRequest,
     itemLabel,
+    filterItems,
 }: CrudPageProps<TDto, TRequest, TSchema>) {
     const list = hooks.useList();
+    const items = useMemo(() => (filterItems && list.data ? list.data.filter(filterItems) : list.data), [list.data, filterItems]);
     const create = hooks.useCreate();
     const update = hooks.useUpdate();
     const remove = hooks.useRemove();
@@ -151,7 +155,7 @@ export function CrudPage<
                 </div>
             ) : (
                 <DataTable
-                    data={list.data}
+                    data={items}
                     columns={tableColumns}
                     filters={filters}
                     searchPlaceholder={searchPlaceholder ?? `Search ${title.toLowerCase()}...`}

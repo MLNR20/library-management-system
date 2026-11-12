@@ -9,6 +9,7 @@ import {
     AuditIcon,
     AuthorIcon,
     BookIcon,
+    CalendarIcon,
     ClockIcon,
     DashboardIcon,
     FloorIcon,
@@ -63,6 +64,8 @@ const navGroups: NavGroup[] = [
     {
         title: 'Reading rooms',
         items: [
+            { to: '/reading-rooms', label: 'Reading rooms', icon: <SectionIcon className={iconClass} />, staffOnly: true },
+            { to: '/room-calendar', label: 'Room calendar', icon: <CalendarIcon className={iconClass} />, staffOnly: true },
             { to: '/reservations', label: 'Table reservations', icon: <ClockIcon className={iconClass} />, staffOnly: true },
             { to: '/room-reservations', label: 'Room reservations', icon: <ClockIcon className={iconClass} />, staffOnly: true },
             { to: '/tables', label: 'Tables', icon: <SectionIcon className={iconClass} />, staffOnly: true },
