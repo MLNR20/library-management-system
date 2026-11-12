@@ -63,17 +63,41 @@ export const doorPositions = (hall: number) => ({
 });
 
 export const COLUMN_RADIUS = 0.16;
-/** Distance between neighbouring columns along the front edge. */
-const COLUMN_SPACING = 4;
+/** Width of the carpet that runs down each arm of the cross. */
+export const WALKWAY_WIDTH = 1.4;
+/** Distance from the middle of a carpet arm to its columns: just off the carpet's edge, inside the aisle the shelves keep clear. */
+const COLUMN_OFFSET = WALKWAY_WIDTH / 2 + 0.28;
+/** Distance between neighbouring columns along a carpet arm. */
+const COLUMN_SPACING = 3;
+/** Nearest a column stands to the crossing, where the two carpets meet; the same either side of it. */
+const COLUMN_FIRST = 1.6;
 
-/** X positions of the front columns: spread each side of the south door, leaving the door's aisle clear. */
-export function columnXs(hall: number): number[] {
+/** X positions of the columns that used to stand along the front edge; the reading tables still keep to their spacing. */
+function frontColumnXs(hall: number): number[] {
     const xs: number[] = [];
-    for (let x = 1.5; x <= hall / 2 - 0.5; x += COLUMN_SPACING) xs.push(-x, x);
+    for (let x = 1.5; x <= hall / 2 - 0.5; x += 4) xs.push(-x, x);
     return xs.sort((a, b) => a - b);
 }
 
-export const COLUMN_Z = (hall: number) => hall / 2 - COLUMN_RADIUS - 0.1;
+/**
+ * Where the columns stand: in pairs either side of each arm of the carpet cross, spaced along the arm from the crossing out
+ * to the doors and the foot of the stairs, clear of the doors' frames and of the flight.
+ */
+export function columnPositions(hall: number, storey: number): { x: number; z: number }[] {
+    const points: { x: number; z: number }[] = [];
+    const eastLimit = hall / 2 - stairLength(storey) - 0.6;
+
+    for (let along = COLUMN_FIRST; along <= hall / 2 - 2.5; along += COLUMN_SPACING) {
+        // West-east arm: the west side runs out to the main door, the east side stops before the stairs.
+        for (const x of [-along, along]) {
+            if (x > eastLimit) continue;
+            points.push({ x, z: -COLUMN_OFFSET }, { x, z: COLUMN_OFFSET });
+        }
+        // North-south arm: both ends run out to a door.
+        for (const z of [-along, along]) points.push({ x: -COLUMN_OFFSET, z }, { x: COLUMN_OFFSET, z });
+    }
+    return points;
+}
 
 export const TABLE_LENGTH = 1.5;
 export const TABLE_DEPTH = 0.8;
@@ -81,9 +105,9 @@ export const TABLE_HEIGHT = 0.75;
 /** How far a chair stands from the middle of its table, along z. */
 export const CHAIR_OFFSET = 0.8;
 
-/** X positions of the reading tables: halfway between neighbouring columns on the same side of the south door. */
+/** X positions of the reading tables along the front strip, each side of the south door. */
 export function tableXs(hall: number): number[] {
-    const side = columnXs(hall).filter(x => x > 0);
+    const side = frontColumnXs(hall).filter(x => x > 0);
     const xs = side.slice(1).map((x, i) => (x + side[i]) / 2);
     return [...xs.map(x => -x).reverse(), ...xs];
 }
@@ -105,9 +129,6 @@ export function readingTables(hall: number, wing: WingLayout): { z: number; xs: 
 export const DESK_LENGTH = 2;
 export const DESK_DEPTH = 0.75;
 export const DESK_HEIGHT = 1.05;
-
-/** Width of the carpet that runs down each arm of the cross. */
-export const WALKWAY_WIDTH = 1.4;
 
 /** The librarian's desk: against the back wall, past the lobby by the main door, away from the north door's aisle. */
 export const deskPosition = (hall: number) => ({
@@ -140,8 +161,8 @@ export function furnitureRects(hall: number, hasDesk: boolean, wings: WingLayout
     for (const x of tableXs(hall)) {
         rects.push({ x, z: tableZ(hall), hx: TABLE_LENGTH / 2, hz: CHAIR_OFFSET + 0.25 });
     }
-    for (const x of columnXs(hall)) {
-        rects.push({ x, z: COLUMN_Z(hall), hx: COLUMN_RADIUS, hz: COLUMN_RADIUS });
+    for (const { x, z } of columnPositions(hall, storey)) {
+        rects.push({ x, z, hx: COLUMN_RADIUS, hz: COLUMN_RADIUS });
     }
     if (hasDesk) {
         const desk = deskPosition(hall);

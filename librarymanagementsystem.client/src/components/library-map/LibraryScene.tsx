@@ -294,7 +294,7 @@ function FloorModel({ layout, depth, storey, index, hasFloorAbove, seeThrough }:
             {ground && <LibrarianDesk width={hall} seeThrough={seeThrough} />}
             {ground && <Carpets hall={hall} storey={storey} seeThrough={seeThrough} />}
             <Tables width={hall} depth={hall} seeThrough={seeThrough} />
-            <Columns width={hall} depth={hall} height={wallHeight} seeThrough={seeThrough} />
+            <Columns hall={hall} storey={storey} height={wallHeight} seeThrough={seeThrough} />
             {layout.wings.map(wing => (
                 <WingRoom key={wing.index} wing={wing} hall={hall} seeThrough={seeThrough} />
             ))}

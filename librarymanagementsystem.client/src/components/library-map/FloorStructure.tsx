@@ -4,7 +4,6 @@ import { FlowerVase } from './Decor.tsx';
 import {
     CHAIR_OFFSET,
     COLUMN_RADIUS,
-    COLUMN_Z,
     DESK_DEPTH,
     DESK_HEIGHT,
     DESK_LENGTH,
@@ -18,7 +17,7 @@ import {
     WINDOW_SILL,
     WINDOW_WIDTH,
     backWindowXs,
-    columnXs,
+    columnPositions,
     deskPosition,
     doorPositions,
     STAIR_WIDTH,
@@ -628,40 +627,37 @@ export function LibrarianDesk({ width, seeThrough }: Omit<DoorsProps, 'depth'>) 
 }
 
 interface ColumnsProps {
-    width: number;
-    depth: number;
+    hall: number;
+    /** Height from this floor up to the next one, which sets how far the flight of stairs reaches and so where the columns stop. */
+    storey: number;
+    /** Height of each column. */
     height: number;
     seeThrough: boolean;
-    /** Column positions along x; defaults to an even spread across the floor. */
-    xs?: number[];
 }
 
-/** A row of round columns along the open front edge, stopping short of the stair strip. */
-export function Columns({ width, depth, height, seeThrough, xs }: ColumnsProps) {
-    const z = COLUMN_Z(depth);
+/** Round columns standing in pairs either side of the carpet cross. */
+export function Columns({ hall, storey, height, seeThrough }: ColumnsProps) {
     const material = (
         <meshStandardMaterial color={COLUMN_COLOR} roughness={0.6} transparent={seeThrough} opacity={seeThrough ? 0.55 : 1} />
     );
 
     return (
         <group>
-            {(xs ?? columnXs(width)).map((x, i) => {
-                return (
-                    <group key={i} position={[x, 0, z]}>
-                        <mesh position={[0, height / 2, 0]}>
-                            <cylinderGeometry args={[COLUMN_RADIUS, COLUMN_RADIUS * 1.05, height, 20]} />
+            {columnPositions(hall, storey).map(({ x, z }) => (
+                <group key={`${x}:${z}`} position={[x, 0, z]}>
+                    <mesh position={[0, height / 2, 0]}>
+                        <cylinderGeometry args={[COLUMN_RADIUS, COLUMN_RADIUS * 1.05, height, 20]} />
+                        {material}
+                    </mesh>
+                    {/* Base and capital */}
+                    {[0.06, height - 0.06].map(y => (
+                        <mesh key={y} position={[0, y, 0]}>
+                            <boxGeometry args={[COLUMN_RADIUS * 2.8, 0.12, COLUMN_RADIUS * 2.8]} />
                             {material}
                         </mesh>
-                        {/* Base and capital */}
-                        {[0.06, height - 0.06].map(y => (
-                            <mesh key={y} position={[0, y, 0]}>
-                                <boxGeometry args={[COLUMN_RADIUS * 2.8, 0.12, COLUMN_RADIUS * 2.8]} />
-                                {material}
-                            </mesh>
-                        ))}
-                    </group>
-                );
-            })}
+                    ))}
+                </group>
+            ))}
         </group>
     );
 }
