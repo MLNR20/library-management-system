@@ -10,8 +10,11 @@ export const PLANK = 0.06;
 /** Floor space one shelf takes: the shelf plus the aisle beside it (x) or in front of it (z). */
 export const CELL_X = SHELF_WIDTH + 1.4;
 export const CELL_Z = SHELF_DEPTH + 2.8;
-/** Width of the aisle down each arm of the carpet cross; the stacks stand back from the cross by half of it. */
-export const CROSS_GAP = 2.4;
+/**
+ * Width of the aisle down each arm of the carpet cross; the stacks stand back from the cross by half of it. Wide enough
+ * that the bookcases keep well clear of the colonnades beside the carpet.
+ */
+export const CROSS_GAP = 4;
 /** Strip along the left (west) wall by the main door, kept clear of shelves. */
 export const LOBBY_WIDTH = 2;
 /** Strips along the back wall (north door, librarian's desk) and the front edge (tables, columns) kept clear of shelves. */

@@ -1,6 +1,29 @@
 import * as THREE from 'three';
+import { useEffect, useMemo } from 'react';
 import { hash01 } from '../../lib/libraryLayout.ts';
 import { FlowerVase } from './Decor.tsx';
+import { InstancedPart, Lozenge, Rosette, ScrollBracket } from './Ornament.tsx';
+import { createMarbleTexture } from './marbleTexture.ts';
+import {
+    ASTRAGAL,
+    ATTIC_BASE,
+    BALUSTER,
+    BRACKET,
+    ECHINUS,
+    FINIAL,
+    FLUTED_SHAFT,
+    GILT,
+    MAHOGANY,
+    MAHOGANY_LIGHT,
+    UNIT_BALL,
+    UNIT_BOX,
+    UNIT_OCTAGON,
+    UNIT_ROD,
+    VELVET,
+    VOLUTE,
+    place,
+} from './ornamentShapes.ts';
+import type { Vec3 } from './ornamentShapes.ts';
 import {
     CHAIR_OFFSET,
     COLUMN_RADIUS,
@@ -17,7 +40,7 @@ import {
     WINDOW_SILL,
     WINDOW_WIDTH,
     backWindowXs,
-    columnPositions,
+    colonnades,
     deskPosition,
     doorPositions,
     STAIR_WIDTH,
@@ -166,8 +189,8 @@ const DOOR_STRAIGHT = 2.3;
 const DOOR_REVEAL = 0.4;
 const LEAF_THICKNESS = 0.28;
 const LEAF_GAP = 0.03;
-const DOOR_PAINT = '#5a3a22';
-const PANEL_PAINT = '#6e4a2c';
+const DOOR_PAINT = MAHOGANY;
+const PANEL_PAINT = MAHOGANY_LIGHT;
 const TRIM_PAINT = '#f1ece0';
 const BRASS = '#b5882b';
 
@@ -202,9 +225,10 @@ interface VictorianDoorProps {
 }
 
 /**
- * The main entrance: a Victorian double door. Each leaf is a thick, painted four-panel door (two panels over two) with
- * brass furniture, under a glazed fanlight in a white surround, with a stone step and a lantern either side.
- * Set against the inside face of a wall.
+ * The main entrance: a Victorian double door. Each leaf is a thick mahogany four-panel door (two panels over two), with a
+ * gilt lozenge on every panel and brass furniture, under a glazed fanlight in a white surround. Turned columns stand on the
+ * surround either side, a keystone with a gilt rosette crowns the arch, and a cornice on carved scroll brackets runs over
+ * it all; a stone step and a lantern either side finish it. Set against the inside face of a wall.
  */
 function VictorianDoor({ position, rotationY, seeThrough }: VictorianDoorProps) {
     const { surround, fanlight } = doorwayGeometry();
@@ -244,15 +268,18 @@ function VictorianDoor({ position, rotationY, seeThrough }: VictorianDoorProps) 
                         <boxGeometry args={[leafWidth, DOOR_STRAIGHT, LEAF_THICKNESS]} />
                         {paint}
                     </mesh>
-                    {[0, 1].flatMap(column => panels.map(panel => ({ column, ...panel }))).map(panel => (
-                        <mesh
-                            key={`${panel.column}-${panel.y}`}
-                            position={[-leafWidth / 2 + stile + panelWidth / 2 + panel.column * (panelWidth + stile), panel.y, LEAF_THICKNESS + 0.02]}
-                        >
-                            <boxGeometry args={[panelWidth, panel.height, 0.05]} />
-                            {panelPaint}
-                        </mesh>
-                    ))}
+                    {[0, 1].flatMap(column => panels.map(panel => ({ column, ...panel }))).map(panel => {
+                        const x = -leafWidth / 2 + stile + panelWidth / 2 + panel.column * (panelWidth + stile);
+                        return (
+                            <group key={`${panel.column}-${panel.y}`}>
+                                <mesh position={[x, panel.y, LEAF_THICKNESS + 0.02]}>
+                                    <boxGeometry args={[panelWidth, panel.height, 0.05]} />
+                                    {panelPaint}
+                                </mesh>
+                                <Lozenge position={[x, panel.y, LEAF_THICKNESS + 0.05]} size={Math.min(panelWidth, panel.height) * 0.55} seeThrough={seeThrough} />
+                            </group>
+                        );
+                    })}
                     {/* Brass kick plate, a pull handle by the meeting edge and a keyhole plate */}
                     <mesh position={[0, 0.12, LEAF_THICKNESS + 0.01]}>
                         <boxGeometry args={[leafWidth - 0.1, 0.2, 0.02]} />
@@ -289,6 +316,43 @@ function VictorianDoor({ position, rotationY, seeThrough }: VictorianDoorProps) 
                     {trim}
                 </mesh>
             </group>
+
+            {/* A turned column on the surround either side, from its plinth up to where the arch springs */}
+            {[-1, 1].map(side => (
+                <group key={`column${side}`} position={[side * (radius + 0.175), 0, DOOR_REVEAL + 0.07]}>
+                    <mesh geometry={BALUSTER} position={[0, 0.3, 0]} scale={[2.2, DOOR_STRAIGHT - 0.3, 2.2]}>
+                        {paint}
+                    </mesh>
+                    <mesh position={[0, DOOR_STRAIGHT + 0.04, 0]}>
+                        <boxGeometry args={[0.22, 0.08, 0.16]} />
+                        {trim}
+                    </mesh>
+                </group>
+            ))}
+
+            {/* Keystone with a gilt rosette at the crown of the arch */}
+            <mesh position={[0, DOOR_STRAIGHT + radius + 0.175, DOOR_REVEAL / 2 + 0.03]}>
+                <boxGeometry args={[0.32, 0.5, DOOR_REVEAL + 0.06]} />
+                {trim}
+            </mesh>
+            <Rosette position={[0, DOOR_STRAIGHT + radius + 0.175, DOOR_REVEAL + 0.06]} radius={0.1} seeThrough={seeThrough} />
+
+            {/* A cornice over the doorway, carried on a carved scroll bracket at each end */}
+            <mesh position={[0, DOOR_STRAIGHT + radius + 0.47, 0.17]}>
+                <boxGeometry args={[DOOR_OPENING + 1.3, 0.08, 0.34]} />
+                {trim}
+            </mesh>
+            {[-1, 1].map(side => (
+                <ScrollBracket
+                    key={`console${side}`}
+                    position={[side * (radius + 0.5), DOOR_STRAIGHT + radius + 0.03, 0]}
+                    reach={0.3}
+                    height={0.4}
+                    thickness={0.1}
+                    color={TRIM_PAINT}
+                    seeThrough={seeThrough}
+                />
+            ))}
 
             {/* Stone step */}
             <mesh position={[0, 0.05, DOOR_REVEAL / 2 + 0.15]}>
@@ -380,8 +444,6 @@ export function Doors({ hall, seeThrough }: { hall: number; seeThrough: boolean 
     );
 }
 
-const COLUMN_COLOR = '#e8e0d0';
-
 const WINDOW_FRAME = 0.08;
 const WINDOW_BAR = 0.03;
 const SASH_PAINT = '#f6f1e7';
@@ -404,65 +466,234 @@ interface WindowPaneProps {
     seeThrough: boolean;
 }
 
+const RUBY_GLASS = '#9b2335';
+const AMBER_GLASS = '#d99a2b';
+const SAPPHIRE_GLASS = '#2f5d8a';
+/** Pale, faintly tinted glass for the leaded diamond panes. */
+const CATHEDRAL_GLASS = '#f1e7c6';
+const LEAD = '#3a3a3a';
+/** Polished red granite for the colonettes either side of a window. */
+const GRANITE = '#6e3a3a';
+const APRON_STONE = '#bfb5a2';
+/** Height of the slim bar where the sashes meet the round head. */
+const TRANSOM = 0.04;
+/** The round head of a window: a half circle as wide as the window, springing from the top of the sashes. */
+const ARCH_RADIUS = WINDOW_WIDTH / 2;
+/** Width of the stone band round the window, and the radius of the hood moulding over it. */
+const SURROUND_WIDTH = 0.18;
+const HOOD_RADIUS = ARCH_RADIUS + SURROUND_WIDTH + 0.06;
+/** Size of one diamond pane in the leaded upper sash. */
+const QUARRY_WIDTH = 0.13;
+const QUARRY_HEIGHT = 0.2;
+/** The radii in the fanlight: its centre light, the ring of coloured wedges, and the border round them. */
+const FAN_HUB = 0.17;
+const FAN_WEDGES = 0.44;
+const FAN_GLASS = ARCH_RADIUS - WINDOW_FRAME;
+const FAN_COLORS = [RUBY_GLASS, SAPPHIRE_GLASS, RUBY_GLASS, SAPPHIRE_GLASS, RUBY_GLASS, SAPPHIRE_GLASS];
+
+const SASH_WIDTH = WINDOW_WIDTH - WINDOW_FRAME * 2;
+/** The glass of the sashes, from the bottom rail up to the transom under the round head. */
+const SASH_HEIGHT = WINDOW_HEIGHT - WINDOW_FRAME - TRANSOM / 2;
+/** The leaded upper sash: the whole width, from the meeting rail up to the transom. */
+const quarry = { x0: -SASH_WIDTH / 2, x1: SASH_WIDTH / 2, y0: WINDOW_HEIGHT / 2 + 0.035, y1: WINDOW_HEIGHT - TRANSOM / 2 };
+
+/** The lead cames of a light glazed in diamonds (quarries) filling a rectangle, each as a placed thin bar. */
+function quarryCames({ x0, x1, y0, y1 }: typeof quarry) {
+    const slope = QUARRY_HEIGHT / QUARRY_WIDTH;
+    const run = (y1 - y0) / slope;
+    const cames: THREE.Matrix4[] = [];
+    for (const dir of [1, -1]) {
+        // Each came starts at the bottom edge (extended either side) and climbs at the diamonds' slope, leaning right or left.
+        for (let c = x0 - run; c <= x1 + run; c += QUARRY_WIDTH) {
+            const t0 = Math.max(0, dir > 0 ? x0 - c : c - x1);
+            const t1 = Math.min(run, dir > 0 ? x1 - c : c - x0);
+            if (t1 - t0 < 0.01) continue;
+            const t = (t0 + t1) / 2;
+            const angle = dir > 0 ? Math.atan(slope) : Math.PI - Math.atan(slope);
+            cames.push(place([c + dir * t, y0 + slope * t, 0.036], [(t1 - t0) * Math.hypot(1, slope), 0.008, 0.004], [0, 0, angle]));
+        }
+    }
+    return cames;
+}
+const QUARRY_CAMES = quarryCames(quarry);
+
+// Built once: the painted frame of the round head, and the stone band round the whole window.
+let sharedWindowHead: { frame: THREE.ExtrudeGeometry; surround: THREE.ExtrudeGeometry } | null = null;
+
+function windowHeadGeometry() {
+    if (!sharedWindowHead) {
+        const frame = new THREE.Shape();
+        frame.moveTo(ARCH_RADIUS, 0);
+        frame.absarc(0, 0, ARCH_RADIUS, 0, Math.PI, false);
+        frame.lineTo(-FAN_GLASS, 0);
+        frame.absarc(0, 0, FAN_GLASS, Math.PI, 0, true);
+        frame.closePath();
+
+        const surround = archShape(WINDOW_WIDTH + SURROUND_WIDTH * 2, WINDOW_HEIGHT, 0);
+        surround.holes.push(new THREE.Path(archShape(WINDOW_WIDTH, WINDOW_HEIGHT, 0).getPoints(32)));
+
+        sharedWindowHead = {
+            frame: new THREE.ExtrudeGeometry(frame, { depth: 0.1, bevelEnabled: false, curveSegments: 32 }),
+            surround: new THREE.ExtrudeGeometry(surround, { depth: 0.06, bevelEnabled: false, curveSegments: 32 }),
+        };
+    }
+    return sharedWindowHead;
+}
+
 /**
- * A Victorian sash window: tall and square-headed, two sashes with two panes across and two down each, a stone lintel
- * with a keystone, and a projecting stone sill.
+ * A round-headed Victorian sash window. The lower sash has four clear panes; the upper sash is leaded in pale diamond
+ * quarries right across, up to a slim transom; the half-round fanlight above has a ring of ruby and sapphire
+ * wedges round a pale centre with a gilt rosette, inside an amber border, all in lead. A stone band runs round the whole
+ * window with a keystone and rosette at its crown, under a hood moulding ending in rosettes; polished granite colonettes
+ * stand either side, and the stone sill rests on two scroll consoles over a carved apron panel.
  */
 function WindowPane({ position, rotationY, seeThrough }: WindowPaneProps) {
     const opacity = seeThrough ? 0.7 : 1;
-    const innerWidth = WINDOW_WIDTH - WINDOW_FRAME * 2;
-    const innerHeight = WINDOW_HEIGHT - WINDOW_FRAME * 2;
+    const { frame: headFrame, surround } = windowHeadGeometry();
     const paint = <meshStandardMaterial color={SASH_PAINT} roughness={0.5} transparent={seeThrough} opacity={opacity} />;
     const stone = <meshStandardMaterial color={WINDOW_STONE} roughness={0.85} transparent={seeThrough} opacity={opacity} />;
+    const lead = <meshStandardMaterial color={LEAD} roughness={0.6} metalness={0.3} transparent={seeThrough} opacity={opacity} />;
+    const glass = (color: string, glow = 0.45) => (
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={glow} transparent opacity={0.85} />
+    );
 
     return (
         <group position={position} rotation={[0, rotationY, 0]}>
             <group position={[0, WINDOW_SILL, 0]}>
-                <mesh position={[0, WINDOW_HEIGHT / 2, 0.03]}>
-                    <planeGeometry args={[innerWidth, innerHeight]} />
+                {/* Clear glass behind both sashes, and the pale glass of the leaded upper sash */}
+                <mesh position={[0, WINDOW_FRAME + SASH_HEIGHT / 2, 0.03]}>
+                    <planeGeometry args={[SASH_WIDTH, SASH_HEIGHT]} />
                     <meshStandardMaterial color="#cfe8f7" emissive="#bfe0f5" emissiveIntensity={0.5} transparent opacity={0.7} />
                 </mesh>
-                {/* Frame */}
+                <mesh position={[0, (quarry.y0 + quarry.y1) / 2, 0.032]}>
+                    <planeGeometry args={[quarry.x1 - quarry.x0, quarry.y1 - quarry.y0]} />
+                    {glass(CATHEDRAL_GLASS, 0.35)}
+                </mesh>
+                <InstancedPart geometry={UNIT_BOX} matrices={QUARRY_CAMES}>
+                    {lead}
+                </InstancedPart>
+
+                {/* Frame sides and bottom rail, the slim transom under the round head, the meeting rail, and the glazing bars of the lower sash (two panes across, two down) */}
                 {[-1, 1].map(side => (
                     <mesh key={side} position={[side * (WINDOW_WIDTH / 2 - WINDOW_FRAME / 2), WINDOW_HEIGHT / 2, 0.05]}>
                         <boxGeometry args={[WINDOW_FRAME, WINDOW_HEIGHT, 0.1]} />
                         {paint}
                     </mesh>
                 ))}
-                {[WINDOW_FRAME / 2, WINDOW_HEIGHT - WINDOW_FRAME / 2].map(y => (
-                    <mesh key={y} position={[0, y, 0.05]}>
-                        <boxGeometry args={[WINDOW_WIDTH, WINDOW_FRAME, 0.1]} />
-                        {paint}
-                    </mesh>
-                ))}
-                {/* Meeting rail between the two sashes, then the glazing bars: one down the middle, one across each sash */}
+                <mesh position={[0, WINDOW_FRAME / 2, 0.05]}>
+                    <boxGeometry args={[WINDOW_WIDTH, WINDOW_FRAME, 0.1]} />
+                    {paint}
+                </mesh>
+                <mesh position={[0, WINDOW_HEIGHT, 0.05]}>
+                    <boxGeometry args={[SASH_WIDTH, TRANSOM, 0.08]} />
+                    {paint}
+                </mesh>
                 <mesh position={[0, WINDOW_HEIGHT / 2, 0.06]}>
-                    <boxGeometry args={[innerWidth, 0.07, 0.12]} />
+                    <boxGeometry args={[SASH_WIDTH, 0.07, 0.12]} />
                     {paint}
                 </mesh>
-                <mesh position={[0, WINDOW_HEIGHT / 2, 0.05]}>
-                    <boxGeometry args={[WINDOW_BAR, innerHeight, 0.06]} />
+                <mesh position={[0, (WINDOW_FRAME + WINDOW_HEIGHT / 2) / 2, 0.05]}>
+                    <boxGeometry args={[WINDOW_BAR, WINDOW_HEIGHT / 2 - WINDOW_FRAME, 0.06]} />
                     {paint}
                 </mesh>
-                {[WINDOW_HEIGHT * 0.25, WINDOW_HEIGHT * 0.75].map(y => (
-                    <mesh key={y} position={[0, y, 0.05]}>
-                        <boxGeometry args={[innerWidth, WINDOW_BAR, 0.06]} />
-                        {paint}
+                <mesh position={[0, WINDOW_HEIGHT * 0.27, 0.05]}>
+                    <boxGeometry args={[SASH_WIDTH, WINDOW_BAR, 0.06]} />
+                    {paint}
+                </mesh>
+
+                {/* The fanlight in the round head: pale centre with a rosette, a ring of coloured wedges, an amber border, all in lead */}
+                <group position={[0, WINDOW_HEIGHT, 0]}>
+                    <mesh geometry={headFrame}>{paint}</mesh>
+                    <mesh position={[0, 0, 0.034]}>
+                        <circleGeometry args={[FAN_HUB, 16, 0, Math.PI]} />
+                        {glass(CATHEDRAL_GLASS, 0.35)}
                     </mesh>
+                    {FAN_COLORS.map((color, i) => (
+                        <mesh key={i} position={[0, 0, 0.034]}>
+                            <ringGeometry args={[FAN_HUB, FAN_WEDGES, 4, 1, (i * Math.PI) / 6, Math.PI / 6]} />
+                            {glass(color)}
+                        </mesh>
+                    ))}
+                    <mesh position={[0, 0, 0.034]}>
+                        <ringGeometry args={[FAN_WEDGES, FAN_GLASS, 24, 1, 0, Math.PI]} />
+                        {glass(AMBER_GLASS)}
+                    </mesh>
+                    {[FAN_HUB, FAN_WEDGES].map(r => (
+                        <mesh key={r} position={[0, 0, 0.037]}>
+                            <ringGeometry args={[r - 0.007, r + 0.007, 24, 1, 0, Math.PI]} />
+                            {lead}
+                        </mesh>
+                    ))}
+                    {[1, 2, 3, 4, 5].map(i => {
+                        const angle = (i * Math.PI) / 6;
+                        const r = (FAN_HUB + FAN_GLASS) / 2;
+                        return (
+                            <mesh key={i} position={[Math.cos(angle) * r, Math.sin(angle) * r, 0.037]} rotation={[0, 0, angle]}>
+                                <boxGeometry args={[FAN_GLASS - FAN_HUB, 0.012, 0.004]} />
+                                {lead}
+                            </mesh>
+                        );
+                    })}
+                    <Rosette position={[0, 0.07, 0.036]} radius={0.05} seeThrough={seeThrough} />
+                </group>
+
+                {/* Stone band round the window, keystone and rosette at its crown, and the hood moulding with a rosette at each end */}
+                <mesh geometry={surround}>{stone}</mesh>
+                <mesh position={[0, WINDOW_HEIGHT + ARCH_RADIUS + SURROUND_WIDTH / 2, 0.05]}>
+                    <boxGeometry args={[0.2, 0.3, 0.1]} />
+                    {stone}
+                </mesh>
+                <Rosette position={[0, WINDOW_HEIGHT + ARCH_RADIUS + SURROUND_WIDTH / 2, 0.1]} radius={0.06} seeThrough={seeThrough} />
+                <mesh position={[0, WINDOW_HEIGHT, 0.04]}>
+                    <torusGeometry args={[HOOD_RADIUS, 0.03, 6, 40, Math.PI]} />
+                    {stone}
+                </mesh>
+                {[-1, 1].map(side => (
+                    <Rosette key={`stop${side}`} position={[side * HOOD_RADIUS, WINDOW_HEIGHT - 0.03, 0.07]} radius={0.045} seeThrough={seeThrough} />
                 ))}
-                {/* Stone lintel with a keystone, and the sill */}
-                <mesh position={[0, WINDOW_HEIGHT + 0.14, 0.08]}>
-                    <boxGeometry args={[WINDOW_WIDTH + 0.5, 0.28, 0.16]} />
-                    {stone}
-                </mesh>
-                <mesh position={[0, WINDOW_HEIGHT + 0.18, 0.1]}>
-                    <boxGeometry args={[0.24, 0.4, 0.18]} />
-                    {stone}
-                </mesh>
+
+                {/* A polished granite colonette on the band either side, from a small base up to a capital where the arch springs */}
+                {[-1, 1].map(side => (
+                    <group key={`colonette${side}`} position={[side * (WINDOW_WIDTH / 2 + SURROUND_WIDTH / 2), 0, 0.11]}>
+                        <mesh position={[0, 0.02, 0]}>
+                            <boxGeometry args={[0.12, 0.04, 0.12]} />
+                            {stone}
+                        </mesh>
+                        <mesh geometry={BALUSTER} position={[0, 0.04, 0]} scale={[1.6, WINDOW_HEIGHT - 0.1, 1.6]}>
+                            <meshStandardMaterial color={GRANITE} roughness={0.25} transparent={seeThrough} opacity={opacity} />
+                        </mesh>
+                        <mesh position={[0, WINDOW_HEIGHT - 0.03, 0]}>
+                            <boxGeometry args={[0.15, 0.06, 0.13]} />
+                            {stone}
+                        </mesh>
+                    </group>
+                ))}
+
+                {/* The sill on a scroll console at each end, over a sunk apron panel carved with a rosette and two lozenges */}
                 <mesh position={[0, -0.04, 0.12]}>
                     <boxGeometry args={[WINDOW_WIDTH + 0.4, 0.08, 0.24]} />
                     {stone}
                 </mesh>
+                {[-1, 1].map(side => (
+                    <ScrollBracket
+                        key={`sill${side}`}
+                        position={[side * (WINDOW_WIDTH / 2 + 0.08), -0.4, 0]}
+                        reach={0.22}
+                        height={0.32}
+                        thickness={0.07}
+                        color={WINDOW_STONE}
+                        seeThrough={seeThrough}
+                    />
+                ))}
+                <mesh position={[0, -0.23, 0.015]}>
+                    <boxGeometry args={[WINDOW_WIDTH - 0.1, 0.26, 0.03]} />
+                    <meshStandardMaterial color={APRON_STONE} roughness={0.85} transparent={seeThrough} opacity={opacity} />
+                </mesh>
+                <Rosette position={[0, -0.23, 0.03]} radius={0.05} seeThrough={seeThrough} />
+                {[-1, 1].map(side => (
+                    <Lozenge key={`apron${side}`} position={[side * 0.3, -0.23, 0.03]} size={0.09} seeThrough={seeThrough} />
+                ))}
+
                 {[-1, 1].map(side => (
                     <FlowerVase
                         key={side}
@@ -540,7 +771,7 @@ export function TableSet({ xs: centres, depth, z: zAt, seeThrough }: TableSetPro
                             key={offset}
                             position={[0, 0, offset]}
                             rotationY={offset < 0 ? 0 : Math.PI}
-                            color="#7c5a3a"
+                            upholstery={VELVET}
                             seeThrough={seeThrough}
                         />
                     ))}
@@ -554,31 +785,79 @@ interface ChairProps {
     position: [number, number, number];
     /** Rotation around the vertical axis; 0 faces +z, with the backrest on the -z side. */
     rotationY: number;
-    color: string;
+    /** Colour of the seat's upholstery. */
+    upholstery: string;
     seeThrough: boolean;
 }
 
 const SEAT = 0.44;
 const SEAT_HEIGHT = 0.45;
+/** Height of the top of the back, finials not counted. */
+const BACK_TOP = SEAT_HEIGHT + 0.47;
+const LEATHER_GREEN = '#2f5d3a';
 
-function Chair({ position, rotationY, color, seeThrough }: ChairProps) {
+/**
+ * A Victorian mahogany chair: turned front legs, back legs rising into stiles topped with acorns, a crest rail with a gilt
+ * lozenge over a pierced splat of two scrolls back to back, and an upholstered seat with gold piping.
+ */
+function Chair({ position, rotationY, upholstery, seeThrough }: ChairProps) {
     const opacity = seeThrough ? 0.7 : 1;
-    const material = <meshStandardMaterial color={color} roughness={0.7} transparent={seeThrough} opacity={opacity} />;
+    const wood = <meshStandardMaterial color={MAHOGANY} roughness={0.4} transparent={seeThrough} opacity={opacity} />;
+    const leg = SEAT / 2 - 0.03;
+    const splatBottom = SEAT_HEIGHT + 0.135;
+    const splatTop = BACK_TOP - 0.09;
 
     return (
         <group position={position} rotation={[0, rotationY, 0]}>
-            <mesh position={[0, SEAT_HEIGHT, 0]}>
+            {/* Seat rail, gold piping, then the upholstered seat */}
+            <mesh position={[0, SEAT_HEIGHT - 0.025, 0]}>
                 <boxGeometry args={[SEAT, 0.05, SEAT]} />
-                {material}
+                {wood}
             </mesh>
-            <mesh position={[0, SEAT_HEIGHT + 0.25, -SEAT / 2 + 0.025]}>
-                <boxGeometry args={[SEAT, 0.42, 0.04]} />
-                {material}
+            <mesh position={[0, SEAT_HEIGHT + 0.006, 0.005]}>
+                <boxGeometry args={[SEAT - 0.02, 0.012, SEAT - 0.03]} />
+                <meshStandardMaterial color={CARPET_TRIM} roughness={0.5} metalness={0.4} transparent={seeThrough} opacity={opacity} />
             </mesh>
-            {[-1, 1].flatMap(sx => [-1, 1].map(sz => ({ sx, sz }))).map(({ sx, sz }) => (
-                <mesh key={`${sx}${sz}`} position={[sx * (SEAT / 2 - 0.03), SEAT_HEIGHT / 2, sz * (SEAT / 2 - 0.03)]}>
-                    <boxGeometry args={[0.04, SEAT_HEIGHT, 0.04]} />
-                    {material}
+            <mesh position={[0, SEAT_HEIGHT + 0.036, 0.008]}>
+                <boxGeometry args={[SEAT - 0.04, 0.05, SEAT - 0.06]} />
+                <meshStandardMaterial color={upholstery} roughness={0.9} transparent={seeThrough} opacity={opacity} />
+            </mesh>
+            {[-1, 1].map(sx => (
+                <group key={sx}>
+                    {/* A turned front leg */}
+                    <mesh geometry={BALUSTER} position={[sx * leg, 0, leg]} scale={[1.1, SEAT_HEIGHT - 0.05, 1.1]}>
+                        {wood}
+                    </mesh>
+                    {/* A back leg rising into a stile, with an acorn on top */}
+                    <mesh position={[sx * leg, BACK_TOP / 2, -leg]}>
+                        <boxGeometry args={[0.04, BACK_TOP, 0.04]} />
+                        {wood}
+                    </mesh>
+                    <mesh geometry={FINIAL} position={[sx * leg, BACK_TOP, -leg]} scale={0.4}>
+                        {wood}
+                    </mesh>
+                </group>
+            ))}
+            {/* Crest rail with a gilt lozenge, and a mid rail */}
+            <mesh position={[0, BACK_TOP - 0.05, -leg]}>
+                <boxGeometry args={[SEAT - 0.04, 0.08, 0.035]} />
+                {wood}
+            </mesh>
+            <Lozenge position={[0, BACK_TOP - 0.05, -leg + 0.018]} size={0.06} seeThrough={seeThrough} />
+            <mesh position={[0, SEAT_HEIGHT + 0.12, -leg]}>
+                <boxGeometry args={[SEAT - 0.06, 0.03, 0.03]} />
+                {wood}
+            </mesh>
+            {/* The splat between them: two pierced scrolls back to back, curling out from the middle */}
+            {[0, Math.PI].map(turn => (
+                <mesh
+                    key={turn}
+                    geometry={BRACKET}
+                    position={[0, splatBottom, -leg + (turn ? 0.01 : -0.01)]}
+                    rotation={[0, turn, 0]}
+                    scale={[0.12, splatTop - splatBottom, 0.02]}
+                >
+                    {wood}
                 </mesh>
             ))}
         </group>
@@ -621,43 +900,134 @@ export function LibrarianDesk({ width, seeThrough }: Omit<DoorsProps, 'depth'>) 
                 </mesh>
             ))}
             <FlowerVase position={[0.05, DESK_HEIGHT, 0.12]} seed="desk" seeThrough={seeThrough} />
-            <Chair position={[0, 0, -0.75]} rotationY={0} color="#3f3f46" seeThrough={seeThrough} />
+            <Chair position={[0, 0, -0.75]} rotationY={0} upholstery={LEATHER_GREEN} seeThrough={seeThrough} />
         </group>
     );
 }
 
+/** The veined marble of the columns, painted once and shared. */
+let sharedMarble: THREE.CanvasTexture | null = null;
+/** Height of a column from the floor to the top of its capital. */
+const COLUMN_HEIGHT = 3.6;
+/** Height of the base (plinth and mouldings) and of the capital (bead, echinus, volutes and abacus). */
+const BASE_HEIGHT = 0.26;
+const CAPITAL_HEIGHT = 0.2;
+const SHAFT_TOP = COLUMN_HEIGHT - CAPITAL_HEIGHT;
+const EGGS = 16;
+/** Size of the gilt acorn on top of each column, against the shared finial shape. */
+const FINIAL_SCALE = 1.3;
+
+/**
+ * Where every piece of the columns goes, as matrices in the hall, one list per shape and material so each draws in one
+ * call. Each column is worked out in the frame of its line (x along the carpet, z towards and away from it), so its
+ * volutes face the carpet.
+ */
+function columnParts(hall: number, storey: number) {
+    const parts = {
+        marbleBoxes: [] as THREE.Matrix4[],
+        bases: [] as THREE.Matrix4[],
+        shafts: [] as THREE.Matrix4[],
+        astragals: [] as THREE.Matrix4[],
+        echini: [] as THREE.Matrix4[],
+        eggs: [] as THREE.Matrix4[],
+        cushions: [] as THREE.Matrix4[],
+        volutes: [] as THREE.Matrix4[],
+        voluteEyes: [] as THREE.Matrix4[],
+        finials: [] as THREE.Matrix4[],
+    };
+
+    for (const line of colonnades(hall, storey)) {
+        const frame = place([line.x, 0, line.z], [1, 1, 1], [0, line.alongX ? 0 : Math.PI / 2, 0]);
+        const at = (position: Vec3, scale?: Vec3, rotation?: Vec3) => frame.clone().multiply(place(position, scale, rotation));
+        const box = (position: Vec3, size: Vec3) => parts.marbleBoxes.push(at(position, size));
+
+        for (const cx of [-line.span / 2, line.span / 2]) {
+            // Plinth, Attic base and the fluted shaft.
+            box([cx, 0.04, 0], [0.5, 0.08, 0.5]);
+            parts.bases.push(at([cx, 0, 0]));
+            parts.shafts.push(at([cx, BASE_HEIGHT, 0], [COLUMN_RADIUS, SHAFT_TOP - BASE_HEIGHT, COLUMN_RADIUS]));
+            // Ionic capital: a bead, the echinus carved with egg-and-dart, the volutes rolled either side, and the abacus on top.
+            parts.astragals.push(at([cx, SHAFT_TOP, 0]));
+            parts.echini.push(at([cx, SHAFT_TOP, 0]));
+            for (let i = 0; i < EGGS; i++) {
+                const egg = (i / EGGS) * Math.PI * 2;
+                const dart = egg + Math.PI / EGGS;
+                parts.eggs.push(
+                    at([cx + Math.cos(egg) * 0.205, SHAFT_TOP + 0.045, Math.sin(egg) * 0.205], [0.026, 0.034, 0.016], [0, Math.PI / 2 - egg, 0]),
+                );
+                parts.marbleBoxes.push(
+                    at([cx + Math.cos(dart) * 0.208, SHAFT_TOP + 0.04, Math.sin(dart) * 0.208], [0.008, 0.05, 0.008], [0, Math.PI / 2 - dart, 0]),
+                );
+            }
+            box([cx, SHAFT_TOP + 0.12, 0], [0.4, 0.06, 0.3]);
+            for (const sx of [-1, 1]) {
+                const vx = cx + sx * 0.2;
+                parts.cushions.push(at([vx, SHAFT_TOP + 0.065, 0], [0.085, 0.3, 0.085], [Math.PI / 2, 0, 0]));
+                for (const sz of [-1, 1]) {
+                    parts.volutes.push(at([vx, SHAFT_TOP + 0.065, sz * 0.155], [sx * 0.08, 0.08, 0.08]));
+                    parts.voluteEyes.push(at([vx, SHAFT_TOP + 0.065, sz * 0.16], [0.014, 0.014, 0.014]));
+                }
+            }
+            box([cx, SHAFT_TOP + 0.175, 0], [0.46, 0.05, 0.46]);
+            // A gilt acorn crowns each column, standing on its own.
+            parts.finials.push(at([cx, COLUMN_HEIGHT, 0], [FINIAL_SCALE, FINIAL_SCALE, FINIAL_SCALE]));
+        }
+    }
+    return parts;
+}
+
 interface ColumnsProps {
     hall: number;
-    /** Height from this floor up to the next one, which sets how far the flight of stairs reaches and so where the columns stop. */
+    /** Height from this floor up to the next one, which sets how far the flight of stairs reaches and so which arms have room. */
     storey: number;
-    /** Height of each column. */
-    height: number;
     seeThrough: boolean;
 }
 
-/** Round columns standing in pairs either side of the carpet cross. */
-export function Columns({ hall, storey, height, seeThrough }: ColumnsProps) {
-    const material = (
-        <meshStandardMaterial color={COLUMN_COLOR} roughness={0.6} transparent={seeThrough} opacity={seeThrough ? 0.55 : 1} />
-    );
+/**
+ * The ground floor's columns beside the carpet cross, each standing on its own, in polished veined marble and the Greek
+ * Ionic order: a fluted shaft on an Attic base, a volute capital carved with egg-and-dart, and a gilt acorn on top.
+ */
+export function Columns({ hall, storey, seeThrough }: ColumnsProps) {
+    const parts = useMemo(() => columnParts(hall, storey), [hall, storey]);
+    const veins = useMemo(() => (sharedMarble ??= createMarbleTexture()), []);
+    const opacity = seeThrough ? 0.55 : 1;
+    // Polished white marble with grey veins.
+    const marble = <meshStandardMaterial map={veins} roughness={0.22} transparent={seeThrough} opacity={opacity} />;
+    const gilt = <meshStandardMaterial color={GILT} roughness={0.3} metalness={0.7} transparent={seeThrough} opacity={opacity} />;
 
     return (
         <group>
-            {columnPositions(hall, storey).map(({ x, z }) => (
-                <group key={`${x}:${z}`} position={[x, 0, z]}>
-                    <mesh position={[0, height / 2, 0]}>
-                        <cylinderGeometry args={[COLUMN_RADIUS, COLUMN_RADIUS * 1.05, height, 20]} />
-                        {material}
-                    </mesh>
-                    {/* Base and capital */}
-                    {[0.06, height - 0.06].map(y => (
-                        <mesh key={y} position={[0, y, 0]}>
-                            <boxGeometry args={[COLUMN_RADIUS * 2.8, 0.12, COLUMN_RADIUS * 2.8]} />
-                            {material}
-                        </mesh>
-                    ))}
-                </group>
-            ))}
+            <InstancedPart geometry={UNIT_BOX} matrices={parts.marbleBoxes}>
+                {marble}
+            </InstancedPart>
+            <InstancedPart geometry={ATTIC_BASE} matrices={parts.bases}>
+                {marble}
+            </InstancedPart>
+            <InstancedPart geometry={FLUTED_SHAFT} matrices={parts.shafts}>
+                {marble}
+            </InstancedPart>
+            <InstancedPart geometry={ASTRAGAL} matrices={parts.astragals}>
+                {marble}
+            </InstancedPart>
+            <InstancedPart geometry={ECHINUS} matrices={parts.echini}>
+                {marble}
+            </InstancedPart>
+            <InstancedPart geometry={UNIT_BALL} matrices={parts.eggs}>
+                {marble}
+            </InstancedPart>
+            <InstancedPart geometry={UNIT_ROD} matrices={parts.cushions}>
+                {marble}
+            </InstancedPart>
+            {/* The left volutes are mirrored copies, so their faces need drawing from both sides. */}
+            <InstancedPart geometry={VOLUTE} matrices={parts.volutes}>
+                <meshStandardMaterial map={veins} roughness={0.22} side={THREE.DoubleSide} transparent={seeThrough} opacity={opacity} />
+            </InstancedPart>
+            <InstancedPart geometry={UNIT_BALL} matrices={parts.voluteEyes}>
+                {gilt}
+            </InstancedPart>
+            <InstancedPart geometry={FINIAL} matrices={parts.finials}>
+                {gilt}
+            </InstancedPart>
         </group>
     );
 }
@@ -672,12 +1042,188 @@ interface StairsProps {
 
 const TREAD_COLOR = '#8a5a35';
 const RISER_COLOR = '#6f4a2b';
-const RAIL_COLOR = '#4e3520';
+
+/** Distance from the middle of the flight to the middle of its balustrade: the treads run out past the stringers, and the balusters stand on their ends. */
+const BALUSTRADE_Z = STAIR_WIDTH / 2 + 0.05;
+/** Outer face of each stringer. */
+const STRINGER_FACE = STAIR_WIDTH / 2 + 0.07;
+/** How far past the middle of the flight the treads reach on each side. */
+const TREAD_HALF = STAIR_WIDTH / 2 + 0.12;
+/** Height of the stringer, square to its slope. */
+const STRINGER_DEPTH = 0.36;
+/** Height of the top of the balusters above the line of the nosings. */
+const BALUSTER_REACH = 0.86;
+const RAIL_DEPTH = 0.07;
+/** Width of the stair runner, gold border included, and of its red field. */
+const RUNNER_WIDTH = 1.14;
+const RUNNER_FIELD = 1.0;
+/** How far in front of the first riser the foot newels stand, and past the last one the top newels stand. */
+const NEWEL_SETBACK = 0.15;
+const TOP_NEWEL_SETBACK = 0.12;
+
+interface NewelProps {
+    position: Vec3;
+    /** Height of the middle of the handrail where it meets the post, above the post's foot. */
+    railY: number;
+}
+
+/** A Victorian newel post: a plinth, a square shaft with a sunk panel and a gilt lozenge on each face, a moulded cap and a turned acorn. */
+function Newel({ position, railY }: NewelProps) {
+    const baseHeight = 0.18;
+    const shaftTop = railY + 0.02;
+    const shaftHeight = shaftTop - baseHeight;
+    const panelY = baseHeight + shaftHeight / 2;
+    const wood = <meshStandardMaterial color={MAHOGANY} roughness={0.35} />;
+    const panel = <meshStandardMaterial color={MAHOGANY_LIGHT} roughness={0.45} />;
+    const gilt = <meshStandardMaterial color={BRASS} roughness={0.3} metalness={0.7} />;
+    // The four faces, as the [x, z] of each face's outward direction.
+    const faces: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+
+    return (
+        <group position={position}>
+            <mesh position={[0, baseHeight / 2, 0]}>
+                <boxGeometry args={[0.24, baseHeight, 0.24]} />
+                {wood}
+            </mesh>
+            <mesh position={[0, baseHeight + 0.02, 0]}>
+                <boxGeometry args={[0.2, 0.04, 0.2]} />
+                {wood}
+            </mesh>
+            <mesh position={[0, panelY, 0]}>
+                <boxGeometry args={[0.16, shaftHeight, 0.16]} />
+                {wood}
+            </mesh>
+            {faces.map(([fx, fz]) => (
+                <group key={`${fx}${fz}`}>
+                    <mesh position={[fx * 0.082, panelY, fz * 0.082]}>
+                        <boxGeometry args={[fx ? 0.01 : 0.1, shaftHeight * 0.62, fz ? 0.01 : 0.1]} />
+                        {panel}
+                    </mesh>
+                    <mesh position={[fx * 0.09, panelY, fz * 0.09]} rotation={fx ? [Math.PI / 4, 0, 0] : [0, 0, Math.PI / 4]}>
+                        <boxGeometry args={[fx ? 0.008 : 0.05, 0.05, fz ? 0.008 : 0.05]} />
+                        {gilt}
+                    </mesh>
+                </group>
+            ))}
+            <mesh position={[0, shaftTop + 0.02, 0]}>
+                <boxGeometry args={[0.2, 0.04, 0.2]} />
+                {wood}
+            </mesh>
+            <mesh position={[0, shaftTop + 0.07, 0]}>
+                <boxGeometry args={[0.25, 0.06, 0.25]} />
+                {wood}
+            </mesh>
+            <mesh position={[0, shaftTop + 0.1, 0]} geometry={FINIAL}>
+                {wood}
+            </mesh>
+        </group>
+    );
+}
+
+const SPANDREL_THICKNESS = 0.04;
+const PANEL_WIDTH = 0.62;
+const PANEL_GAP = 0.14;
+/** Height of the bottom of the spandrel panels, above the skirting. */
+const PANEL_BASE = 0.32;
+const SKIRTING = 0.2;
 
 /**
- * One wide wooden flight along the east arm of the carpet cross, with its foot facing the main door: treads on risers,
- * carried by a stringer down each side (the space under the steps is open), with a handrail either side. Every floor's
- * flight is the same, so they stand directly above each other.
+ * The walls that close the space under a flight, one each side (the spandrels): from where the underside of the stringer
+ * meets the floor, up under the stringer to the end of the flight, then under the landing to the wall. Drawn in the
+ * flight's x-y plane and one thickness deep. Also where their raised panels go: a row of panels standing on the skirting,
+ * each as tall as the slope above its lower edge allows.
+ */
+function spandrelParts(startX: number, end: number, count: number, rise: number, run: number, slope: number) {
+    const climbed = count * rise;
+    const depth = STRINGER_DEPTH / Math.cos(slope);
+    const underside = (x: number) => ((x - startX) * rise) / run - depth;
+    const foot = startX + (depth * run) / rise;
+    const flightEnd = startX + count * run;
+    const landing = climbed - 0.15;
+
+    const shape = new THREE.Shape();
+    shape.moveTo(foot, 0);
+    shape.lineTo(flightEnd, underside(flightEnd));
+    shape.lineTo(flightEnd, landing);
+    shape.lineTo(end, landing);
+    shape.lineTo(end, 0);
+    shape.closePath();
+    const geometry = new THREE.ExtrudeGeometry(shape, { depth: SPANDREL_THICKNESS, bevelEnabled: false });
+
+    const panels: { x: number; y: number; width: number; height: number }[] = [];
+    for (let x = foot + 0.35; x + PANEL_WIDTH <= end - 0.12; x += PANEL_WIDTH + PANEL_GAP) {
+        const top = (x < flightEnd ? underside(x) : landing) - 0.22;
+        if (top - PANEL_BASE < 0.25) continue;
+        panels.push({ x: x + PANEL_WIDTH / 2, y: (PANEL_BASE + top) / 2, width: PANEL_WIDTH, height: top - PANEL_BASE });
+    }
+    // The skirting starts where the wall is tall enough to take it.
+    const skirtingStart = startX + ((SKIRTING + depth) * run) / rise;
+
+    return { geometry, panels, skirtingStart };
+}
+
+/** Where every piece of a flight goes, worked out once for a given step count and size. */
+function stairParts(count: number, rise: number, run: number, startX: number, slope: number) {
+    const sides = [-1, 1];
+    const nosingLine = (x: number) => ((x - startX) * rise) / run + rise;
+    const stringerDrop = STRINGER_DEPTH / 2 / Math.cos(slope);
+    const steps = Array.from({ length: count }, (_, k) => ({ x0: startX + k * run, top: (k + 1) * rise }));
+    // The bracket fills the triangle between the riser, the underside of the tread and the top of the string.
+    const bracketHeight = Math.max(0.05, rise - 0.1);
+    const bracketReach = (bracketHeight * run) / rise;
+    const across: Vec3 = [Math.PI / 2, 0, 0];
+    const riserRunner = (s: { x0: number; top: number }, inset: number, width: number) =>
+        place([s.x0 - inset, s.top - rise + (rise - 0.1) / 2, 0], [0.01, rise - 0.1, width]);
+    // A rosette sits on the middle of each stringer face, under the middle of its tread.
+    const rosetteAt = (s: { x0: number }, side: number, out: number, scale: Vec3, rotation?: Vec3) => {
+        const x = s.x0 + run / 2;
+        return place([x, nosingLine(x) - rise - stringerDrop, side * (STRINGER_FACE + out)], scale, rotation);
+    };
+
+    return {
+        treads: steps.map(s => place([s.x0 + run / 2, s.top - 0.05, 0], [run + 0.04, 0.1, TREAD_HALF * 2])),
+        nosings: steps.map(s => place([s.x0 - 0.02, s.top - 0.05, 0], [0.05, TREAD_HALF * 2, 0.05], across)),
+        risers: steps.map(s => place([s.x0 + 0.03, s.top - rise / 2, 0], [0.06, rise, STAIR_WIDTH])),
+        // A sunk panel on each riser, either side of the runner.
+        riserPanels: steps.flatMap(s => sides.map(side => place([s.x0 - 0.005, s.top - rise * 0.55, side * 0.735], [0.01, rise * 0.5, 0.22]))),
+        runnerBorder: steps.flatMap(s => [
+            place([s.x0 + run / 2, s.top + 0.005, 0], [run, 0.01, RUNNER_WIDTH]),
+            riserRunner(s, 0.006, RUNNER_WIDTH),
+        ]),
+        runnerField: steps.flatMap(s => [
+            place([s.x0 + run / 2, s.top + 0.007, 0], [run, 0.01, RUNNER_FIELD]),
+            riserRunner(s, 0.008, RUNNER_FIELD),
+        ]),
+        runnerLozenges: steps.map(s => place([s.x0 + run / 2, s.top + 0.0125, 0], [0.11, 0.004, 0.11], [0, Math.PI / 4, 0])),
+        rods: steps.map(s => place([s.x0 + run - 0.035, s.top + 0.022, 0], [0.012, RUNNER_WIDTH + 0.08, 0.012], across)),
+        rodKnobs: steps.flatMap(s =>
+            sides.map(side => place([s.x0 + run - 0.035, s.top + 0.022, side * (RUNNER_WIDTH / 2 + 0.05)], [0.022, 0.022, 0.022])),
+        ),
+        brackets: steps.flatMap(s =>
+            sides.map(side =>
+                place([s.x0, s.top - rise, side > 0 ? STRINGER_FACE + 0.01 : -(STRINGER_FACE + 0.03)], [bracketReach, bracketHeight, 0.02]),
+            ),
+        ),
+        rosettes: steps.flatMap(s => sides.map(side => rosetteAt(s, side, 0.006, [0.045, 0.012, 0.045], across))),
+        rosetteBosses: steps.flatMap(s => sides.map(side => rosetteAt(s, side, 0.014, [0.02, 0.02, 0.012]))),
+        // Two balusters on each tread, reaching up into the handrail.
+        balusters: steps.flatMap(s =>
+            [0.28, 0.72].flatMap(at => {
+                const x = s.x0 + run * at;
+                const height = nosingLine(x) + BALUSTER_REACH - s.top;
+                return sides.map(side => place([x, s.top, side * BALUSTRADE_Z], [1, height, 1]));
+            }),
+        ),
+    };
+}
+
+/**
+ * One wide wooden flight along the east arm of the carpet cross, with its foot facing the main door, built as a Victorian
+ * open-string staircase: treads with rounded nosings run out past the stringers, with a carved scroll bracket under each
+ * end and a gilt rosette on the string below it; two turned balusters stand on every tread under a moulded mahogany
+ * handrail that runs between panelled newel posts at the foot and the top; a red runner with a gold border, a lozenge on
+ * every tread and brass stair rods climbs the middle, carrying on the red carpet that leads to it. Every floor's flight
+ * is the same, so they stand directly above each other.
  */
 export function Stairs({ width, storey, hasFloorAbove }: StairsProps) {
     const { count, rise, run } = stairGeometry(storey);
@@ -688,38 +1234,127 @@ export function Stairs({ width, storey, hasFloorAbove }: StairsProps) {
     const slopeLength = Math.hypot(count * run, climbed);
     const midX = startX + (count * run) / 2;
     const sides = [-1, 1];
-    const posts = Array.from({ length: Math.floor(count / 5) + 1 }, (_, i) => Math.min(count - 1, i * 5));
+    /** Height of the middle of the handrail at x: a fixed height above the line through the nosings. */
+    const railLine = (x: number) => ((x - startX) * rise) / run + rise + BALUSTER_REACH + RAIL_DEPTH / 2;
+    /** Vertical drop from the top edge of a stringer to its middle. */
+    const stringerDrop = STRINGER_DEPTH / 2 / Math.cos(slope);
+    const stringerY = climbed / 2 - stringerDrop;
+    const footX = startX - NEWEL_SETBACK;
+    const topX = startX + count * run + TOP_NEWEL_SETBACK;
+    const railX = (footX + topX) / 2;
+    const railLength = (topX - footX) / Math.cos(slope);
+
+    const parts = useMemo(() => stairParts(count, rise, run, startX, slope), [count, rise, run, startX, slope]);
+    const spandrel = useMemo(() => spandrelParts(startX, end, count, rise, run, slope), [startX, end, count, rise, run, slope]);
+    useEffect(() => () => spandrel.geometry.dispose(), [spandrel]);
+    // The raised panels on the outer face of each spandrel: a dark frame, a lighter field, and a gilt lozenge in the middle.
+    const panelling = useMemo(() => {
+        const face = STAIR_WIDTH / 2 + SPANDREL_THICKNESS / 2;
+        const frames: THREE.Matrix4[] = [];
+        const fields: THREE.Matrix4[] = [];
+        const lozenges: THREE.Matrix4[] = [];
+        for (const side of sides) {
+            for (const p of spandrel.panels) {
+                frames.push(place([p.x, p.y, side * (face + 0.006)], [p.width + 0.06, p.height + 0.06, 0.012]));
+                fields.push(place([p.x, p.y, side * (face + 0.014)], [p.width, p.height, 0.02]));
+                lozenges.push(place([p.x, p.y, side * (face + 0.026)], [0.05, 0.05, 0.006], [0, 0, Math.PI / 4]));
+            }
+            const length = end - spandrel.skirtingStart;
+            frames.push(place([spandrel.skirtingStart + length / 2, SKIRTING / 2, side * (face + 0.015)], [length, SKIRTING, 0.03]));
+        }
+        return { frames, fields, lozenges };
+        // `sides` never changes.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [spandrel, end]);
 
     return (
         <group>
-            {Array.from({ length: count }, (_, k) => (
-                <group key={k}>
-                    <mesh position={[startX + k * run + 0.03, k * rise + rise / 2, 0]}>
-                        <boxGeometry args={[0.06, rise, STAIR_WIDTH]} />
-                        <meshStandardMaterial color={RISER_COLOR} roughness={0.75} />
-                    </mesh>
-                    <mesh position={[startX + (k + 0.5) * run, (k + 1) * rise - 0.05, 0]}>
-                        <boxGeometry args={[run + 0.04, 0.1, STAIR_WIDTH + 0.06]} />
-                        <meshStandardMaterial color={TREAD_COLOR} roughness={0.6} />
-                    </mesh>
-                </group>
+            {/* The spandrels: panelled walls closing the space under the flight on both sides, just inside the stringers */}
+            {sides.map(side => (
+                <mesh
+                    key={`spandrel${side}`}
+                    geometry={spandrel.geometry}
+                    position={[0, 0, side * (STAIR_WIDTH / 2) - SPANDREL_THICKNESS / 2]}
+                >
+                    <meshStandardMaterial color={WOOD_MID} roughness={0.7} />
+                </mesh>
             ))}
+            <InstancedPart geometry={UNIT_BOX} matrices={panelling.frames}>
+                <meshStandardMaterial color={WOOD_DARK} roughness={0.6} />
+            </InstancedPart>
+            <InstancedPart geometry={UNIT_BOX} matrices={panelling.fields}>
+                <meshStandardMaterial color={WOOD_PANEL} roughness={0.55} />
+            </InstancedPart>
+            <InstancedPart geometry={UNIT_BOX} matrices={panelling.lozenges}>
+                <meshStandardMaterial color={GILT} roughness={0.3} metalness={0.7} />
+            </InstancedPart>
+            <InstancedPart geometry={UNIT_BOX} matrices={parts.treads}>
+                <meshStandardMaterial color={TREAD_COLOR} roughness={0.55} />
+            </InstancedPart>
+            <InstancedPart geometry={UNIT_ROD} matrices={parts.nosings}>
+                <meshStandardMaterial color={TREAD_COLOR} roughness={0.55} />
+            </InstancedPart>
+            <InstancedPart geometry={UNIT_BOX} matrices={parts.risers}>
+                <meshStandardMaterial color={RISER_COLOR} roughness={0.75} />
+            </InstancedPart>
+            <InstancedPart geometry={UNIT_BOX} matrices={parts.riserPanels}>
+                <meshStandardMaterial color={WOOD_PANEL} roughness={0.6} />
+            </InstancedPart>
+            <InstancedPart geometry={UNIT_BOX} matrices={parts.runnerBorder}>
+                <meshStandardMaterial color={CARPET_TRIM} roughness={0.7} />
+            </InstancedPart>
+            <InstancedPart geometry={UNIT_BOX} matrices={parts.runnerField}>
+                <meshStandardMaterial color={CARPET_COLOR} roughness={0.9} />
+            </InstancedPart>
+            <InstancedPart geometry={UNIT_BOX} matrices={parts.runnerLozenges}>
+                <meshStandardMaterial color={CARPET_TRIM} roughness={0.7} />
+            </InstancedPart>
+            <InstancedPart geometry={UNIT_ROD} matrices={parts.rods}>
+                <meshStandardMaterial color={BRASS} roughness={0.25} metalness={0.8} />
+            </InstancedPart>
+            <InstancedPart geometry={UNIT_BALL} matrices={parts.rodKnobs}>
+                <meshStandardMaterial color={BRASS} roughness={0.25} metalness={0.8} />
+            </InstancedPart>
+            <InstancedPart geometry={BRACKET} matrices={parts.brackets}>
+                <meshStandardMaterial color={WOOD_MID} roughness={0.6} />
+            </InstancedPart>
+            <InstancedPart geometry={UNIT_OCTAGON} matrices={parts.rosettes}>
+                <meshStandardMaterial color={BRASS} roughness={0.35} metalness={0.6} />
+            </InstancedPart>
+            <InstancedPart geometry={UNIT_BALL} matrices={parts.rosetteBosses}>
+                <meshStandardMaterial color={BRASS} roughness={0.35} metalness={0.6} />
+            </InstancedPart>
+            <InstancedPart geometry={BALUSTER} matrices={parts.balusters}>
+                <meshStandardMaterial color={MAHOGANY} roughness={0.4} />
+            </InstancedPart>
             {sides.map(side => (
                 <group key={side}>
-                    <mesh position={[midX, climbed / 2 - 0.2, side * (STAIR_WIDTH / 2 + 0.02)]} rotation={[0, 0, slope]}>
-                        <boxGeometry args={[slopeLength, 0.4, 0.1]} />
-                        <meshStandardMaterial color={STAIR_COLOR} roughness={0.8} />
+                    {/* The stringer, its top edge along the line of the risers' feet, with a moulding along each edge and a panel band down its face. */}
+                    <mesh position={[midX, stringerY, side * (STAIR_WIDTH / 2 + 0.02)]} rotation={[0, 0, slope]}>
+                        <boxGeometry args={[slopeLength, STRINGER_DEPTH, 0.1]} />
+                        <meshStandardMaterial color={STAIR_COLOR} roughness={0.7} />
                     </mesh>
-                    <mesh position={[midX, climbed / 2 + 0.95, side * (STAIR_WIDTH / 2 + 0.02)]} rotation={[0, 0, slope]}>
-                        <boxGeometry args={[slopeLength, 0.07, 0.07]} />
-                        <meshStandardMaterial color={RAIL_COLOR} roughness={0.5} />
-                    </mesh>
-                    {posts.map(k => (
-                        <mesh key={k} position={[startX + (k + 0.5) * run, (k + 1) * rise + 0.45, side * (STAIR_WIDTH / 2 + 0.02)]}>
-                            <boxGeometry args={[0.05, 0.9, 0.05]} />
-                            <meshStandardMaterial color={RAIL_COLOR} roughness={0.5} />
+                    {[climbed / 2, climbed / 2 - 2 * stringerDrop].map(y => (
+                        <mesh key={y} position={[midX, y, side * STRINGER_FACE]} rotation={[0, 0, slope - Math.PI / 2]}>
+                            <cylinderGeometry args={[0.022, 0.022, slopeLength, 10]} />
+                            <meshStandardMaterial color={WOOD_DARK} roughness={0.5} />
                         </mesh>
                     ))}
+                    <mesh position={[midX, stringerY, side * (STRINGER_FACE + 0.003)]} rotation={[0, 0, slope]}>
+                        <boxGeometry args={[slopeLength, STRINGER_DEPTH * 0.4, 0.006]} />
+                        <meshStandardMaterial color={WOOD_PANEL} roughness={0.6} />
+                    </mesh>
+                    {/* The handrail: a mahogany rail with a rounded top, from the foot newel to the top newel. */}
+                    <mesh position={[railX, railLine(railX), side * BALUSTRADE_Z]} rotation={[0, 0, slope]}>
+                        <boxGeometry args={[railLength, RAIL_DEPTH, 0.08]} />
+                        <meshStandardMaterial color={MAHOGANY} roughness={0.3} />
+                    </mesh>
+                    <mesh position={[railX, railLine(railX) + RAIL_DEPTH / 2, side * BALUSTRADE_Z]} rotation={[0, 0, slope - Math.PI / 2]}>
+                        <cylinderGeometry args={[0.042, 0.042, railLength, 14]} />
+                        <meshStandardMaterial color={MAHOGANY} roughness={0.3} />
+                    </mesh>
+                    <Newel position={[footX, 0, side * BALUSTRADE_Z]} railY={railLine(footX)} />
+                    <Newel position={[topX, climbed, side * BALUSTRADE_Z]} railY={railLine(topX) - climbed} />
                 </group>
             ))}
             {!hasFloorAbove && (

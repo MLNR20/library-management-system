@@ -10,6 +10,8 @@ import { LibraryDragContext } from './dragContext.ts';
 import { Carpets, Columns, Doors, LibrarianDesk, Stairs, TableSet, Tables, Walls, Windows } from './FloorStructure.tsx';
 import { SLAB_THICKNESS, STAIR_LANDING, STAIR_WIDTH, flightFrame, readingTables, sceneMetrics, stairHole } from './floorPlan.ts';
 import { WallDecor } from './Decor.tsx';
+import { VictorianBookcase, WallBookcases } from './Bookcase.tsx';
+import { BOOKCASE_SHADOW, BOOKCASE_WOOD } from './ornamentShapes.ts';
 import { RoutePath } from './RoutePath.tsx';
 import type { Route } from './route.ts';
 import { sectionColor, statusColors } from './palette.ts';
@@ -271,7 +273,7 @@ function FloorModel({ layout, depth, storey, index, hasFloorAbove, seeThrough }:
     const stairwell = seeThrough && index > 0;
     const holeStart = end - stairHole(storey);
     const sideDepth = hall / 2 - STAIR_WIDTH / 2;
-    // Only the ground floor has the outside doors, the carpets that lead to them and the librarian's desk.
+    // Only the ground floor has the outside doors, the carpets that lead to them, the colonnades beside the carpets and the librarian's desk.
     const ground = layout.level === 0;
 
     return (
@@ -294,7 +296,8 @@ function FloorModel({ layout, depth, storey, index, hasFloorAbove, seeThrough }:
             {ground && <LibrarianDesk width={hall} seeThrough={seeThrough} />}
             {ground && <Carpets hall={hall} storey={storey} seeThrough={seeThrough} />}
             <Tables width={hall} depth={hall} seeThrough={seeThrough} />
-            <Columns hall={hall} storey={storey} height={wallHeight} seeThrough={seeThrough} />
+            {ground && <Columns hall={hall} storey={storey} seeThrough={seeThrough} />}
+            {ground && <WallBookcases hall={hall} />}
             {layout.wings.map(wing => (
                 <WingRoom key={wing.index} wing={wing} hall={hall} seeThrough={seeThrough} />
             ))}
@@ -305,7 +308,7 @@ function FloorModel({ layout, depth, storey, index, hasFloorAbove, seeThrough }:
                 </div>
             </Html>
             {layout.shelves.map(shelf => (
-                <ShelfModel key={shelf.shelf.id} layout={shelf} x={shelf.x} z={shelf.z} />
+                <ShelfModel key={shelf.shelf.id} layout={shelf} x={shelf.x} z={shelf.z} ornate={ground} />
             ))}
             {layout.shelves.length === 0 && (
                 <Html position={[0, 0.5, 0]} center style={{ pointerEvents: 'none' }}>
@@ -353,11 +356,21 @@ function WingRoom({ wing, hall, seeThrough }: WingRoomProps) {
     );
 }
 
-function ShelfModel({ layout, x, z }: { layout: ShelfLayout; x: number; z: number }) {
+interface ShelfModelProps {
+    layout: ShelfLayout;
+    x: number;
+    z: number;
+    /** Build it as a dark-wood library bookcase with a cornice and a fretwork gallery (the ground floor's shelves). */
+    ornate?: boolean;
+}
+
+function ShelfModel({ layout, x, z, ornate = false }: ShelfModelProps) {
     const { drag, hoverRowId } = useLibraryDrag();
     const tierCount = Math.max(1, layout.tiers.length);
     const bodyHeight = tierCount * TIER_HEIGHT;
     const sectionTint = layout.sections[0] ? sectionColor(layout.sections[0].id) : null;
+    const wood = ornate ? BOOKCASE_WOOD : WOOD;
+    const back = ornate ? BOOKCASE_SHADOW : '#6b5239';
 
     return (
         <group position={[x, 0, z]} rotation={[0, THREE.MathUtils.degToRad(layout.shelf.rotation), 0]}>
@@ -372,19 +385,20 @@ function ShelfModel({ layout, x, z }: { layout: ShelfLayout; x: number; z: numbe
             {[-1, 1].map(side => (
                 <mesh key={side} position={[(side * SHELF_WIDTH) / 2, bodyHeight / 2, 0]}>
                     <boxGeometry args={[PLANK, bodyHeight + PLANK, SHELF_DEPTH]} />
-                    <meshStandardMaterial color={WOOD} />
+                    <meshStandardMaterial color={wood} />
                 </mesh>
             ))}
             <mesh position={[0, bodyHeight / 2, -SHELF_DEPTH / 2 + 0.02]}>
                 <boxGeometry args={[SHELF_WIDTH, bodyHeight + PLANK, 0.04]} />
-                <meshStandardMaterial color="#6b5239" />
+                <meshStandardMaterial color={back} />
             </mesh>
             {Array.from({ length: tierCount + 1 }, (_, i) => (
                 <mesh key={i} position={[0, i * TIER_HEIGHT, 0]}>
                     <boxGeometry args={[SHELF_WIDTH, PLANK, SHELF_DEPTH]} />
-                    <meshStandardMaterial color={WOOD} />
+                    <meshStandardMaterial color={wood} />
                 </mesh>
             ))}
+            {ornate && <VictorianBookcase width={SHELF_WIDTH} depth={SHELF_DEPTH} height={bodyHeight} />}
 
             {layout.tiers.map((tier, index) => (
                 <Tier
@@ -405,7 +419,7 @@ function ShelfModel({ layout, x, z }: { layout: ShelfLayout; x: number; z: numbe
                 </Html>
             )}
 
-            <Html position={[0, bodyHeight + 0.45, 0]} center style={{ pointerEvents: 'none' }} distanceFactor={11}>
+            <Html position={[0, bodyHeight + (ornate ? 0.85 : 0.45), 0]} center style={{ pointerEvents: 'none' }} distanceFactor={11}>
                 <div className="flex flex-col items-center gap-0.5 whitespace-nowrap">
                     <span className="rounded bg-base-100/85 px-2 py-0.5 text-xs font-semibold">{layout.shelf.name}</span>
                     {layout.sections.map(section => (

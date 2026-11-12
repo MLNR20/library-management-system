@@ -62,15 +62,20 @@ export const doorPositions = (hall: number) => ({
     south: { x: 0, z: hall / 2 },
 });
 
-export const COLUMN_RADIUS = 0.16;
+/** Radius of a column's shaft at its foot. */
+export const COLUMN_RADIUS = 0.2;
+/** Half the width of the square plinth a column stands on: what it takes up on the floor. */
+export const COLUMN_BASE_HALF = 0.25;
 /** Width of the carpet that runs down each arm of the cross. */
 export const WALKWAY_WIDTH = 1.4;
 /** Distance from the middle of a carpet arm to its columns: just off the carpet's edge, inside the aisle the shelves keep clear. */
 const COLUMN_OFFSET = WALKWAY_WIDTH / 2 + 0.28;
-/** Distance between neighbouring columns along a carpet arm. */
-const COLUMN_SPACING = 3;
+/** Distance between the two columns of a colonnade. */
+export const COLUMN_SPACING = 3;
 /** Nearest a column stands to the crossing, where the two carpets meet; the same either side of it. */
 const COLUMN_FIRST = 1.6;
+/** Every colonnade has this many columns. */
+const COLUMNS_PER_LINE = 2;
 
 /** X positions of the columns that used to stand along the front edge; the reading tables still keep to their spacing. */
 function frontColumnXs(hall: number): number[] {
@@ -79,25 +84,49 @@ function frontColumnXs(hall: number): number[] {
     return xs.sort((a, b) => a - b);
 }
 
-/**
- * Where the columns stand: in pairs either side of each arm of the carpet cross, spaced along the arm from the crossing out
- * to the doors and the foot of the stairs, clear of the doors' frames and of the flight.
- */
-export function columnPositions(hall: number, storey: number): { x: number; z: number }[] {
-    const points: { x: number; z: number }[] = [];
-    const eastLimit = hall / 2 - stairLength(storey) - 0.6;
-
-    for (let along = COLUMN_FIRST; along <= hall / 2 - 2.5; along += COLUMN_SPACING) {
-        // West-east arm: the west side runs out to the main door, the east side stops before the stairs.
-        for (const x of [-along, along]) {
-            if (x > eastLimit) continue;
-            points.push({ x, z: -COLUMN_OFFSET }, { x, z: COLUMN_OFFSET });
-        }
-        // North-south arm: both ends run out to a door.
-        for (const z of [-along, along]) points.push({ x: -COLUMN_OFFSET, z }, { x: COLUMN_OFFSET, z });
-    }
-    return points;
+/** A line of freestanding columns beside one arm of the carpet cross. */
+export interface Colonnade {
+    columns: { x: number; z: number }[];
+    /** Middle of the line. */
+    x: number;
+    z: number;
+    /** True when the line runs along x (beside the west or east arm), false when it runs along z. */
+    alongX: boolean;
+    /** Distance between the first and the last column. */
+    span: number;
 }
+
+/**
+ * The lines of columns on the ground floor: one either side of each arm of the carpet cross, each of two columns starting
+ * near the crossing and running out along the arm. An arm with no room for both columns (the east arm, which ends at the
+ * foot of the stairs) gets none.
+ */
+export function colonnades(hall: number, storey: number): Colonnade[] {
+    const alongs = Array.from({ length: COLUMNS_PER_LINE }, (_, i) => COLUMN_FIRST + i * COLUMN_SPACING);
+    const reach = alongs[alongs.length - 1];
+    if (reach > hall / 2 - 2.5) return [];
+    const middle = (alongs[0] + reach) / 2;
+    const span = reach - alongs[0];
+    const eastRoom = hall / 2 - stairLength(storey) - 0.6;
+    const lines: Colonnade[] = [];
+
+    for (const side of [-1, 1]) {
+        const offset = side * COLUMN_OFFSET;
+        // West and east arms: the west one runs out to the main door, the east one only if both columns fit before the stairs.
+        for (const way of [-1, 1]) {
+            if (way > 0 && reach > eastRoom) continue;
+            lines.push({ columns: alongs.map(a => ({ x: way * a, z: offset })), x: way * middle, z: offset, alongX: true, span });
+        }
+        // North and south arms: both run out towards a door.
+        for (const way of [-1, 1]) {
+            lines.push({ columns: alongs.map(a => ({ x: offset, z: way * a })), x: offset, z: way * middle, alongX: false, span });
+        }
+    }
+    return lines;
+}
+
+/** Where every column of the ground floor stands. */
+export const columnPositions = (hall: number, storey: number) => colonnades(hall, storey).flatMap(line => line.columns);
 
 export const TABLE_LENGTH = 1.5;
 export const TABLE_DEPTH = 0.8;
@@ -136,6 +165,57 @@ export const deskPosition = (hall: number) => ({
     z: -hall / 2 + 1.15,
 });
 
+/** How far the low bookcases along the walls reach into the hall, the width of one of their bays, and their height. */
+export const WALL_CASE_DEPTH = 0.45;
+export const WALL_CASE_BAY = 0.9;
+export const WALL_CASE_HEIGHT = 1.68;
+/** Clearance kept round a door with its planters, and in from each corner (where a planter stands). */
+const CASE_DOOR_CLEARANCE = DOOR_HALF + 1.8;
+const CASE_CORNER_CLEARANCE = 1.5;
+
+/** A run of low bookcases against a wall: the middle of its back on the wall, the turn that faces it into the hall, and its bays. */
+export interface WallCaseRun {
+    x: number;
+    z: number;
+    rotationY: number;
+    bays: number;
+    /** True for runs on the east and west walls, which run along z. */
+    alongZ: boolean;
+}
+
+/** What is left of the stretch [from, to] once the `gaps` are taken out of it. */
+function stretches(from: number, to: number, gaps: [number, number][]): [number, number][] {
+    let pieces: [number, number][] = [[from, to]];
+    for (const [a, b] of gaps) {
+        pieces = pieces.flatMap(([p, q]): [number, number][] =>
+            b <= p || a >= q ? [[p, q]] : ([[p, Math.min(q, a)], [Math.max(p, b), q]] as [number, number][]).filter(([s, e]) => e > s),
+        );
+    }
+    return pieces;
+}
+
+/**
+ * Where the ground floor's low bookcases stand: along the back, east and west walls (the front wall is glass), in runs of
+ * whole bays, keeping clear of the doors and the planters beside them, the corners, the librarian's desk and the foot of
+ * the stairs against the east wall. They stay below the window sills.
+ */
+export function wallBookcaseRuns(hall: number): WallCaseRun[] {
+    const reach = hall / 2 - CASE_CORNER_CLEARANCE;
+    const desk = deskPosition(hall);
+    const door: [number, number] = [-CASE_DOOR_CLEARANCE, CASE_DOOR_CLEARANCE];
+    const walls = [
+        { gaps: [door, [desk.x - DESK_LENGTH / 2 - 0.5, desk.x + DESK_LENGTH / 2 + 0.5]] as [number, number][], place: (c: number) => ({ x: c, z: -hall / 2, rotationY: 0, alongZ: false }) },
+        { gaps: [[-STAIR_WIDTH / 2 - 0.7, STAIR_WIDTH / 2 + 0.7]] as [number, number][], place: (c: number) => ({ x: hall / 2, z: c, rotationY: -Math.PI / 2, alongZ: true }) },
+        { gaps: [door], place: (c: number) => ({ x: -hall / 2, z: c, rotationY: Math.PI / 2, alongZ: true }) },
+    ];
+    return walls.flatMap(wall =>
+        stretches(-reach, reach, wall.gaps)
+            .map(([a, b]) => ({ centre: (a + b) / 2, bays: Math.floor((b - a) / WALL_CASE_BAY) }))
+            .filter(run => run.bays > 0)
+            .map(run => ({ ...wall.place(run.centre), bays: run.bays })),
+    );
+}
+
 /** Just inside the main door in the west wall. */
 export const entrancePoint = (hall: number) => ({ x: -hall / 2 + 0.9, z: 0 });
 
@@ -147,8 +227,11 @@ export interface FloorRect {
     hz: number;
 }
 
-/** Everything on a floor that is not a shelf: tables with their chairs, columns, the desk and the stairs. */
-export function furnitureRects(hall: number, hasDesk: boolean, wings: WingLayout[] = [], storey = 7): FloorRect[] {
+/**
+ * Everything on a floor that is not a shelf: tables with their chairs, the stairs, and on the ground floor the librarian's
+ * desk and the colonnades beside the carpet.
+ */
+export function furnitureRects(hall: number, ground: boolean, wings: WingLayout[] = [], storey = 7): FloorRect[] {
     const rects: FloorRect[] = [];
 
     for (const wing of wings) {
@@ -161,10 +244,20 @@ export function furnitureRects(hall: number, hasDesk: boolean, wings: WingLayout
     for (const x of tableXs(hall)) {
         rects.push({ x, z: tableZ(hall), hx: TABLE_LENGTH / 2, hz: CHAIR_OFFSET + 0.25 });
     }
-    for (const { x, z } of columnPositions(hall, storey)) {
-        rects.push({ x, z, hx: COLUMN_RADIUS, hz: COLUMN_RADIUS });
-    }
-    if (hasDesk) {
+    if (ground) {
+        for (const { x, z } of columnPositions(hall, storey)) {
+            rects.push({ x, z, hx: COLUMN_BASE_HALF, hz: COLUMN_BASE_HALF });
+        }
+        for (const run of wallBookcaseRuns(hall)) {
+            const half = (run.bays * WALL_CASE_BAY) / 2;
+            const inward = { x: Math.sin(run.rotationY), z: Math.cos(run.rotationY) };
+            const middle = { x: run.x + (inward.x * WALL_CASE_DEPTH) / 2, z: run.z + (inward.z * WALL_CASE_DEPTH) / 2 };
+            rects.push(
+                run.alongZ
+                    ? { ...middle, hx: WALL_CASE_DEPTH / 2, hz: half }
+                    : { ...middle, hx: half, hz: WALL_CASE_DEPTH / 2 },
+            );
+        }
         const desk = deskPosition(hall);
         // The librarian's chair stands behind the desk.
         rects.push({ x: desk.x, z: desk.z - 0.3, hx: DESK_LENGTH / 2, hz: DESK_DEPTH / 2 + 0.3 });
