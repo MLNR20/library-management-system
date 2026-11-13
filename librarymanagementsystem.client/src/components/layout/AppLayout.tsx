@@ -101,6 +101,10 @@ export function AppLayout() {
         ...group,
         items: group.items.filter(item => isStaff || !item.staffOnly),
     }));
+    // The profile at the foot of the sidebar: the user's name if they gave one, and the first letter of their user name.
+    const displayName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.userName || 'Signed in';
+    const initial = (user?.userName ?? '?').charAt(0).toUpperCase();
+    const roleLabel = isAdmin ? 'Administrator' : isStaff ? 'Librarian' : 'Member';
     const navigate = useNavigate();
     const handleLogout = () => {
         logout();
@@ -217,6 +221,18 @@ export function AppLayout() {
                             </div>
                         ))}
                     </nav>
+                    {/* Who is signed in: a round profile icon with their initial, kept in view at the foot of the sidebar. */}
+                    <div className="sticky bottom-0 mt-auto flex items-center gap-3 border-t border-base-300 bg-base-200 px-5 py-3">
+                        <div className="avatar avatar-placeholder" aria-hidden="true">
+                            <div className="w-10 rounded-full bg-primary text-primary-content">
+                                <span className="text-lg font-semibold">{initial}</span>
+                            </div>
+                        </div>
+                        <div className="min-w-0">
+                            <div className="truncate text-sm font-semibold">{displayName}</div>
+                            <div className="truncate text-xs opacity-70">{roleLabel}</div>
+                        </div>
+                    </div>
                 </aside>
             </div>
         </div>
