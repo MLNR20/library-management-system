@@ -35,6 +35,50 @@ namespace LibraryManagementSystem.Server.Tests.Data
         }
 
         [Fact]
+        public void Seeds_two_reading_rooms_with_distinct_names()
+        {
+            Assert.Equal(2, CatalogueSeeder.ReadingRoomSeedNames.Count);
+            Assert.Equal(2, CatalogueSeeder.ReadingRoomSeedNames.Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        }
+
+        [Fact]
+        public void Floors_are_ranked_from_the_bottom_up_by_their_names()
+        {
+            string[] floors = ["Second Floor", "Level 4", "Ground floor", "Basement", "First floor", "Archive"];
+
+            var bottomUp = floors.OrderBy(CatalogueSeeder.FloorRank).ToList();
+
+            Assert.Equal(["Basement", "Ground floor", "First floor", "Second Floor", "Level 4", "Archive"], bottomUp);
+        }
+
+        [Theory]
+        [InlineData(new string[0], "Shelf A")]
+        [InlineData(new[] { "Shelf A", "shelf b", "Shelf C" }, "Shelf D")]
+        [InlineData(new[] { "Shelf B", "Poetry" }, "Shelf A")]
+        public void A_new_shelf_takes_the_next_free_letter(string[] taken, string expected)
+        {
+            Assert.Equal(expected, CatalogueSeeder.NextShelfName(taken));
+        }
+
+        [Fact]
+        public void A_new_shelf_is_numbered_once_the_letters_run_out()
+        {
+            var letters = Enumerable.Range('A', 26).Select(letter => $"Shelf {(char)letter}").ToList();
+
+            Assert.Equal("Shelf 27", CatalogueSeeder.NextShelfName(letters));
+        }
+
+        [Theory]
+        [InlineData("Shelf B", new[] { "Row B1", "Row B2" }, "Row B3")]
+        [InlineData("Shelf D", new string[0], "Row D1")]
+        [InlineData("Shelf 27", new string[0], "Row 27.1")]
+        [InlineData("Poetry", new[] { "Row 1" }, "Row 2")]
+        public void A_new_row_is_named_after_its_shelf_and_takes_the_next_free_number(string shelf, string[] taken, string expected)
+        {
+            Assert.Equal(expected, CatalogueSeeder.NextRowName(shelf, taken));
+        }
+
+        [Fact]
         public void Isbns_are_unique_fit_the_column_and_have_a_valid_check_digit()
         {
             var isbns = Enumerable.Range(0, 150).Select(CatalogueSeeder.IsbnFor).ToList();

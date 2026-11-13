@@ -1,12 +1,15 @@
+using System.Text.RegularExpressions;
 using LibraryManagementSystem.Server.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace LibraryManagementSystem.Server.Data
 {
-    // Sample catalogue for development: 150 well-known books, shelved. Opt in with Seed:SampleCatalogue = true.
+    // Sample catalogue for development: 150 well-known books, shelved one genre to a row, plus two reading rooms with
+    // tables. Opt in with Seed:SampleCatalogue = true.
     // Idempotent: genres, authors and languages are matched by name and books by ISBN, so a book that already exists is
-    // left exactly as it is (including where it is shelved). The ISBNs are generated placeholders with valid check digits,
-    // not the books' real ones.
+    // left as it is, including where it is shelved. The one exception: a library with fewer rows than genres is given
+    // the rows it lacks, and in that same run its sample books are moved so that each genre has a row of its own. The
+    // ISBNs are generated placeholders with valid check digits, not the books' real ones.
     public static class CatalogueSeeder
     {
         private const string English = "English";
@@ -224,9 +227,15 @@ namespace LibraryManagementSystem.Server.Data
         public static IReadOnlyList<(string Title, IReadOnlyList<string> Authors, string Genre, int Pages)> Catalogue =>
             Books.Select(b => (b.Title, (IReadOnlyList<string>)b.Authors.Split(';', StringSplitOptions.TrimEntries), b.Genre, b.Pages)).ToList();
 
-        // Rows created only when the library has none yet: one shelf per genre on a ground floor.
-        private const string DefaultFloorName = "Ground Floor";
-        private const int DefaultRowsPerShelf = 3;
+        // Every genre is shelved on a row of its own. A library with too few rows for that is given more, three rows to a
+        // shelf, and three floors if it has none.
+        private static readonly string[] DefaultFloorNames = ["Ground Floor", "First Floor", "Second Floor"];
+        private const int RowsPerShelf = 3;
+
+        private static readonly string[] ReadingRoomNames = ["Reading Room I", "Reading Room II"];
+
+        // For tests.
+        public static IReadOnlyList<string> ReadingRoomSeedNames => ReadingRoomNames;
 
         public static async Task SeedAsync(IServiceProvider services, CancellationToken cancellationToken = default)
         {
@@ -237,10 +246,9 @@ namespace LibraryManagementSystem.Server.Data
             var genres = await EnsureGenresAsync(db, cancellationToken);
             var authors = await EnsureAuthorsAsync(db, cancellationToken);
             var languages = await EnsureLanguagesAsync(db, cancellationToken);
-            var shelvesByGenre = await EnsureShelvingAsync(db, genres, cancellationToken);
+            var (rowByGenre, extended) = await EnsureShelvingAsync(db, cancellationToken);
 
             var existingIsbns = (await db.Books.Select(b => b.Isbn).ToListAsync(cancellationToken)).ToHashSet();
-            var nextRowByShelf = new Dictionary<Guid, int>();
             var added = 0;
 
             for (var index = 0; index < Books.Length; index++)
@@ -266,16 +274,13 @@ namespace LibraryManagementSystem.Server.Data
                     Languages = LanguagesFor(seed, languages)
                 };
 
-                // A genre's books are spread over the rows of its shelf, one after another.
-                var shelfRows = shelvesByGenre[seed.Genre];
-                var key = shelfRows[0].ShelfId;
-                var next = nextRowByShelf.GetValueOrDefault(key);
-                book.Rows.Add(shelfRows[next % shelfRows.Count]);
-                nextRowByShelf[key] = next + 1;
+                book.Rows.Add(rowByGenre[seed.Genre]);
 
                 db.Books.Add(book);
                 added++;
             }
+
+            var moved = extended ? await ReshelveByGenreAsync(db, genres, rowByGenre, cancellationToken) : 0;
 
             // A welcome notice for the landing page, only when no announcement is meant for the whole library yet.
             if (!await db.Announcements.AnyAsync(a => a.FloorId == null, cancellationToken))
@@ -289,19 +294,78 @@ namespace LibraryManagementSystem.Server.Data
                 });
             }
 
-            // Some tables for students to reserve, only when the library has none.
-            if (!await db.StudyTables.AnyAsync(cancellationToken))
+            // The shelves must exist in the database before a reading room can be attached to one.
+            await db.SaveChangesAsync(cancellationToken);
+
+            var readingRooms = await EnsureReadingRoomsAsync(db, cancellationToken);
+
+            // Some tables for students to reserve, only when the library has none, shared out between the reading rooms.
+            var tables = await db.StudyTables.OrderBy(t => t.Name).ToListAsync(cancellationToken);
+            if (tables.Count == 0)
             {
-                var readingRoom = await db.Sections.FirstOrDefaultAsync(s => s.Model == SectionModel.ReadingRoom, cancellationToken);
                 int[] seats = [4, 4, 4, 6, 6, 8];
                 db.StudyTables.AddRange(seats.Select((count, i) => new StudyTable
                 {
-                    Id = Guid.NewGuid(), Name = $"Table {i + 1}", Seats = count, SectionId = readingRoom?.Id
+                    Id = Guid.NewGuid(),
+                    Name = $"Table {i + 1}",
+                    Seats = count,
+                    SectionId = readingRooms.Count == 0 ? null : readingRooms[i % readingRooms.Count].Id
                 }));
+            }
+            // Tables that were there before the reading rooms are shared out between them too, but only while no table is
+            // in a room yet, so a librarian's own arrangement is never undone.
+            else if (readingRooms.Count > 0 && tables.All(t => t.SectionId is null))
+            {
+                for (var i = 0; i < tables.Count; i++)
+                {
+                    tables[i].SectionId = readingRooms[i % readingRooms.Count].Id;
+                }
             }
 
             await db.SaveChangesAsync(cancellationToken);
-            logger.LogInformation("Sample catalogue: {Added} books added, {Skipped} already there", added, Books.Length - added);
+            logger.LogInformation(
+                "Sample catalogue: {Added} books added, {Skipped} already there, {Moved} moved to their genre's row",
+                added, Books.Length - added, moved);
+        }
+
+        // Two reading rooms for students, unless the library already has them. Each is a section on its own shelf; the 3D
+        // map gives the wings of a floor their shelves in turn, so two shelves of one floor end up in different wings.
+        private static async Task<List<Section>> EnsureReadingRoomsAsync(ApplicationDbContext db, CancellationToken cancellationToken)
+        {
+            var rooms = await db.Sections.Where(s => s.Model == SectionModel.ReadingRoom).OrderBy(s => s.Name).ToListAsync(cancellationToken);
+            var missing = ReadingRoomNames.Where(name => rooms.All(r => !string.Equals(r.Name, name, StringComparison.OrdinalIgnoreCase))).ToList();
+            if (rooms.Count >= ReadingRoomNames.Length || missing.Count == 0)
+            {
+                return rooms;
+            }
+
+            // The floor with the most shelves (then by name), so each room can have a shelf, and so a wing, of its own.
+            var shelves = await db.Shelves.OrderBy(s => s.Name).ToListAsync(cancellationToken);
+            var floorId = shelves.GroupBy(s => s.FloorId).OrderByDescending(g => g.Count()).Select(g => (Guid?)g.Key).FirstOrDefault()
+                ?? (await db.Floors.OrderBy(f => f.Name).Select(f => (Guid?)f.Id).FirstOrDefaultAsync(cancellationToken));
+            if (floorId is null)
+            {
+                return rooms;
+            }
+
+            var taken = rooms.Select(r => r.ShelfId).ToHashSet();
+            var free = new Queue<Shelf>(shelves.Where(s => s.FloorId == floorId && !taken.Contains(s.Id)));
+
+            for (var i = 0; i < missing.Count && rooms.Count < ReadingRoomNames.Length; i++)
+            {
+                // A floor with too few shelves gets an empty one for the room.
+                var shelf = free.Count > 0
+                    ? free.Dequeue()
+                    : db.Shelves.Add(new Shelf { Id = Guid.NewGuid(), Name = missing[i], FloorId = floorId.Value }).Entity;
+                var room = new Section
+                {
+                    Id = Guid.NewGuid(), Name = missing[i], FloorId = shelf.FloorId, ShelfId = shelf.Id, Model = SectionModel.ReadingRoom
+                };
+                db.Sections.Add(room);
+                rooms.Add(room);
+            }
+
+            return rooms;
         }
 
         private static async Task<Dictionary<string, Genre>> EnsureGenresAsync(ApplicationDbContext db, CancellationToken cancellationToken)
@@ -349,40 +413,168 @@ namespace LibraryManagementSystem.Server.Data
             return languages;
         }
 
-        // Where each genre is shelved. With existing rows, genres take the existing shelves in turn (so same-genre books
-        // share a shelf) and the library's layout is left alone. With none, a ground floor gets a shelf per genre.
-        private static async Task<Dictionary<string, List<Row>>> EnsureShelvingAsync(
-            ApplicationDbContext db, Dictionary<string, Genre> genres, CancellationToken cancellationToken)
+        // Where each genre is shelved: every genre has a row of its own, the rows taken in order from the bottom floor up
+        // (so the genres at the top of the list are downstairs). A library with fewer rows than genres is extended first:
+        // shelves with fewer than three rows are topped up, then shelves of three rows are added, each on the floor with
+        // the fewest shelves, and a library with no floors gets three. Says whether it had to extend the library.
+        private static async Task<(Dictionary<string, Row> RowByGenre, bool Extended)> EnsureShelvingAsync(
+            ApplicationDbContext db, CancellationToken cancellationToken)
         {
-            var rows = await db.Rows
-                .Include(r => r.Shelf).ThenInclude(s => s.Floor)
-                .OrderBy(r => r.Shelf.Floor.Name).ThenBy(r => r.Shelf.Name).ThenBy(r => r.Name)
-                .ToListAsync(cancellationToken);
+            var floors = (await db.Floors.ToListAsync(cancellationToken)).OrderBy(f => FloorRank(f.Name)).ThenBy(f => f.Name).ToList();
+            var shelves = await db.Shelves.OrderBy(s => s.Name).ToListAsync(cancellationToken);
+            var rowsByShelf = (await db.Rows.OrderBy(r => r.Name).ToListAsync(cancellationToken))
+                .GroupBy(r => r.ShelfId)
+                .ToDictionary(g => g.Key, g => g.ToList());
 
-            if (rows.Count == 0)
+            List<Row> RowsOf(Shelf shelf) => rowsByShelf.TryGetValue(shelf.Id, out var rows) ? rows : rowsByShelf[shelf.Id] = [];
+            int RowCount() => rowsByShelf.Values.Sum(rows => rows.Count);
+
+            void AddRow(Shelf shelf)
             {
-                var floor = await db.Floors.FirstOrDefaultAsync(f => f.Name == DefaultFloorName, cancellationToken)
-                    ?? db.Floors.Add(new Floor { Id = Guid.NewGuid(), Name = DefaultFloorName }).Entity;
-
-                foreach (var seed in Genres)
+                var rows = RowsOf(shelf);
+                var row = new Row
                 {
-                    var shelf = await db.Shelves.FirstOrDefaultAsync(s => s.FloorId == floor.Id && s.Name == seed.Name, cancellationToken)
-                        ?? db.Shelves.Add(new Shelf { Id = Guid.NewGuid(), Name = seed.Name, Floor = floor, FloorId = floor.Id }).Entity;
+                    Id = Guid.NewGuid(), Name = NextRowName(shelf.Name, rows.Select(r => r.Name).ToList()), Shelf = shelf, ShelfId = shelf.Id
+                };
+                db.Rows.Add(row);
+                rows.Add(row);
+            }
 
-                    for (var number = 1; number <= DefaultRowsPerShelf; number++)
+            var extended = RowCount() < Genres.Length;
+            if (extended)
+            {
+                if (floors.Count == 0)
+                {
+                    floors.AddRange(DefaultFloorNames.Select(name => db.Floors.Add(new Floor { Id = Guid.NewGuid(), Name = name }).Entity));
+                }
+
+                foreach (var shelf in shelves)
+                {
+                    while (RowsOf(shelf).Count < RowsPerShelf && RowCount() < Genres.Length)
                     {
-                        var row = new Row { Id = Guid.NewGuid(), Name = $"Row {number}", Shelf = shelf, ShelfId = shelf.Id };
-                        db.Rows.Add(row);
-                        rows.Add(row);
+                        AddRow(shelf);
+                    }
+                }
+
+                while (RowCount() < Genres.Length)
+                {
+                    // The floor with the fewest shelves; of several, the lowest.
+                    var floor = floors.MinBy(f => shelves.Count(s => s.FloorId == f.Id))!;
+                    var shelf = new Shelf
+                    {
+                        Id = Guid.NewGuid(), Name = NextShelfName(shelves.Select(s => s.Name).ToList()), Floor = floor, FloorId = floor.Id
+                    };
+                    db.Shelves.Add(shelf);
+                    shelves.Add(shelf);
+
+                    for (var number = 0; number < RowsPerShelf; number++)
+                    {
+                        AddRow(shelf);
                     }
                 }
             }
 
-            var rowsByShelf = rows.GroupBy(r => r.ShelfId).Select(g => g.ToList()).ToList();
+            var floorOrder = floors.Select((floor, index) => (floor.Id, index)).ToDictionary(x => x.Id, x => x.index);
+            var rowsInOrder = shelves
+                .OrderBy(s => floorOrder[s.FloorId]).ThenBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
+                .SelectMany(RowsOf)
+                .ToList();
 
-            return Genres
-                .Select((seed, index) => (seed.Name, Rows: rowsByShelf[index % rowsByShelf.Count]))
-                .ToDictionary(x => x.Name, x => x.Rows);
+            return (Genres.Select((seed, index) => (seed.Name, Row: rowsInOrder[index])).ToDictionary(x => x.Name, x => x.Row), extended);
+        }
+
+        // Moves the sample books that are already in the library onto their genre's row. Only called in the run that gave
+        // the library the rows for it, so a book a librarian moves afterwards stays where they put it.
+        private static async Task<int> ReshelveByGenreAsync(
+            ApplicationDbContext db, Dictionary<string, Genre> genres, Dictionary<string, Row> rowByGenre, CancellationToken cancellationToken)
+        {
+            var rowByGenreId = rowByGenre.ToDictionary(pair => genres[pair.Key].Id, pair => pair.Value);
+            var sampleIsbns = Enumerable.Range(0, Books.Length).Select(IsbnFor).ToList();
+            var books = await db.Books.Include(b => b.Rows).Where(b => sampleIsbns.Contains(b.Isbn)).ToListAsync(cancellationToken);
+            var moved = 0;
+
+            foreach (var book in books)
+            {
+                // A book whose genre a librarian changed to one of their own is left alone, and so is one already in place.
+                if (!rowByGenreId.TryGetValue(book.GenreId, out var row) || (book.Rows.Count == 1 && book.Rows.First().Id == row.Id))
+                {
+                    continue;
+                }
+
+                book.Rows.Clear();
+                book.Rows.Add(row);
+                moved++;
+            }
+
+            return moved;
+        }
+
+        // Where a floor sits in the building, guessed from its name the way the 3D map does (floorRank in the client's
+        // libraryLayout.ts): basement, ground, first, second, "Level 3"... A name that says nothing sorts last.
+        public static int FloorRank(string name)
+        {
+            var text = name.ToLowerInvariant();
+            if (text.Contains("basement") || text.Contains("cellar") || text.Contains("lower"))
+            {
+                return -1;
+            }
+
+            if (text.Contains("ground") || text.Contains("lobby") || text.Contains("entrance"))
+            {
+                return 0;
+            }
+
+            string[] ordinals = ["first", "second", "third", "fourth", "fifth", "sixth"];
+            var ordinal = Array.FindIndex(ordinals, text.Contains);
+            if (ordinal >= 0)
+            {
+                return ordinal + 1;
+            }
+
+            var digits = Regex.Match(text, @"\d+");
+            return digits.Success && int.TryParse(digits.Value, out var level) ? level : 100;
+        }
+
+        // The next free name in the run "Shelf A", "Shelf B", ... and after "Shelf Z", "Shelf 27", "Shelf 28", ...
+        public static string NextShelfName(IReadOnlyCollection<string> taken)
+        {
+            bool IsFree(string name) => !taken.Contains(name, StringComparer.OrdinalIgnoreCase);
+
+            for (var letter = 'A'; letter <= 'Z'; letter++)
+            {
+                if (IsFree($"Shelf {letter}"))
+                {
+                    return $"Shelf {letter}";
+                }
+            }
+
+            var number = 27;
+            while (!IsFree($"Shelf {number}"))
+            {
+                number++;
+            }
+
+            return $"Shelf {number}";
+        }
+
+        // The next free row name on a shelf. A shelf named "Shelf B" numbers its rows "Row B1", "Row B2", ... (and
+        // "Shelf 27": "Row 27.1", ...); a shelf named anything else: "Row 1", "Row 2", ...
+        public static string NextRowName(string shelfName, IReadOnlyCollection<string> taken)
+        {
+            var match = Regex.Match(shelfName.Trim(), @"^Shelf\s+(\w+)$", RegexOptions.IgnoreCase);
+            var prefix = match.Success ? match.Groups[1].Value : string.Empty;
+            if (prefix.Length > 0 && char.IsDigit(prefix[^1]))
+            {
+                prefix += ".";
+            }
+
+            var number = 1;
+            while (taken.Contains($"Row {prefix}{number}", StringComparer.OrdinalIgnoreCase))
+            {
+                number++;
+            }
+
+            return $"Row {prefix}{number}";
         }
 
         private static List<Language> LanguagesFor(BookSeed seed, Dictionary<string, Language> languages)
