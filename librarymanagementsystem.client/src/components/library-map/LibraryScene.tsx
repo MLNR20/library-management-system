@@ -9,13 +9,13 @@ import type { FloorLayout, ShelfLayout, TierLayout, WingLayout } from '../../lib
 import { LibraryDragContext } from './dragContext.ts';
 import { Carpets, Columns, Doors, LibrarianDesk, Stairs, TableSet, Tables, Walls, Windows } from './FloorStructure.tsx';
 import { SLAB_THICKNESS, STAIR_LANDING, STAIR_WIDTH, flightFrame, readingTables, sceneMetrics, stairHole } from './floorPlan.ts';
-import { WallDecor } from './Decor.tsx';
+import { Plants } from './Decor.tsx';
 import { VictorianBookcase, WallBookcases } from './Bookcase.tsx';
 import { BOOKCASE_SHADOW, BOOKCASE_WOOD } from './ornamentShapes.ts';
 import { RoutePath } from './RoutePath.tsx';
 import type { Route } from './route.ts';
 import { sectionColor, statusColors } from './palette.ts';
-import { TILE_WORLD_SIZE, createWoodTexture } from './woodTexture.ts';
+import { TILE_WORLD_SIZE, createFloorTileTexture } from './floorTileTexture.ts';
 import { useLibraryDrag } from './useLibraryDrag.ts';
 
 const WOOD = '#8a6a4b';
@@ -205,13 +205,13 @@ function CursorManager() {
     return null;
 }
 
-// The wood is painted once and shared; each floor gets its own copy so it can be tiled to its own size.
-let sharedWood: THREE.CanvasTexture | null = null;
+// The quarry tiles are painted once and shared; each floor gets its own copy so it can be tiled to its own size.
+let sharedFloorTiles: THREE.CanvasTexture | null = null;
 
-function useFloorWood(width: number, depth: number): THREE.Texture {
+function useFloorTiles(width: number, depth: number): THREE.Texture {
     const texture = useMemo(() => {
-        sharedWood ??= createWoodTexture();
-        const copy = sharedWood.clone();
+        sharedFloorTiles ??= createFloorTileTexture();
+        const copy = sharedFloorTiles.clone();
         copy.repeat.set(width / TILE_WORLD_SIZE, depth / TILE_WORLD_SIZE);
         copy.needsUpdate = true;
         return copy;
@@ -221,7 +221,7 @@ function useFloorWood(width: number, depth: number): THREE.Texture {
     return texture;
 }
 
-// BoxGeometry faces, in order: +x, -x, top, bottom, +z, -z. Only the top shows the planks.
+// BoxGeometry faces, in order: +x, -x, top, bottom, +z, -z. Only the top shows the tiles.
 const FLOOR_FACES = [0, 1, 2, 3, 4, 5];
 
 interface SlabProps {
@@ -233,7 +233,7 @@ interface SlabProps {
 }
 
 function Slab({ width, depth, x = 0, z = 0, seeThrough }: SlabProps) {
-    const wood = useFloorWood(width, depth);
+    const tiles = useFloorTiles(width, depth);
 
     return (
         <mesh position={[x, -SLAB_THICKNESS / 2, z]}>
@@ -242,9 +242,9 @@ function Slab({ width, depth, x = 0, z = 0, seeThrough }: SlabProps) {
                 <meshStandardMaterial
                     key={face}
                     attach={`material-${face}`}
-                    map={face === 2 ? wood : null}
-                    color={face === 2 ? '#ffffff' : '#4a3320'}
-                    roughness={0.55}
+                    map={face === 2 ? tiles : null}
+                    color={face === 2 ? '#ffffff' : '#6b3a26'}
+                    roughness={0.6}
                     transparent={seeThrough}
                     opacity={seeThrough ? 0.6 : 1}
                 />
@@ -290,8 +290,8 @@ function FloorModel({ layout, depth, storey, index, hasFloorAbove, seeThrough }:
                 <Slab width={hall} depth={hall} seeThrough={seeThrough} />
             )}
             <Walls width={hall} depth={hall} height={wallHeight} seeThrough={seeThrough} doorX={ground ? 0 : undefined} hasWestDoor={ground} />
-            <Windows hall={hall} seeThrough={seeThrough} />
-            <WallDecor hall={hall} seeThrough={seeThrough} />
+            <Windows hall={hall} height={wallHeight} seeThrough={seeThrough} />
+            <Plants hall={hall} seeThrough={seeThrough} />
             {ground && <Doors hall={hall} seeThrough={seeThrough} />}
             {ground && <LibrarianDesk width={hall} seeThrough={seeThrough} />}
             {ground && <Carpets hall={hall} storey={storey} seeThrough={seeThrough} />}

@@ -36,10 +36,9 @@ import {
     TABLE_HEIGHT,
     TABLE_LENGTH,
     WALKWAY_WIDTH,
-    WINDOW_HEIGHT,
     WINDOW_SILL,
+    WINDOW_SURROUND,
     WINDOW_WIDTH,
-    backWindowXs,
     colonnades,
     deskPosition,
     doorPositions,
@@ -48,10 +47,16 @@ import {
     stairGeometry,
     tableXs,
     tableZ,
+    wallWindows,
+    windowStraight,
 } from './floorPlan.ts';
+import { STONE_TILE_HEIGHT, STONE_TILE_WIDTH, createStoneTexture } from './stoneTexture.ts';
 
 const WALL_THICKNESS = 0.15;
-const WALL_COLOR = '#d9cfbd';
+/** The warm cream of the limestone walls, where they are not painted with blocks. */
+const WALL_COLOR = '#d6c8a8';
+/** Smooth dressed stone, a little paler than the walls: the entablature, and the bands and sills of the windows. */
+const DRESSED_STONE = '#e2d6ba';
 const STAIR_COLOR = '#7a5230';
 const WOOD_DARK = '#4e3520';
 const WOOD_MID = '#6b4a2c';
@@ -121,9 +126,122 @@ interface WallsProps {
     hasWestDoor?: boolean;
 }
 
+/** The limestone of the walls, painted once and shared; each face gets its own copy so the blocks keep their size on it. */
+let sharedStone: THREE.CanvasTexture | null = null;
+
+/** The coursed stone for a face `length` long and `height` tall. */
+function useStone(length: number, height: number): THREE.Texture {
+    const texture = useMemo(() => {
+        sharedStone ??= createStoneTexture();
+        const copy = sharedStone.clone();
+        copy.repeat.set(length / STONE_TILE_WIDTH, height / STONE_TILE_HEIGHT);
+        copy.needsUpdate = true;
+        return copy;
+    }, [length, height]);
+
+    useEffect(() => () => texture.dispose(), [texture]);
+    return texture;
+}
+
+// BoxGeometry faces, in order: +x, -x, top, bottom, +z, -z.
+const BOX_FACES = [0, 1, 2, 3, 4, 5];
+
+interface StoneWallProps {
+    position: readonly [number, number, number];
+    size: readonly [number, number, number];
+    seeThrough: boolean;
+}
+
+/** One solid wall of coursed limestone blocks. Only its two long faces show the blocks; its thin edges are plain stone. */
+function StoneWall({ position, size, seeThrough }: StoneWallProps) {
+    const alongX = size[0] > size[2];
+    const stone = useStone(alongX ? size[0] : size[2], size[1]);
+    const longFaces = alongX ? [4, 5] : [0, 1];
+
+    return (
+        <mesh position={[position[0], position[1], position[2]]}>
+            <boxGeometry args={[size[0], size[1], size[2]]} />
+            {BOX_FACES.map(face => {
+                const long = longFaces.includes(face);
+                return (
+                    <meshStandardMaterial
+                        key={face}
+                        attach={`material-${face}`}
+                        map={long ? stone : null}
+                        color={long ? '#ffffff' : WALL_COLOR}
+                        roughness={0.9}
+                        transparent={seeThrough}
+                        opacity={seeThrough ? 0.3 : 1}
+                        depthWrite={!seeThrough}
+                    />
+                );
+            })}
+        </mesh>
+    );
+}
+
+/** Distance from one dentil to the next, and from one gilt rosette on the frieze to the next. */
+const DENTIL_PITCH = 0.2;
+const FRIEZE_ROSETTE_PITCH = 2;
+
 /**
- * The four walls with wooden panelling at their foot. The south (front) wall is glass-clear so the camera can still look in
- * through it; it has its door and its panelling like the others.
+ * Where every piece of the entablature goes, along the top of the back, east and west walls. From the top down: the
+ * cornice, its bed moulding, a row of dentils, a gilt fillet, the frieze with a gilt rosette every so often, and the
+ * architrave in two bands. Worked out in each wall's own frame: x along the wall, z out into the hall.
+ */
+function entablatureParts(width: number, depth: number, height: number) {
+    const stone: THREE.Matrix4[] = [];
+    const gilt: THREE.Matrix4[] = [];
+    const rosettes: THREE.Matrix4[] = [];
+    const walls = [
+        { frame: place([0, 0, -depth / 2]), length: width },
+        { frame: place([width / 2, 0, 0], [1, 1, 1], [0, -Math.PI / 2, 0]), length: depth },
+        { frame: place([-width / 2, 0, 0], [1, 1, 1], [0, Math.PI / 2, 0]), length: depth },
+    ];
+
+    for (const { frame, length } of walls) {
+        const at = (position: Vec3, scale: Vec3, rotation?: Vec3) => frame.clone().multiply(place(position, scale, rotation));
+        // A band along the whole wall: from `drop` below the top of the wall, `tall` high, standing `out` from the wall.
+        const band = (drop: number, tall: number, out: number) => at([0, height - drop - tall / 2, out / 2], [length, tall, out]);
+
+        stone.push(band(0, 0.12, 0.32), band(0.12, 0.1, 0.22), band(0.22, 0.14, 0.1), band(0.4, 0.44, 0.05), band(0.84, 0.12, 0.09), band(0.96, 0.08, 0.06));
+        for (let x = -length / 2 + DENTIL_PITCH / 2; x < length / 2; x += DENTIL_PITCH) {
+            stone.push(at([x, height - 0.29, 0.14], [0.1, 0.12, 0.08]));
+        }
+        gilt.push(band(0.36, 0.04, 0.12));
+        const count = Math.max(1, Math.round(length / FRIEZE_ROSETTE_PITCH));
+        for (let i = 0; i < count; i++) {
+            const x = -length / 2 + ((i + 0.5) * length) / count;
+            rosettes.push(at([x, height - 0.62, 0.062], [0.1, 0.024, 0.1], [Math.PI / 2, 0, 0]));
+        }
+    }
+    return { stone, gilt, rosettes };
+}
+
+/** The stone entablature that crowns the back, east and west walls, under the floor above. */
+function Entablature({ width, depth, height, seeThrough }: Omit<WallsProps, 'doorX' | 'hasWestDoor'>) {
+    const parts = useMemo(() => entablatureParts(width, depth, height), [width, depth, height]);
+    const opacity = seeThrough ? 0.7 : 1;
+    const gilt = <meshStandardMaterial color={GILT} roughness={0.3} metalness={0.7} transparent={seeThrough} opacity={opacity} />;
+
+    return (
+        <group>
+            <InstancedPart geometry={UNIT_BOX} matrices={parts.stone}>
+                <meshStandardMaterial color={DRESSED_STONE} roughness={0.8} transparent={seeThrough} opacity={opacity} />
+            </InstancedPart>
+            <InstancedPart geometry={UNIT_BOX} matrices={parts.gilt}>
+                {gilt}
+            </InstancedPart>
+            <InstancedPart geometry={UNIT_OCTAGON} matrices={parts.rosettes}>
+                {gilt}
+            </InstancedPart>
+        </group>
+    );
+}
+
+/**
+ * The four walls: coursed limestone under a stone entablature, with wooden panelling at their foot. The south (front) wall
+ * is glass-clear so the camera can still look in through it; it has its door and its panelling like the others.
  */
 export function Walls({ width, depth, height, seeThrough, doorX, hasWestDoor = false }: WallsProps) {
     const solid = [
@@ -138,21 +256,13 @@ export function Walls({ width, depth, height, seeThrough, doorX, hasWestDoor = f
     return (
         <group>
             {solid.map(wall => (
-                <mesh key={wall.key} position={wall.position}>
-                    <boxGeometry args={wall.size} />
-                    <meshStandardMaterial
-                        color={WALL_COLOR}
-                        roughness={0.9}
-                        transparent={seeThrough}
-                        opacity={seeThrough ? 0.3 : 1}
-                        depthWrite={!seeThrough}
-                    />
-                </mesh>
+                <StoneWall key={wall.key} position={wall.position} size={wall.size} seeThrough={seeThrough} />
             ))}
             <mesh position={[0, height / 2, depth / 2 + WALL_THICKNESS / 2]} raycast={() => null}>
                 <boxGeometry args={[width + WALL_THICKNESS * 2, height, WALL_THICKNESS]} />
                 <meshStandardMaterial color={WALL_COLOR} roughness={0.9} transparent opacity={0.12} depthWrite={false} />
             </mesh>
+            <Entablature width={width} depth={depth} height={height} seeThrough={seeThrough} />
 
             {northSouthRuns.map(([from, to]) => (
                 <group key={`back-${from}`} position={[(from + to) / 2, 0, -depth / 2]}>
@@ -383,6 +493,9 @@ function VictorianDoor({ position, rotationY, seeThrough }: VictorianDoorProps) 
 
 const CARPET_COLOR = '#7a1f1f';
 const CARPET_TRIM = '#b8892b';
+/** The pale marble band set in the tiled floor either side of the carpet, and how far it shows past the carpet's edge. */
+const FLOOR_MARBLE = '#e9e2d3';
+const MARBLE_BORDER = 0.3;
 
 interface CarpetsProps {
     hall: number;
@@ -408,9 +521,18 @@ export function Carpets({ hall, storey, seeThrough }: CarpetsProps) {
         { key: 'north-south', x: 0, z: (north + south) / 2, length: south - north, turn: Math.PI / 2 },
     ];
 
-    // All the gold edges first, then the red centres on top, so where the arms cross they read as one carpet.
+    // A band of pale marble set in the tiled floor under each arm first, then all the gold edges, then the red centres on
+    // top, so where the arms cross they read as one carpet.
     return (
         <group>
+            {arms.map(arm => (
+                <group key={`marble-${arm.key}`} position={[arm.x, 0, arm.z]} rotation={[-Math.PI / 2, 0, arm.turn]}>
+                    <mesh position={[0, 0, 0.008]} raycast={() => null}>
+                        <planeGeometry args={[arm.length, WALKWAY_WIDTH + MARBLE_BORDER * 2]} />
+                        <meshStandardMaterial color={FLOOR_MARBLE} roughness={0.3} transparent={seeThrough} opacity={opacity} />
+                    </mesh>
+                </group>
+            ))}
             {arms.map(arm => (
                 <group key={`trim-${arm.key}`} position={[arm.x, 0, arm.z]} rotation={[-Math.PI / 2, 0, arm.turn]}>
                     <mesh position={[0, 0, 0.012]} raycast={() => null}>
@@ -444,11 +566,6 @@ export function Doors({ hall, seeThrough }: { hall: number; seeThrough: boolean 
     );
 }
 
-const WINDOW_FRAME = 0.08;
-const WINDOW_BAR = 0.03;
-const SASH_PAINT = '#f6f1e7';
-const WINDOW_STONE = '#cfc6b5';
-
 /** Outline of an arch: straight sides from `bottom` up to `straight`, then a round arch on top. */
 function archShape(width: number, straight: number, bottom: number): THREE.Shape {
     const shape = new THREE.Shape();
@@ -460,271 +577,297 @@ function archShape(width: number, straight: number, bottom: number): THREE.Shape
     return shape;
 }
 
-interface WindowPaneProps {
-    position: [number, number, number];
-    rotationY: number;
-    seeThrough: boolean;
+/** Outline of a band `band` wide round an arch `width` across, standing on the line of its sill: up one side, over the round head and down the other. */
+function archBand(width: number, straight: number, band: number): THREE.Shape {
+    const radius = width / 2;
+    const shape = new THREE.Shape();
+    shape.moveTo(radius + band, 0);
+    shape.lineTo(radius + band, straight);
+    shape.absarc(0, straight, radius + band, 0, Math.PI, false);
+    shape.lineTo(-radius - band, 0);
+    shape.lineTo(-radius, 0);
+    shape.lineTo(-radius, straight);
+    shape.absarc(0, straight, radius, Math.PI, 0, true);
+    shape.lineTo(radius, 0);
+    shape.closePath();
+    return shape;
 }
 
-const RUBY_GLASS = '#9b2335';
-const AMBER_GLASS = '#d99a2b';
-const SAPPHIRE_GLASS = '#2f5d8a';
-/** Pale, faintly tinted glass for the leaded diamond panes. */
-const CATHEDRAL_GLASS = '#f1e7c6';
-const LEAD = '#3a3a3a';
-/** Polished red granite for the colonettes either side of a window. */
-const GRANITE = '#6e3a3a';
-const APRON_STONE = '#bfb5a2';
-/** Height of the slim bar where the sashes meet the round head. */
-const TRANSOM = 0.04;
-/** The round head of a window: a half circle as wide as the window, springing from the top of the sashes. */
-const ARCH_RADIUS = WINDOW_WIDTH / 2;
-/** Width of the stone band round the window, and the radius of the hood moulding over it. */
-const SURROUND_WIDTH = 0.18;
-const HOOD_RADIUS = ARCH_RADIUS + SURROUND_WIDTH + 0.06;
-/** Size of one diamond pane in the leaded upper sash. */
-const QUARRY_WIDTH = 0.13;
-const QUARRY_HEIGHT = 0.2;
-/** The radii in the fanlight: its centre light, the ring of coloured wedges, and the border round them. */
-const FAN_HUB = 0.17;
-const FAN_WEDGES = 0.44;
-const FAN_GLASS = ARCH_RADIUS - WINDOW_FRAME;
-const FAN_COLORS = [RUBY_GLASS, SAPPHIRE_GLASS, RUBY_GLASS, SAPPHIRE_GLASS, RUBY_GLASS, SAPPHIRE_GLASS];
+/** Dark bronze for the frames and glazing bars of the windows. */
+const BRONZE = '#2c2824';
+/** Daylight behind the clear glass. */
+const DAYLIGHT = '#dcebf5';
+/** Stained glass: the pale ground of the rose, and the colours of the petals, the little flowers and the margin lights. */
+const PALE_GLASS = new THREE.Color('#f4ecd0');
+const RUBY_GLASS = new THREE.Color('#b3263c');
+const SAPPHIRE_GLASS = new THREE.Color('#3a70a8');
+const AMBER_GLASS = new THREE.Color('#e0a12e');
+/** The inner step of a window's stone band, hard against the opening, which stands further out than the rest. */
+const ARCH_MOULDING = 0.09;
+/** How far the stone band, its inner step and the keystone stand out from the wall; the glass sits back between them. */
+const SURROUND_DEPTH = 0.12;
+const MOULDING_DEPTH = 0.18;
+const KEYSTONE_DEPTH = 0.23;
+const GLASS_SETBACK = 0.03;
+/** Width of the bronze frame round the glass, and how far it stands in front of it. */
+const GLAZING_FRAME = 0.07;
+/** Half the width of the glass, inside its frame. */
+const GLASS_RADIUS = WINDOW_WIDTH / 2 - GLAZING_FRAME;
+/** Width of the narrow margin light of coloured glass down each side of a window. */
+const MARGIN_LIGHT = 0.2;
+/** The clear glass between the margin lights is six small panes across; the panes are about this tall. */
+const PANES_ACROSS = 6;
+const PANE_HEIGHT = 0.42;
+/** Thickness of a glazing bar, and of the heavier mullions and transom that divide the window into its lights. */
+const GLAZING_BAR = 0.024;
+const MULLION = 0.055;
+/** The rose in the round head: the radius of its ring, how far its middle is above the line the head springs from, and its petals. */
+const ROSE_RADIUS = GLASS_RADIUS * 0.38;
+const ROSE_RISE = GLASS_RADIUS * 0.5;
+const ROSE_PETALS = 8;
+/** Radius of the hood moulding over a window, just outside its stone band. */
+const HOOD_RADIUS = WINDOW_WIDTH / 2 + WINDOW_SURROUND + 0.05;
 
-const SASH_WIDTH = WINDOW_WIDTH - WINDOW_FRAME * 2;
-/** The glass of the sashes, from the bottom rail up to the transom under the round head. */
-const SASH_HEIGHT = WINDOW_HEIGHT - WINDOW_FRAME - TRANSOM / 2;
-/** The leaded upper sash: the whole width, from the meeting rail up to the transom. */
-const quarry = { x0: -SASH_WIDTH / 2, x1: SASH_WIDTH / 2, y0: WINDOW_HEIGHT / 2 + 0.035, y1: WINDOW_HEIGHT - TRANSOM / 2 };
+// Shared shapes of the glazing, built once and scaled per piece: a round and a square of glass, facing +z.
+const UNIT_DISC = new THREE.CircleGeometry(1, 20);
+const UNIT_PANE = new THREE.PlaneGeometry(1, 1);
 
-/** The lead cames of a light glazed in diamonds (quarries) filling a rectangle, each as a placed thin bar. */
-function quarryCames({ x0, x1, y0, y1 }: typeof quarry) {
-    const slope = QUARRY_HEIGHT / QUARRY_WIDTH;
-    const run = (y1 - y0) / slope;
-    const cames: THREE.Matrix4[] = [];
-    for (const dir of [1, -1]) {
-        // Each came starts at the bottom edge (extended either side) and climbs at the diamonds' slope, leaning right or left.
-        for (let c = x0 - run; c <= x1 + run; c += QUARRY_WIDTH) {
-            const t0 = Math.max(0, dir > 0 ? x0 - c : c - x1);
-            const t1 = Math.min(run, dir > 0 ? x1 - c : c - x0);
-            if (t1 - t0 < 0.01) continue;
-            const t = (t0 + t1) / 2;
-            const angle = dir > 0 ? Math.atan(slope) : Math.PI - Math.atan(slope);
-            cames.push(place([c + dir * t, y0 + slope * t, 0.036], [(t1 - t0) * Math.hypot(1, slope), 0.008, 0.004], [0, 0, angle]));
-        }
-    }
-    return cames;
+/** A petal of glass: a pointed leaf one unit long up +y from its foot at the origin, and one unit across at its widest. */
+function petalGeometry() {
+    const shape = new THREE.Shape();
+    shape.moveTo(0, 0);
+    shape.bezierCurveTo(0.6, 0.2, 0.55, 0.75, 0, 1);
+    shape.bezierCurveTo(-0.55, 0.75, -0.6, 0.2, 0, 0);
+    return new THREE.ShapeGeometry(shape, 10);
 }
-const QUARRY_CAMES = quarryCames(quarry);
+const PETAL = petalGeometry();
+/** The bronze ring of the rose, and the half-round hood moulding over a window. */
+const ROSE_RING = new THREE.TorusGeometry(ROSE_RADIUS, 0.024, 6, 40);
+const HOOD = new THREE.TorusGeometry(HOOD_RADIUS, 0.035, 6, 40, Math.PI);
 
-// Built once: the painted frame of the round head, and the stone band round the whole window.
-let sharedWindowHead: { frame: THREE.ExtrudeGeometry; surround: THREE.ExtrudeGeometry } | null = null;
-
-function windowHeadGeometry() {
-    if (!sharedWindowHead) {
-        const frame = new THREE.Shape();
-        frame.moveTo(ARCH_RADIUS, 0);
-        frame.absarc(0, 0, ARCH_RADIUS, 0, Math.PI, false);
-        frame.lineTo(-FAN_GLASS, 0);
-        frame.absarc(0, 0, FAN_GLASS, Math.PI, 0, true);
-        frame.closePath();
-
-        const surround = archShape(WINDOW_WIDTH + SURROUND_WIDTH * 2, WINDOW_HEIGHT, 0);
-        surround.holes.push(new THREE.Path(archShape(WINDOW_WIDTH, WINDOW_HEIGHT, 0).getPoints(32)));
-
-        sharedWindowHead = {
-            frame: new THREE.ExtrudeGeometry(frame, { depth: 0.1, bevelEnabled: false, curveSegments: 32 }),
-            surround: new THREE.ExtrudeGeometry(surround, { depth: 0.06, bevelEnabled: false, curveSegments: 32 }),
-        };
-    }
-    return sharedWindowHead;
+/** The shapes every window shares, for windows with straight sides `straight` tall. Drawn from the sill line up, facing +z. */
+function windowGeometries(straight: number) {
+    const extrude = (shape: THREE.Shape, depth: number) => new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments: 32 });
+    return {
+        surround: extrude(archBand(WINDOW_WIDTH, straight, WINDOW_SURROUND), SURROUND_DEPTH),
+        moulding: extrude(archBand(WINDOW_WIDTH, straight, ARCH_MOULDING), MOULDING_DEPTH),
+        frame: extrude(archBand(GLASS_RADIUS * 2, straight, GLAZING_FRAME), GLAZING_FRAME),
+        opening: new THREE.ShapeGeometry(archShape(WINDOW_WIDTH, straight, 0), 32),
+    };
 }
 
 /**
- * A round-headed Victorian sash window. The lower sash has four clear panes; the upper sash is leaded in pale diamond
- * quarries right across, up to a slim transom; the half-round fanlight above has a ring of ruby and sapphire
- * wedges round a pale centre with a gilt rosette, inside an amber border, all in lead. A stone band runs round the whole
- * window with a keystone and rosette at its crown, under a hood moulding ending in rosettes; polished granite colonettes
- * stand either side, and the stone sill rests on two scroll consoles over a carved apron panel.
+ * The glazing and the gilt of one window, as placed pieces in the window's own frame (x across, y up from the sill, z out
+ * from the wall).
+ *
+ * Under the transom the glass is clear, in small panes: every second upright is a heavier mullion, so the window is
+ * three lights of two panes, with a narrow margin light of amber glass down each side (ruby at its top and bottom) and a
+ * row of little four-petalled flowers in the panes under the transom. The round head holds a rose: a ring with eight
+ * petals of ruby and sapphire glass round an amber eye, and rays fanning out from it to the frame. A gilt rosette sits on
+ * the keystone and at each end of the hood moulding.
  */
-function WindowPane({ position, rotationY, seeThrough }: WindowPaneProps) {
-    const opacity = seeThrough ? 0.7 : 1;
-    const { frame: headFrame, surround } = windowHeadGeometry();
-    const paint = <meshStandardMaterial color={SASH_PAINT} roughness={0.5} transparent={seeThrough} opacity={opacity} />;
-    const stone = <meshStandardMaterial color={WINDOW_STONE} roughness={0.85} transparent={seeThrough} opacity={opacity} />;
-    const lead = <meshStandardMaterial color={LEAD} roughness={0.6} metalness={0.3} transparent={seeThrough} opacity={opacity} />;
-    const glass = (color: string, glow = 0.45) => (
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={glow} transparent opacity={0.85} />
-    );
+function windowGlazing(straight: number) {
+    const inner = GLASS_RADIUS - MARGIN_LIGHT;
+    const paneWidth = (inner * 2) / PANES_ACROSS;
+    const rows = Math.max(2, Math.round((straight - GLAZING_FRAME) / PANE_HEIGHT));
+    const paneHeight = (straight - GLAZING_FRAME) / rows;
+    const barZ = (thickness: number) => GLASS_SETBACK + 0.005 + thickness / 2;
+    // The coloured glass lies just in front of the clear glass, in three layers so nothing flickers where pieces overlap.
+    const groundZ = GLASS_SETBACK + 0.006;
+    const petalZ = groundZ + 0.006;
+    const eyeZ = petalZ + 0.006;
 
-    return (
-        <group position={position} rotation={[0, rotationY, 0]}>
-            <group position={[0, WINDOW_SILL, 0]}>
-                {/* Clear glass behind both sashes, and the pale glass of the leaded upper sash */}
-                <mesh position={[0, WINDOW_FRAME + SASH_HEIGHT / 2, 0.03]}>
-                    <planeGeometry args={[SASH_WIDTH, SASH_HEIGHT]} />
-                    <meshStandardMaterial color="#cfe8f7" emissive="#bfe0f5" emissiveIntensity={0.5} transparent opacity={0.7} />
-                </mesh>
-                <mesh position={[0, (quarry.y0 + quarry.y1) / 2, 0.032]}>
-                    <planeGeometry args={[quarry.x1 - quarry.x0, quarry.y1 - quarry.y0]} />
-                    {glass(CATHEDRAL_GLASS, 0.35)}
-                </mesh>
-                <InstancedPart geometry={UNIT_BOX} matrices={QUARRY_CAMES}>
-                    {lead}
-                </InstancedPart>
+    const bars: THREE.Matrix4[] = [];
+    const panes: THREE.Matrix4[] = [];
+    const paneColors: THREE.Color[] = [];
+    const discs: THREE.Matrix4[] = [];
+    const discColors: THREE.Color[] = [];
+    const petals: THREE.Matrix4[] = [];
+    const petalColors: THREE.Color[] = [];
+    const disc = (x: number, y: number, z: number, radius: number, color: THREE.Color) => {
+        discs.push(place([x, y, z], [radius, radius, 1]));
+        discColors.push(color);
+    };
 
-                {/* Frame sides and bottom rail, the slim transom under the round head, the meeting rail, and the glazing bars of the lower sash (two panes across, two down) */}
-                {[-1, 1].map(side => (
-                    <mesh key={side} position={[side * (WINDOW_WIDTH / 2 - WINDOW_FRAME / 2), WINDOW_HEIGHT / 2, 0.05]}>
-                        <boxGeometry args={[WINDOW_FRAME, WINDOW_HEIGHT, 0.1]} />
-                        {paint}
-                    </mesh>
-                ))}
-                <mesh position={[0, WINDOW_FRAME / 2, 0.05]}>
-                    <boxGeometry args={[WINDOW_WIDTH, WINDOW_FRAME, 0.1]} />
-                    {paint}
-                </mesh>
-                <mesh position={[0, WINDOW_HEIGHT, 0.05]}>
-                    <boxGeometry args={[SASH_WIDTH, TRANSOM, 0.08]} />
-                    {paint}
-                </mesh>
-                <mesh position={[0, WINDOW_HEIGHT / 2, 0.06]}>
-                    <boxGeometry args={[SASH_WIDTH, 0.07, 0.12]} />
-                    {paint}
-                </mesh>
-                <mesh position={[0, (WINDOW_FRAME + WINDOW_HEIGHT / 2) / 2, 0.05]}>
-                    <boxGeometry args={[WINDOW_BAR, WINDOW_HEIGHT / 2 - WINDOW_FRAME, 0.06]} />
-                    {paint}
-                </mesh>
-                <mesh position={[0, WINDOW_HEIGHT * 0.27, 0.05]}>
-                    <boxGeometry args={[SASH_WIDTH, WINDOW_BAR, 0.06]} />
-                    {paint}
-                </mesh>
+    // Uprights from the bottom rail to the transom: one inside each margin light, then those between the panes.
+    const uprightHeight = straight - GLAZING_FRAME;
+    const uprightY = (straight + GLAZING_FRAME) / 2;
+    for (const x of [-inner, inner]) bars.push(place([x, uprightY, barZ(GLAZING_BAR)], [GLAZING_BAR, uprightHeight, GLAZING_BAR]));
+    for (let i = 1; i < PANES_ACROSS; i++) {
+        const thickness = i % 2 === 0 ? MULLION : GLAZING_BAR;
+        bars.push(place([-inner + i * paneWidth, uprightY, barZ(thickness)], [thickness, uprightHeight, thickness]));
+    }
+    // Rails across at every pane; the last is the transom, where the head springs.
+    for (let row = 1; row <= rows; row++) {
+        const thickness = row === rows ? MULLION : GLAZING_BAR;
+        bars.push(place([0, GLAZING_FRAME + row * paneHeight, barZ(thickness)], [GLASS_RADIUS * 2, thickness, thickness]));
+    }
 
-                {/* The fanlight in the round head: pale centre with a rosette, a ring of coloured wedges, an amber border, all in lead */}
-                <group position={[0, WINDOW_HEIGHT, 0]}>
-                    <mesh geometry={headFrame}>{paint}</mesh>
-                    <mesh position={[0, 0, 0.034]}>
-                        <circleGeometry args={[FAN_HUB, 16, 0, Math.PI]} />
-                        {glass(CATHEDRAL_GLASS, 0.35)}
-                    </mesh>
-                    {FAN_COLORS.map((color, i) => (
-                        <mesh key={i} position={[0, 0, 0.034]}>
-                            <ringGeometry args={[FAN_HUB, FAN_WEDGES, 4, 1, (i * Math.PI) / 6, Math.PI / 6]} />
-                            {glass(color)}
-                        </mesh>
-                    ))}
-                    <mesh position={[0, 0, 0.034]}>
-                        <ringGeometry args={[FAN_WEDGES, FAN_GLASS, 24, 1, 0, Math.PI]} />
-                        {glass(AMBER_GLASS)}
-                    </mesh>
-                    {[FAN_HUB, FAN_WEDGES].map(r => (
-                        <mesh key={r} position={[0, 0, 0.037]}>
-                            <ringGeometry args={[r - 0.007, r + 0.007, 24, 1, 0, Math.PI]} />
-                            {lead}
-                        </mesh>
-                    ))}
-                    {[1, 2, 3, 4, 5].map(i => {
-                        const angle = (i * Math.PI) / 6;
-                        const r = (FAN_HUB + FAN_GLASS) / 2;
-                        return (
-                            <mesh key={i} position={[Math.cos(angle) * r, Math.sin(angle) * r, 0.037]} rotation={[0, 0, angle]}>
-                                <boxGeometry args={[FAN_GLASS - FAN_HUB, 0.012, 0.004]} />
-                                {lead}
-                            </mesh>
-                        );
-                    })}
-                    <Rosette position={[0, 0.07, 0.036]} radius={0.05} seeThrough={seeThrough} />
-                </group>
+    // Margin lights: amber down each side, ruby at the top and the bottom.
+    for (let row = 0; row < rows; row++) {
+        const color = row === 0 || row === rows - 1 ? RUBY_GLASS : AMBER_GLASS;
+        for (const side of [-1, 1]) {
+            panes.push(place([side * (inner + MARGIN_LIGHT / 2), GLAZING_FRAME + (row + 0.5) * paneHeight, groundZ], [MARGIN_LIGHT, paneHeight, 1]));
+            paneColors.push(color);
+        }
+    }
 
-                {/* Stone band round the window, keystone and rosette at its crown, and the hood moulding with a rosette at each end */}
-                <mesh geometry={surround}>{stone}</mesh>
-                <mesh position={[0, WINDOW_HEIGHT + ARCH_RADIUS + SURROUND_WIDTH / 2, 0.05]}>
-                    <boxGeometry args={[0.2, 0.3, 0.1]} />
-                    {stone}
-                </mesh>
-                <Rosette position={[0, WINDOW_HEIGHT + ARCH_RADIUS + SURROUND_WIDTH / 2, 0.1]} radius={0.06} seeThrough={seeThrough} />
-                <mesh position={[0, WINDOW_HEIGHT, 0.04]}>
-                    <torusGeometry args={[HOOD_RADIUS, 0.03, 6, 40, Math.PI]} />
-                    {stone}
-                </mesh>
-                {[-1, 1].map(side => (
-                    <Rosette key={`stop${side}`} position={[side * HOOD_RADIUS, WINDOW_HEIGHT - 0.03, 0.07]} radius={0.045} seeThrough={seeThrough} />
-                ))}
+    // A little flower in each pane under the transom: four petals, ruby and sapphire in turn, round an amber eye.
+    const flowerY = straight - paneHeight / 2;
+    for (let i = 0; i < PANES_ACROSS; i++) {
+        const x = -inner + (i + 0.5) * paneWidth;
+        const color = i % 2 ? SAPPHIRE_GLASS : RUBY_GLASS;
+        for (let petal = 0; petal < 4; petal++) {
+            const angle = (petal * Math.PI) / 2;
+            disc(x + Math.cos(angle) * 0.08, flowerY + Math.sin(angle) * 0.08, groundZ, 0.065, color);
+        }
+        disc(x, flowerY, eyeZ, 0.04, AMBER_GLASS);
+    }
 
-                {/* A polished granite colonette on the band either side, from a small base up to a capital where the arch springs */}
-                {[-1, 1].map(side => (
-                    <group key={`colonette${side}`} position={[side * (WINDOW_WIDTH / 2 + SURROUND_WIDTH / 2), 0, 0.11]}>
-                        <mesh position={[0, 0.02, 0]}>
-                            <boxGeometry args={[0.12, 0.04, 0.12]} />
-                            {stone}
-                        </mesh>
-                        <mesh geometry={BALUSTER} position={[0, 0.04, 0]} scale={[1.6, WINDOW_HEIGHT - 0.1, 1.6]}>
-                            <meshStandardMaterial color={GRANITE} roughness={0.25} transparent={seeThrough} opacity={opacity} />
-                        </mesh>
-                        <mesh position={[0, WINDOW_HEIGHT - 0.03, 0]}>
-                            <boxGeometry args={[0.15, 0.06, 0.13]} />
-                            {stone}
-                        </mesh>
-                    </group>
-                ))}
+    // The rose in the round head: a pale round of glass, eight petals and an amber eye.
+    const roseY = straight + ROSE_RISE;
+    disc(0, roseY, groundZ, ROSE_RADIUS, PALE_GLASS);
+    for (let petal = 0; petal < ROSE_PETALS; petal++) {
+        const angle = Math.PI / 2 + (petal / ROSE_PETALS) * Math.PI * 2;
+        const foot = ROSE_RADIUS * 0.16;
+        petals.push(
+            place([Math.cos(angle) * foot, roseY + Math.sin(angle) * foot, petalZ], [ROSE_RADIUS * 0.42, ROSE_RADIUS * 0.74, 1], [0, 0, angle - Math.PI / 2]),
+        );
+        petalColors.push(petal % 2 ? SAPPHIRE_GLASS : RUBY_GLASS);
+    }
+    disc(0, roseY, eyeZ, ROSE_RADIUS * 0.2, AMBER_GLASS);
 
-                {/* The sill on a scroll console at each end, over a sunk apron panel carved with a rosette and two lozenges */}
-                <mesh position={[0, -0.04, 0.12]}>
-                    <boxGeometry args={[WINDOW_WIDTH + 0.4, 0.08, 0.24]} />
-                    {stone}
-                </mesh>
-                {[-1, 1].map(side => (
-                    <ScrollBracket
-                        key={`sill${side}`}
-                        position={[side * (WINDOW_WIDTH / 2 + 0.08), -0.4, 0]}
-                        reach={0.22}
-                        height={0.32}
-                        thickness={0.07}
-                        color={WINDOW_STONE}
-                        seeThrough={seeThrough}
-                    />
-                ))}
-                <mesh position={[0, -0.23, 0.015]}>
-                    <boxGeometry args={[WINDOW_WIDTH - 0.1, 0.26, 0.03]} />
-                    <meshStandardMaterial color={APRON_STONE} roughness={0.85} transparent={seeThrough} opacity={opacity} />
-                </mesh>
-                <Rosette position={[0, -0.23, 0.03]} radius={0.05} seeThrough={seeThrough} />
-                {[-1, 1].map(side => (
-                    <Lozenge key={`apron${side}`} position={[side * 0.3, -0.23, 0.03]} size={0.09} seeThrough={seeThrough} />
-                ))}
+    // Rays fan out from the rose, each running until it meets the curve of the head, or the transom below.
+    for (let i = 0; i < 12; i++) {
+        const angle = (i * Math.PI) / 6;
+        const dx = Math.cos(angle);
+        const dy = Math.sin(angle);
+        const b = ROSE_RISE * dy;
+        const toHead = -b + Math.sqrt(b * b + GLASS_RADIUS ** 2 - ROSE_RISE ** 2);
+        const reach = dy < -1e-6 ? Math.min(toHead, ROSE_RISE / -dy) : toHead;
+        const length = reach - ROSE_RADIUS;
+        if (length < 0.05) continue;
+        const middle = ROSE_RADIUS + length / 2;
+        bars.push(place([dx * middle, roseY + dy * middle, barZ(GLAZING_BAR)], [length, GLAZING_BAR, GLAZING_BAR], [0, 0, angle]));
+    }
 
-                {[-1, 1].map(side => (
-                    <FlowerVase
-                        key={side}
-                        position={[side * 0.38, 0, 0.17]}
-                        seed={`sill${position[0]}${position[2]}${side}`}
-                        scale={0.8}
-                        seeThrough={seeThrough}
-                    />
-                ))}
-            </group>
-        </group>
-    );
+    // Gilt rosettes, each an octagonal boss with a domed centre: on the keystone, and at each end of the hood moulding.
+    const rosettes: THREE.Matrix4[] = [];
+    const bosses: THREE.Matrix4[] = [];
+    const rosette = (x: number, y: number, z: number, radius: number) => {
+        rosettes.push(place([x, y, z + radius * 0.15], [radius, radius * 0.3, radius], [Math.PI / 2, 0, 0]));
+        bosses.push(place([x, y, z + radius * 0.3], [radius * 0.4, radius * 0.4, radius * 0.32]));
+    };
+    rosette(0, straight + WINDOW_WIDTH / 2 + WINDOW_SURROUND / 2, KEYSTONE_DEPTH, 0.08);
+    for (const side of [-1, 1]) rosette(side * HOOD_RADIUS, straight - 0.02, 0.085, 0.065);
+
+    return { bars, panes, paneColors, discs, discColors, petals, petalColors, rosettes, bosses };
 }
 
 interface WindowsProps {
     hall: number;
+    /** Height of the walls. */
+    height: number;
     seeThrough: boolean;
 }
 
-/** Windows along the back wall (either side of the north door) and the east wall. */
-export function Windows({ hall, seeThrough }: WindowsProps) {
-    const east = hall / 2;
+/**
+ * The tall round-headed windows along the back, east and west walls, after a grand reading room. Each is set in a stepped
+ * band of dressed stone with a keystone, under a hood moulding, over a stone sill with a vase of flowers on it. The glass
+ * is held in dark bronze bars: small clear panes in three lights between margin lights of coloured glass, a row of little
+ * glass flowers under the transom, and a rose of ruby and sapphire petals in the round head.
+ */
+export function Windows({ hall, height, seeThrough }: WindowsProps) {
+    const straight = windowStraight(height);
+    const windows = useMemo(() => wallWindows(hall), [hall]);
+    const shapes = useMemo(() => windowGeometries(straight), [straight]);
+    useEffect(() => () => Object.values(shapes).forEach(shape => shape.dispose()), [shapes]);
+    // Every window's bars, coloured glass and gilt, placed in the hall, so each kind draws in one call.
+    const glazing = useMemo(() => {
+        const one = windowGlazing(straight);
+        const frames = windows.map(window => place([window.x, WINDOW_SILL, window.z], [1, 1, 1], [0, window.rotationY, 0]));
+        const inHall = (pieces: THREE.Matrix4[]) => frames.flatMap(frame => pieces.map(piece => frame.clone().multiply(piece)));
+        const forEvery = (colors: THREE.Color[]) => frames.flatMap(() => colors);
+        return {
+            bars: inHall(one.bars),
+            panes: inHall(one.panes),
+            paneColors: forEvery(one.paneColors),
+            discs: inHall(one.discs),
+            discColors: forEvery(one.discColors),
+            petals: inHall(one.petals),
+            petalColors: forEvery(one.petalColors),
+            rosettes: inHall(one.rosettes),
+            bosses: inHall(one.bosses),
+        };
+    }, [windows, straight]);
+
+    const opacity = seeThrough ? 0.7 : 1;
+    const stone = <meshStandardMaterial color={DRESSED_STONE} roughness={0.8} transparent={seeThrough} opacity={opacity} />;
+    const bronze = <meshStandardMaterial color={BRONZE} roughness={0.45} metalness={0.5} transparent={seeThrough} opacity={opacity} />;
+    const gilt = <meshStandardMaterial color={GILT} roughness={0.3} metalness={0.7} transparent={seeThrough} opacity={opacity} />;
+    // Coloured glass shows its own colour, as if lit from behind; each piece is tinted its own colour.
+    const stained = <meshBasicMaterial color="#ffffff" transparent={seeThrough} opacity={opacity} />;
+    const sillWidth = WINDOW_WIDTH + WINDOW_SURROUND * 2;
+    const crown = straight + WINDOW_WIDTH / 2;
 
     return (
         <group>
-            {backWindowXs(hall).map(x => (
-                <WindowPane key={`back-${x}`} position={[x, 0, -hall / 2]} rotationY={0} seeThrough={seeThrough} />
+            {windows.map(window => (
+                <group key={`${window.x},${window.z}`} position={[window.x, WINDOW_SILL, window.z]} rotation={[0, window.rotationY, 0]}>
+                    <mesh geometry={shapes.surround}>{stone}</mesh>
+                    <mesh geometry={shapes.moulding}>{stone}</mesh>
+                    <mesh geometry={shapes.opening} position={[0, 0, GLASS_SETBACK]}>
+                        <meshStandardMaterial color={DAYLIGHT} emissive={DAYLIGHT} emissiveIntensity={0.7} transparent opacity={0.9} />
+                    </mesh>
+                    {/* The bronze frame round the glass, its bottom rail, and the ring of the rose */}
+                    <mesh geometry={shapes.frame} position={[0, 0, GLASS_SETBACK]}>
+                        {bronze}
+                    </mesh>
+                    <mesh position={[0, GLAZING_FRAME / 2, GLASS_SETBACK + GLAZING_FRAME / 2]}>
+                        <boxGeometry args={[WINDOW_WIDTH, GLAZING_FRAME, GLAZING_FRAME]} />
+                        {bronze}
+                    </mesh>
+                    <mesh geometry={ROSE_RING} position={[0, straight + ROSE_RISE, GLASS_SETBACK + 0.03]}>
+                        {bronze}
+                    </mesh>
+                    {/* The keystone at the crown of the arch, and the hood moulding over it */}
+                    <mesh position={[0, crown + WINDOW_SURROUND / 2, KEYSTONE_DEPTH / 2]}>
+                        <boxGeometry args={[0.28, WINDOW_SURROUND + 0.2, KEYSTONE_DEPTH]} />
+                        {stone}
+                    </mesh>
+                    <mesh geometry={HOOD} position={[0, straight, 0.05]}>
+                        {stone}
+                    </mesh>
+                    {/* The sill, on a narrower moulding, with a vase of flowers */}
+                    <mesh position={[0, -0.05, 0.15]}>
+                        <boxGeometry args={[sillWidth + 0.2, 0.1, 0.3]} />
+                        {stone}
+                    </mesh>
+                    <mesh position={[0, -0.135, 0.1]}>
+                        <boxGeometry args={[sillWidth, 0.07, 0.2]} />
+                        {stone}
+                    </mesh>
+                    <FlowerVase position={[0, 0, 0.19]} seed={`sill${window.x},${window.z}`} scale={0.9} seeThrough={seeThrough} />
+                </group>
             ))}
-            {[-hall / 4, hall / 4].map(z => (
-                <WindowPane key={`east-${z}`} position={[east, 0, z]} rotationY={-Math.PI / 2} seeThrough={seeThrough} />
-            ))}
+            <InstancedPart geometry={UNIT_BOX} matrices={glazing.bars}>
+                {bronze}
+            </InstancedPart>
+            <InstancedPart geometry={UNIT_PANE} matrices={glazing.panes} colors={glazing.paneColors}>
+                {stained}
+            </InstancedPart>
+            <InstancedPart geometry={UNIT_DISC} matrices={glazing.discs} colors={glazing.discColors}>
+                {stained}
+            </InstancedPart>
+            <InstancedPart geometry={PETAL} matrices={glazing.petals} colors={glazing.petalColors}>
+                {stained}
+            </InstancedPart>
+            <InstancedPart geometry={UNIT_OCTAGON} matrices={glazing.rosettes}>
+                {gilt}
+            </InstancedPart>
+            <InstancedPart geometry={UNIT_BALL} matrices={glazing.bosses}>
+                {gilt}
+            </InstancedPart>
         </group>
     );
 }

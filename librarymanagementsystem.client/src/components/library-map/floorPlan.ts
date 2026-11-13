@@ -40,16 +40,48 @@ export function flightFrame(hall: number, storey: number) {
     return { length, centre: hall / 2 - length / 2, start: hall / 2 - length, end: hall / 2 };
 }
 
-export const WINDOW_WIDTH = 1.2;
-export const WINDOW_HEIGHT = 1.7;
-/** The windows start well above the panelling, leaving a band of plain wall under each. */
+/** Width of the opening of the tall round-headed windows on the walls. */
+export const WINDOW_WIDTH = 2.6;
+/** The windows start well above the panelling and the low bookcases, leaving a band of plain wall under each. */
 export const WINDOW_SILL = 2.2;
+/** Width of the band of dressed stone round a window. */
+export const WINDOW_SURROUND = 0.22;
+/** Height of the entablature along the top of the walls: architrave, frieze and cornice. */
+export const ENTABLATURE_HEIGHT = 1.04;
+/** Distance from the middle of a wall to its first window, and from one window to the next. */
+const ARCH_FIRST = 3.9;
+const ARCH_SPACING = 4;
 
-/** X positions of the windows along the back wall: spaced evenly each side of the north door. */
-export function backWindowXs(hall: number): number[] {
-    const xs: number[] = [];
-    for (let x = 3.2; x <= hall / 2 - 1.5; x += 3.4) xs.push(-x, x);
-    return xs.sort((a, b) => a - b);
+/**
+ * Height of the straight sides of a window, under its round head, on a wall `wallHeight` tall: the windows rise most of
+ * the way up the wall and stop a little short of the entablature.
+ */
+export function windowStraight(wallHeight: number): number {
+    const head = WINDOW_WIDTH / 2 + WINDOW_SURROUND;
+    return Math.min(4.6, Math.max(1.6, wallHeight - ENTABLATURE_HEIGHT - 0.75 - head - WINDOW_SILL));
+}
+
+/** One of the tall windows on a wall: the middle of its sill line on the wall's inside face, and the turn that faces it into the hall. */
+export interface WallWindow {
+    x: number;
+    z: number;
+    rotationY: number;
+}
+
+/**
+ * Where the windows stand: the same row on the back, east and west walls, spaced evenly either side of the middle of the
+ * wall (where the north door, the stairs and the main door are) and stopping short of the corners. The front wall is glass.
+ */
+export function wallWindows(hall: number): WallWindow[] {
+    const offsets: number[] = [];
+    const reach = hall / 2 - WINDOW_WIDTH / 2 - WINDOW_SURROUND - 0.9;
+    for (let along = ARCH_FIRST; along <= reach; along += ARCH_SPACING) offsets.push(-along, along);
+    offsets.sort((a, b) => a - b);
+    return [
+        ...offsets.map(x => ({ x, z: -hall / 2, rotationY: 0 })),
+        ...offsets.map(z => ({ x: hall / 2, z, rotationY: -Math.PI / 2 })),
+        ...offsets.map(z => ({ x: -hall / 2, z, rotationY: Math.PI / 2 })),
+    ];
 }
 
 /** Half the width of a door with its frame; the panelling stops this far either side of a door's middle. */
@@ -68,12 +100,18 @@ export const COLUMN_RADIUS = 0.2;
 export const COLUMN_BASE_HALF = 0.25;
 /** Width of the carpet that runs down each arm of the cross. */
 export const WALKWAY_WIDTH = 1.4;
-/** Distance from the middle of a carpet arm to its columns: just off the carpet's edge, inside the aisle the shelves keep clear. */
-const COLUMN_OFFSET = WALKWAY_WIDTH / 2 + 0.28;
+/**
+ * Distance from the middle of a carpet arm to its columns: the two lines of an arm stand 3 apart, well off the carpet's
+ * edges but still inside the aisle the shelves keep clear (half of CROSS_GAP).
+ */
+const COLUMN_OFFSET = 1.5;
 /** Distance between the two columns of a colonnade. */
-export const COLUMN_SPACING = 3;
-/** Nearest a column stands to the crossing, where the two carpets meet; the same either side of it. */
-const COLUMN_FIRST = 1.6;
+export const COLUMN_SPACING = 5;
+/**
+ * Nearest a column stands to the crossing, where the two carpets meet; the same either side of it. Further out than
+ * COLUMN_OFFSET, so the first columns of two neighbouring arms do not crowd each other at the corners of the crossing.
+ */
+const COLUMN_FIRST = 2.6;
 /** Every colonnade has this many columns. */
 const COLUMNS_PER_LINE = 2;
 
