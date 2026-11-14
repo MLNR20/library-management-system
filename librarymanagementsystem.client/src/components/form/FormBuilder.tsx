@@ -16,6 +16,8 @@ import { RichTextEditor } from './RichTextEditor.tsx';
 export interface FieldOption {
     label: string;
     value: string;
+    /** Shown but not choosable (a select keeps showing it when it is the current value). */
+    disabled?: boolean;
 }
 
 interface BaseField<TValues extends FieldValues> {
@@ -206,7 +208,7 @@ function FieldControl<TValues extends FieldValues>({
                 <select {...common} {...register(field.name)} className={`select w-full ${error ? 'select-error' : ''}`}>
                     <option value="">{field.placeholder ?? 'Select...'}</option>
                     {field.options.map(option => (
-                        <option key={option.value} value={option.value}>
+                        <option key={option.value} value={option.value} disabled={option.disabled}>
                             {option.label}
                         </option>
                     ))}

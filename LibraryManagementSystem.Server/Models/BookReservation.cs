@@ -40,6 +40,11 @@ namespace LibraryManagementSystem.Server.Models
 
         public BookReservationStatus Status { get; set; } = BookReservationStatus.Reserved;
 
+        // Optimistic concurrency token (SQL Server rowversion), like Book.RowVersion: if a student cancels while a librarian
+        // hands the book over, or two librarians approve the same return, the second save fails with a 409.
+        [Timestamp]
+        public byte[] RowVersion { get; set; } = [];
+
         public DateTime ReservedAtUtc { get; set; }
 
         // Set when the student collects it, together with the loan.

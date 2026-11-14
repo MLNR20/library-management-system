@@ -5,7 +5,8 @@ import { createDataTableColumnHelper } from '../components/data-table/tableConfi
 import type { DataTableFilter } from '../components/data-table/tableConfig.ts';
 import type { FormField } from '../components/form/FormBuilder.tsx';
 import { authorHooks, bookHooks, bookStatusLabels, genreHooks, languageHooks, rowHooks, rowLabel } from '../api/resources.ts';
-import type { Book, BookStatus } from '../api/resources.ts';
+import { BookStatus } from '../api/resources.ts';
+import type { Book } from '../api/resources.ts';
 
 const statusBadge: Record<string, string> = {
     Available: 'badge-success',
@@ -39,12 +40,20 @@ const columns = helper.columns([
 
 const statusOptions = Object.entries(bookStatusLabels).map(([value, label]) => ({ value, label }));
 
+// Staff can only set these by hand. The others belong to lending (the server's Book state machine rejects them with a 409);
+// they stay in the list, greyed out, so a book that is out or held still shows its current status in the form.
+const staffSettableStatuses: BookStatus[] = [BookStatus.Available, BookStatus.Lost, BookStatus.Damaged];
+const formStatusOptions = statusOptions.map(option => ({
+    ...option,
+    disabled: !staffSettableStatuses.includes(Number(option.value) as BookStatus),
+}));
+
 const bookSchema = z.object({
     title: z.string().trim().min(1, 'Title is required').max(300, 'Title must be at most 300 characters'),
     isbn: z.string().trim().min(1, 'ISBN is required').max(17, 'ISBN must be at most 17 characters'),
     edition: z.string().trim().max(50, 'Edition must be at most 50 characters').optional(),
     pages: z.number({ error: 'Enter the number of pages' }).int('Pages must be a whole number').min(1, 'At least 1 page'),
-    status: z.enum(['0', '1', '2', '3', '4']),
+    status: z.enum(['0', '1', '2', '3', '4', '5']),
     dateAcquired: z.string().min(1, 'Pick the date acquired'),
     genreId: z.string().min(1, 'Select a genre'),
     authorIds: z.array(z.string()).min(1, 'Select at least one author'),
@@ -67,7 +76,7 @@ export function BooksPage() {
             { name: 'pages', label: 'Pages', type: 'number', min: 1 },
             { name: 'dateAcquired', label: 'Date acquired', type: 'date' },
             { name: 'genreId', label: 'Genre', type: 'select', placeholder: 'Select a genre', options: (genres ?? []).map(g => ({ value: g.id, label: g.name })) },
-            { name: 'status', label: 'Status', type: 'select', options: statusOptions },
+            { name: 'status', label: 'Status', type: 'select', options: formStatusOptions, description: 'Borrowed, reserved and return pending are set by lending, not here.' },
             { name: 'authorIds', label: 'Authors', type: 'checkboxGroup', options: (authors ?? []).map(a => ({ value: a.id, label: a.name })) },
             { name: 'languageIds', label: 'Languages', type: 'checkboxGroup', options: (languages ?? []).map(l => ({ value: l.id, label: l.name })) },
             { name: 'rowIds', label: 'Shelved in', type: 'checkboxGroup', span: 2, description: 'Pick every row this book is placed in.', options: (rows ?? []).map(r => ({ value: r.id, label: rowLabel(r) })) },

@@ -123,6 +123,41 @@ namespace LibraryManagementSystem.Server.Tests.Data
             await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => librarian.SaveChangesAsync());
         }
 
+        // Changes only the reservation row (the book is untouched), so this is the reservation's own token at work.
+        [SqlServerFact]
+        public async Task Two_people_deciding_the_same_reservation_at_once_cannot_both_succeed()
+        {
+            var bookId = await SeedBookAsync();
+            Guid reservationId;
+            await using (var setup = NewContext())
+            {
+                var student = new ApplicationUser { Id = "student-1", UserName = "reader", NormalizedUserName = "READER" };
+                setup.Users.Add(student);
+                var reservation = new BookReservation
+                {
+                    Id = Guid.NewGuid(),
+                    BookId = bookId,
+                    StudentId = student.Id,
+                    ReservedAtUtc = DateTime.UtcNow
+                };
+                setup.BookReservations.Add(reservation);
+                await setup.SaveChangesAsync();
+                reservationId = reservation.Id;
+            }
+
+            await using var first = NewContext();
+            await using var second = NewContext();
+            var firstCopy = await first.BookReservations.SingleAsync(r => r.Id == reservationId);
+            var secondCopy = await second.BookReservations.SingleAsync(r => r.Id == reservationId);
+            Assert.NotEmpty(firstCopy.RowVersion);
+
+            firstCopy.MarkReturnRequested(DateTime.UtcNow);
+            secondCopy.MarkReturnRequested(DateTime.UtcNow);
+
+            await first.SaveChangesAsync();
+            await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => second.SaveChangesAsync());
+        }
+
         [SqlServerFact]
         public async Task A_save_that_follows_a_reload_succeeds()
         {
