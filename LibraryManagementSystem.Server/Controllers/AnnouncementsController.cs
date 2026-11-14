@@ -1,5 +1,6 @@
 using LibraryManagementSystem.Server.Dtos.Announcements;
 using LibraryManagementSystem.Server.Services;
+using LibraryManagementSystem.Server.Settings;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -29,6 +30,7 @@ namespace LibraryManagementSystem.Server.Controllers
             return announcement is null ? NotFound() : Ok(announcement);
         }
 
+        [Authorize(Roles = AppRoles.Staff)]
         [HttpPost]
         public async Task<ActionResult<AnnouncementDto>> Create(AnnouncementRequest request, CancellationToken cancellationToken)
         {
@@ -44,6 +46,7 @@ namespace LibraryManagementSystem.Server.Controllers
             }
         }
 
+        [Authorize(Roles = AppRoles.Staff)]
         [HttpPut("{id:guid}")]
         public async Task<ActionResult<AnnouncementDto>> Update(Guid id, AnnouncementRequest request, CancellationToken cancellationToken)
         {
@@ -59,6 +62,7 @@ namespace LibraryManagementSystem.Server.Controllers
             }
         }
 
+        [Authorize(Roles = AppRoles.Staff)]
         [HttpDelete("{id:guid}")]
         public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken) =>
             await announcements.DeleteAsync(id, cancellationToken) ? NoContent() : NotFound();

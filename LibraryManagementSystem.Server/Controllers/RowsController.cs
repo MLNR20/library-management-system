@@ -1,5 +1,6 @@
 using LibraryManagementSystem.Server.Dtos.Rows;
 using LibraryManagementSystem.Server.Services;
+using LibraryManagementSystem.Server.Settings;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -23,6 +24,7 @@ namespace LibraryManagementSystem.Server.Controllers
             return row is null ? NotFound() : Ok(row);
         }
 
+        [Authorize(Roles = AppRoles.Staff)]
         [HttpPost]
         public async Task<ActionResult<RowDto>> Create(RowRequest request, CancellationToken cancellationToken)
         {
@@ -38,6 +40,7 @@ namespace LibraryManagementSystem.Server.Controllers
             }
         }
 
+        [Authorize(Roles = AppRoles.Staff)]
         [HttpPut("{id:guid}")]
         public async Task<ActionResult<RowDto>> Update(Guid id, RowRequest request, CancellationToken cancellationToken)
         {
@@ -53,6 +56,7 @@ namespace LibraryManagementSystem.Server.Controllers
             }
         }
 
+        [Authorize(Roles = AppRoles.Staff)]
         [HttpDelete("{id:guid}")]
         public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
         {

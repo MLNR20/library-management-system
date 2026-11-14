@@ -1,5 +1,6 @@
 using LibraryManagementSystem.Server.Dtos.Floors;
 using LibraryManagementSystem.Server.Services;
+using LibraryManagementSystem.Server.Settings;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -23,6 +24,7 @@ namespace LibraryManagementSystem.Server.Controllers
             return floor is null ? NotFound() : Ok(floor);
         }
 
+        [Authorize(Roles = AppRoles.Staff)]
         [HttpPost]
         public async Task<ActionResult<FloorDto>> Create(FloorRequest request, CancellationToken cancellationToken)
         {
@@ -31,6 +33,7 @@ namespace LibraryManagementSystem.Server.Controllers
             return CreatedAtAction(nameof(GetById), new { id = floor.Id }, floor);
         }
 
+        [Authorize(Roles = AppRoles.Staff)]
         [HttpPut("{id:guid}")]
         public async Task<ActionResult<FloorDto>> Update(Guid id, FloorRequest request, CancellationToken cancellationToken)
         {
@@ -39,6 +42,7 @@ namespace LibraryManagementSystem.Server.Controllers
             return floor is null ? NotFound() : Ok(floor);
         }
 
+        [Authorize(Roles = AppRoles.Staff)]
         [HttpDelete("{id:guid}")]
         public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
         {

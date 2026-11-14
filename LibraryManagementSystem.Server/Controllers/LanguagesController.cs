@@ -1,5 +1,6 @@
 using LibraryManagementSystem.Server.Dtos.Languages;
 using LibraryManagementSystem.Server.Services;
+using LibraryManagementSystem.Server.Settings;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -23,6 +24,7 @@ namespace LibraryManagementSystem.Server.Controllers
             return language is null ? NotFound() : Ok(language);
         }
 
+        [Authorize(Roles = AppRoles.Staff)]
         [HttpPost]
         public async Task<ActionResult<LanguageDto>> Create(LanguageRequest request, CancellationToken cancellationToken)
         {
@@ -31,6 +33,7 @@ namespace LibraryManagementSystem.Server.Controllers
             return CreatedAtAction(nameof(GetById), new { id = language.Id }, language);
         }
 
+        [Authorize(Roles = AppRoles.Staff)]
         [HttpPut("{id:guid}")]
         public async Task<ActionResult<LanguageDto>> Update(Guid id, LanguageRequest request, CancellationToken cancellationToken)
         {
@@ -39,6 +42,7 @@ namespace LibraryManagementSystem.Server.Controllers
             return language is null ? NotFound() : Ok(language);
         }
 
+        [Authorize(Roles = AppRoles.Staff)]
         [HttpDelete("{id:guid}")]
         public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken) =>
             await languages.DeleteAsync(id, cancellationToken) ? NoContent() : NotFound();

@@ -1,5 +1,6 @@
 using LibraryManagementSystem.Server.Dtos.Contacts;
 using LibraryManagementSystem.Server.Services;
+using LibraryManagementSystem.Server.Settings;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -23,6 +24,7 @@ namespace LibraryManagementSystem.Server.Controllers
             return contact is null ? NotFound() : Ok(contact);
         }
 
+        [Authorize(Roles = AppRoles.Staff)]
         [HttpPost]
         public async Task<ActionResult<ContactDto>> Create(ContactRequest request, CancellationToken cancellationToken)
         {
@@ -31,6 +33,7 @@ namespace LibraryManagementSystem.Server.Controllers
             return CreatedAtAction(nameof(GetById), new { id = contact.Id }, contact);
         }
 
+        [Authorize(Roles = AppRoles.Staff)]
         [HttpPut("{id:guid}")]
         public async Task<ActionResult<ContactDto>> Update(Guid id, ContactRequest request, CancellationToken cancellationToken)
         {
@@ -39,6 +42,7 @@ namespace LibraryManagementSystem.Server.Controllers
             return contact is null ? NotFound() : Ok(contact);
         }
 
+        [Authorize(Roles = AppRoles.Staff)]
         [HttpDelete("{id:guid}")]
         public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken) =>
             await contacts.DeleteAsync(id, cancellationToken) ? NoContent() : NotFound();

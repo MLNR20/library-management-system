@@ -1,5 +1,6 @@
 using LibraryManagementSystem.Server.Dtos.Shelves;
 using LibraryManagementSystem.Server.Services;
+using LibraryManagementSystem.Server.Settings;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -23,6 +24,7 @@ namespace LibraryManagementSystem.Server.Controllers
             return shelf is null ? NotFound() : Ok(shelf);
         }
 
+        [Authorize(Roles = AppRoles.Staff)]
         [HttpPost]
         public async Task<ActionResult<ShelfDto>> Create(ShelfRequest request, CancellationToken cancellationToken)
         {
@@ -38,6 +40,7 @@ namespace LibraryManagementSystem.Server.Controllers
             }
         }
 
+        [Authorize(Roles = AppRoles.Staff)]
         [HttpPut("{id:guid}")]
         public async Task<ActionResult<ShelfDto>> Update(Guid id, ShelfRequest request, CancellationToken cancellationToken)
         {
@@ -57,6 +60,7 @@ namespace LibraryManagementSystem.Server.Controllers
             }
         }
 
+        [Authorize(Roles = AppRoles.Staff)]
         [HttpDelete("{id:guid}")]
         public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
         {

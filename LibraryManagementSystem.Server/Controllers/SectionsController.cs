@@ -1,5 +1,6 @@
 using LibraryManagementSystem.Server.Dtos.Sections;
 using LibraryManagementSystem.Server.Services;
+using LibraryManagementSystem.Server.Settings;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -23,6 +24,7 @@ namespace LibraryManagementSystem.Server.Controllers
             return section is null ? NotFound() : Ok(section);
         }
 
+        [Authorize(Roles = AppRoles.Staff)]
         [HttpPost]
         public async Task<ActionResult<SectionDto>> Create(SectionRequest request, CancellationToken cancellationToken)
         {
@@ -39,6 +41,7 @@ namespace LibraryManagementSystem.Server.Controllers
             }
         }
 
+        [Authorize(Roles = AppRoles.Staff)]
         [HttpPut("{id:guid}")]
         public async Task<ActionResult<SectionDto>> Update(Guid id, SectionRequest request, CancellationToken cancellationToken)
         {
@@ -54,6 +57,7 @@ namespace LibraryManagementSystem.Server.Controllers
             }
         }
 
+        [Authorize(Roles = AppRoles.Staff)]
         [HttpDelete("{id:guid}")]
         public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
         {

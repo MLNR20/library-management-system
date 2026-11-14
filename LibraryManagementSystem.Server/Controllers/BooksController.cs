@@ -1,6 +1,7 @@
 using LibraryManagementSystem.Server.Dtos.Books;
 using LibraryManagementSystem.Server.Services;
 using LibraryManagementSystem.Server.Services.Exports;
+using LibraryManagementSystem.Server.Settings;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -43,6 +44,7 @@ namespace LibraryManagementSystem.Server.Controllers
             return book is null ? NotFound() : Ok(book);
         }
 
+        [Authorize(Roles = AppRoles.Staff)]
         [HttpPost]
         public async Task<ActionResult<BookDto>> Create(BookRequest request, CancellationToken cancellationToken)
         {
@@ -58,6 +60,7 @@ namespace LibraryManagementSystem.Server.Controllers
             }
         }
 
+        [Authorize(Roles = AppRoles.Staff)]
         [HttpPut("{id:guid}")]
         public async Task<ActionResult<BookDto>> Update(Guid id, BookRequest request, CancellationToken cancellationToken)
         {
@@ -73,6 +76,7 @@ namespace LibraryManagementSystem.Server.Controllers
             }
         }
 
+        [Authorize(Roles = AppRoles.Staff)]
         [HttpDelete("{id:guid}")]
         public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken) =>
             await books.DeleteAsync(id, cancellationToken) ? NoContent() : NotFound();
