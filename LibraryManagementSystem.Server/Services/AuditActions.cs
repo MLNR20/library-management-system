@@ -21,6 +21,11 @@ namespace LibraryManagementSystem.Server.Services
 
         public const string BookBorrowed = "Borrowing.Borrowed";
         public const string BookReturned = "Borrowing.Returned";
+        public const string BookReturnRequested = "Borrowing.ReturnRequested";
+
+        public const string BookReserved = "BookReservation.Reserved";
+        public const string BookReservationCancelled = "BookReservation.Cancelled";
+        public const string BookCollected = "BookReservation.Collected";
 
         public const string TableRequested = "Table.Requested";
         public const string TableApproved = "Table.Approved";

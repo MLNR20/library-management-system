@@ -7,6 +7,7 @@ export const statusColors: Record<BookStatus, string> = {
     [BookStatus.Reserved]: '#60a5fa',
     [BookStatus.Lost]: '#f87171',
     [BookStatus.Damaged]: '#9ca3af',
+    [BookStatus.ReturnPending]: '#c084fc',
 };
 
 /** Each section gets its own colour, used for the plate under its shelf and for the legend. */

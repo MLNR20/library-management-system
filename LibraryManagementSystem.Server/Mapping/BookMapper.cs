@@ -15,17 +15,20 @@ namespace LibraryManagementSystem.Server.Mapping
         [MapperRequiredMapping(RequiredMappingStrategy.Target)]
         public static partial BookDto ToDto(Book book);
 
-        // Genre, Authors, Languages and Rows are resolved from their ids by BookService, not mapped here.
+        // Genre, Authors, Languages and Rows are resolved from their ids by BookService, not mapped here. Status is not
+        // mapped either: Book.ChangeCondition applies it through the state machine.
         [MapperRequiredMapping(RequiredMappingStrategy.Source)]
         [MapperIgnoreSource(nameof(BookRequest.AuthorIds))]
         [MapperIgnoreSource(nameof(BookRequest.LanguageIds))]
         [MapperIgnoreSource(nameof(BookRequest.RowIds))]
+        [MapperIgnoreSource(nameof(BookRequest.Status))]
         public static partial Book ToEntity(BookRequest request);
 
         [MapperRequiredMapping(RequiredMappingStrategy.Source)]
         [MapperIgnoreSource(nameof(BookRequest.AuthorIds))]
         [MapperIgnoreSource(nameof(BookRequest.LanguageIds))]
         [MapperIgnoreSource(nameof(BookRequest.RowIds))]
+        [MapperIgnoreSource(nameof(BookRequest.Status))]
         public static partial void Apply(BookRequest request, [MappingTarget] Book book);
     }
 }

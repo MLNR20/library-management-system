@@ -267,13 +267,13 @@ namespace LibraryManagementSystem.Server.Data
                     Isbn = isbn,
                     Edition = index % 4 == 0 ? "Revised edition" : "First edition",
                     Pages = seed.Pages,
-                    Status = StatusFor(index),
                     DateAcquired = new DateOnly(2019, 1, 1).AddDays(index * 17 % 2800),
                     GenreId = genres[seed.Genre].Id,
                     Authors = seed.Authors.Split(';', StringSplitOptions.TrimEntries).Select(name => authors[name]).ToList(),
                     Languages = LanguagesFor(seed, languages)
                 };
 
+                book.ChangeCondition(StatusFor(index));
                 book.Rows.Add(rowByGenre[seed.Genre]);
 
                 db.Books.Add(book);

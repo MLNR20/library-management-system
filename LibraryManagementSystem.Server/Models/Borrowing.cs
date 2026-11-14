@@ -28,6 +28,9 @@ namespace LibraryManagementSystem.Server.Models
         // Null while the book is still out.
         public DateTime? ReturnedAtUtc { get; set; }
 
+        // When the borrower said they had brought it back. Set until a librarian approves, which closes the loan.
+        public DateTime? ReturnRequestedAtUtc { get; set; }
+
         // Final penalty once returned; while the book is out it is the last amount the overdue monitor wrote.
         [Range(0, double.MaxValue)]
         public decimal PenaltyAmount { get; set; }
@@ -66,7 +69,25 @@ namespace LibraryManagementSystem.Server.Models
                 throw new BorrowingException($"'{book.Title}' is not active and cannot be borrowed (it is {book.Status.ToString().ToLowerInvariant()}).");
             }
 
-            book.Status = BookStatus.Borrowed;
+            return Open(book, user, nowUtc, loanPeriod);
+        }
+
+        // Opens the loan for the student a book is reserved for (BookReservation.Collect checks it is theirs).
+        public static Borrowing StartReserved(Book book, ApplicationUser user, IEnumerable<string> roles, DateTime nowUtc, TimeSpan loanPeriod)
+        {
+            EnsureCanBorrow(user, roles, nowUtc);
+
+            if (book.Status != BookStatus.Reserved)
+            {
+                throw new BorrowingException($"'{book.Title}' is not reserved (it is {book.Status.ToString().ToLowerInvariant()}).");
+            }
+
+            return Open(book, user, nowUtc, loanPeriod);
+        }
+
+        private static Borrowing Open(Book book, ApplicationUser user, DateTime nowUtc, TimeSpan loanPeriod)
+        {
+            book.TransitionTo(BookStatus.Borrowed);
 
             return new Borrowing
             {
@@ -79,7 +100,29 @@ namespace LibraryManagementSystem.Server.Models
             };
         }
 
-        // Closes the loan, freezes the penalty and makes the book available again. Book must be loaded.
+        // The borrower says the book is back. It stays out, and keeps its penalty clock, until a librarian approves with
+        // Return; meanwhile the book is ReturnPending. Book must be loaded.
+        public void RequestReturn(DateTime nowUtc)
+        {
+            if (IsReturned)
+            {
+                throw new BorrowingException("This book has already been returned.");
+            }
+
+            if (ReturnRequestedAtUtc is not null)
+            {
+                throw new BorrowingException("A return has already been requested and is waiting for a librarian.");
+            }
+
+            ReturnRequestedAtUtc = nowUtc;
+
+            if (Book.Status == BookStatus.Borrowed)
+            {
+                Book.TransitionTo(BookStatus.ReturnPending);
+            }
+        }
+
+        // A librarian approves: closes the loan, freezes the penalty and makes the book available again. Book must be loaded.
         public void Return(DateTime nowUtc, decimal penaltyPerDay)
         {
             if (IsReturned)
@@ -90,9 +133,9 @@ namespace LibraryManagementSystem.Server.Models
             ReturnedAtUtc = nowUtc;
             PenaltyAmount = CalculatePenalty(nowUtc, penaltyPerDay);
 
-            if (Book.Status == BookStatus.Borrowed)
+            if (Book.Status is BookStatus.Borrowed or BookStatus.ReturnPending)
             {
-                Book.Status = BookStatus.Available;
+                Book.TransitionTo(BookStatus.Available);
             }
         }
 

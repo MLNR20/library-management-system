@@ -8,7 +8,8 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace LibraryManagementSystem.Server.Controllers
 {
-    // Students and visitors borrow for themselves; administrators see every loan and may lend or return for anyone.
+    // Students and visitors borrow for themselves and ask to return; librarians and administrators see every loan and approve
+    // returns. Administrators may also lend for anyone.
     // Whether the borrower may borrow at all (active, Student/Visitor role) is enforced by the Borrowing model.
     [ApiController]
     [Authorize]
@@ -18,7 +19,7 @@ namespace LibraryManagementSystem.Server.Controllers
         [HttpGet]
         public async Task<ActionResult<IReadOnlyList<BorrowingDto>>> GetAll(
             [FromQuery] BorrowingFilter filter, [FromQuery] string? userId, CancellationToken cancellationToken) =>
-            Ok(await borrowings.GetAsync(CurrentUserId(), IsAdministrator(), userId, filter, cancellationToken));
+            Ok(await borrowings.GetAsync(CurrentUserId(), IsStaff(), userId, filter, cancellationToken));
 
         [HttpPost]
         public async Task<ActionResult<BorrowingDto>> Borrow(BorrowRequest request, CancellationToken cancellationToken)
@@ -45,18 +46,27 @@ namespace LibraryManagementSystem.Server.Controllers
             }
         }
 
+        // The borrower says the book is back. It is not returned until a librarian approves (approve-return).
         [HttpPost("{id:guid}/return")]
-        public async Task<ActionResult<BorrowingDto>> Return(Guid id, CancellationToken cancellationToken)
+        public Task<ActionResult<BorrowingDto>> RequestReturn(Guid id, CancellationToken cancellationToken) =>
+            RunAsync(() => borrowings.RequestReturnAsync(id, CurrentUserId(), IsStaff(), cancellationToken));
+
+        [HttpPost("{id:guid}/approve-return")]
+        [Authorize(Roles = AppRoles.Staff)]
+        public Task<ActionResult<BorrowingDto>> ApproveReturn(Guid id, CancellationToken cancellationToken) =>
+            RunAsync(() => borrowings.ApproveReturnAsync(id, CurrentUserName(), cancellationToken));
+
+        private async Task<ActionResult<BorrowingDto>> RunAsync(Func<Task<BorrowingDto?>> action)
         {
             try
             {
-                var borrowing = await borrowings.ReturnAsync(id, CurrentUserId(), IsAdministrator(), cancellationToken);
+                var borrowing = await action();
                 if (borrowing is null)
                 {
                     return NotFound();
                 }
 
-                await notifier.BorrowingChangedAsync(borrowing, cancellationToken);
+                await notifier.BorrowingChangedAsync(borrowing);
 
                 return Ok(borrowing);
             }
@@ -71,6 +81,11 @@ namespace LibraryManagementSystem.Server.Controllers
         }
 
         private bool IsAdministrator() => User.IsInRole(AppRoles.Administrator);
+
+        private bool IsStaff() => IsAdministrator() || User.IsInRole(AppRoles.Librarian);
+
+        private string CurrentUserName() =>
+            User.FindFirstValue(ClaimTypes.Name) ?? User.FindFirstValue("unique_name") ?? CurrentUserId();
 
         private string CurrentUserId() =>
             User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub")

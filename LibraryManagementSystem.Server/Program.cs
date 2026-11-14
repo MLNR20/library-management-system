@@ -33,6 +33,7 @@ try
     builder.Services.AddControllers(options => options.Filters.Add<ValidationFilter>());
     builder.Services.AddProblemDetails();
     builder.Services.AddExceptionHandler<UniqueConstraintExceptionHandler>();
+    builder.Services.AddExceptionHandler<ConflictExceptionHandler>();
     builder.Services.AddExceptionHandler<IdentityExceptionHandler>();
     builder.Services.AddHttpContextAccessor();
     // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -153,6 +154,7 @@ try
         .ValidateOnStart();
     builder.Services.AddSignalR();
     builder.Services.AddScoped<IBorrowingService, BorrowingService>();
+    builder.Services.AddScoped<IBookReservationService, BookReservationService>();
     builder.Services.AddSingleton<IBorrowingNotifier, SignalRBorrowingNotifier>();
     builder.Services.AddHostedService<OverdueBorrowingMonitor>();
 

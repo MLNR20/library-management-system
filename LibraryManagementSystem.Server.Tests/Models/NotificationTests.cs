@@ -12,7 +12,7 @@ namespace LibraryManagementSystem.Server.Tests.Models
         // An open loan due `dueIn` from Now (negative = already late).
         private static Borrowing LoanDue(TimeSpan dueIn)
         {
-            var book = new Book { Id = Guid.NewGuid(), Title = "Dune", Status = BookStatus.Available };
+            var book = new Book { Id = Guid.NewGuid(), Title = "Dune" };
             var user = new ApplicationUser { Id = "user-1", UserName = "reader", IsActive = true };
             var loan = Borrowing.Start(book, user, [AppRoles.Student], Now - TimeSpan.FromDays(14), TimeSpan.FromDays(14));
             loan.Id = Guid.NewGuid();

@@ -27,6 +27,7 @@ namespace LibraryManagementSystem.Server.Services
         public async Task<BookDto> CreateAsync(BookRequest request, CancellationToken cancellationToken = default)
         {
             var book = BookMapper.ToEntity(request);
+            book.ChangeCondition(request.Status);
             await ResolveRelationsAsync(book, request, cancellationToken);
 
             await unitOfWork.Books.AddAsync(book, cancellationToken);
@@ -46,6 +47,7 @@ namespace LibraryManagementSystem.Server.Services
             }
 
             BookMapper.Apply(request, book);
+            book.ChangeCondition(request.Status);
             await ResolveRelationsAsync(book, request, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
 

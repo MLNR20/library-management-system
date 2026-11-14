@@ -40,6 +40,7 @@ export const BookStatus = {
     Reserved: 2,
     Lost: 3,
     Damaged: 4,
+    ReturnPending: 5,
 } as const;
 export type BookStatus = (typeof BookStatus)[keyof typeof BookStatus];
 
@@ -49,6 +50,7 @@ export const bookStatusLabels: Record<BookStatus, string> = {
     [BookStatus.Reserved]: 'Reserved',
     [BookStatus.Lost]: 'Lost',
     [BookStatus.Damaged]: 'Damaged',
+    [BookStatus.ReturnPending]: 'Return pending',
 };
 
 export interface Floor {

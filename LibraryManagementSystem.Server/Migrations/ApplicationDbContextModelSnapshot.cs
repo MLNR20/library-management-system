@@ -263,6 +263,12 @@ namespace LibraryManagementSystem.Server.Migrations
                     b.Property<int>("Pages")
                         .HasColumnType("int");
 
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -283,6 +289,57 @@ namespace LibraryManagementSystem.Server.Migrations
                     b.ToTable("Books");
                 });
 
+            modelBuilder.Entity("LibraryManagementSystem.Server.Models.BookReservation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("BookId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("BorrowingId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("ReservedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ReturnApprovedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ReturnApprovedByName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime?>("ReturnRequestedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("StudentId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BookId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_BookReservations_BookId_Open")
+                        .HasFilter("[Status] IN ('Reserved', 'Borrowed', 'ReturnRequested')");
+
+                    b.HasIndex("BorrowingId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("StudentId", "ReservedAtUtc");
+
+                    b.ToTable("BookReservations");
+                });
+
             modelBuilder.Entity("LibraryManagementSystem.Server.Models.Borrowing", b =>
                 {
                     b.Property<Guid>("Id")
@@ -301,6 +358,9 @@ namespace LibraryManagementSystem.Server.Migrations
                     b.Property<decimal>("PenaltyAmount")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("ReturnRequestedAtUtc")
+                        .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("ReturnedAtUtc")
                         .HasColumnType("datetime2");
@@ -1089,6 +1149,32 @@ namespace LibraryManagementSystem.Server.Migrations
                         .IsRequired();
 
                     b.Navigation("Genre");
+                });
+
+            modelBuilder.Entity("LibraryManagementSystem.Server.Models.BookReservation", b =>
+                {
+                    b.HasOne("LibraryManagementSystem.Server.Models.Book", "Book")
+                        .WithMany()
+                        .HasForeignKey("BookId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("LibraryManagementSystem.Server.Models.Borrowing", "Borrowing")
+                        .WithMany()
+                        .HasForeignKey("BorrowingId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("LibraryManagementSystem.Server.Data.ApplicationUser", "Student")
+                        .WithMany()
+                        .HasForeignKey("StudentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Book");
+
+                    b.Navigation("Borrowing");
+
+                    b.Navigation("Student");
                 });
 
             modelBuilder.Entity("LibraryManagementSystem.Server.Models.Borrowing", b =>

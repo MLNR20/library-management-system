@@ -23,6 +23,7 @@ namespace LibraryManagementSystem.Server.Data
         public DbSet<TimeCard> TimeCards => Set<TimeCard>();
         public DbSet<ClockEntry> ClockEntries => Set<ClockEntry>();
         public DbSet<Borrowing> Borrowings => Set<Borrowing>();
+        public DbSet<BookReservation> BookReservations => Set<BookReservation>();
         public DbSet<Contact> Contacts => Set<Contact>();
         public DbSet<Notification> Notifications => Set<Notification>();
         public DbSet<UserSession> UserSessions => Set<UserSession>();
@@ -122,6 +123,21 @@ namespace LibraryManagementSystem.Server.Data
                 borrowing.HasIndex(b => b.DueAtUtc);
                 borrowing.HasOne(b => b.Book).WithMany().HasForeignKey(b => b.BookId).OnDelete(DeleteBehavior.Restrict);
                 borrowing.HasOne(b => b.User).WithMany().HasForeignKey(b => b.UserId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // A student's claim on a book. Reservations are history: a book or user that has them cannot be deleted. The
+            // filtered unique index allows only one open reservation per book even if two students reserve at once.
+            builder.Entity<BookReservation>(reservation =>
+            {
+                reservation.Property(r => r.Status).HasConversion<string>().HasMaxLength(20);
+                reservation.HasIndex(r => r.BookId).IsUnique()
+                    .HasFilter("[Status] IN ('Reserved', 'Borrowed', 'ReturnRequested')").HasDatabaseName("IX_BookReservations_BookId_Open");
+                reservation.HasIndex(r => new { r.StudentId, r.ReservedAtUtc });
+                reservation.HasIndex(r => r.Status);
+                reservation.HasIndex(r => r.BorrowingId);
+                reservation.HasOne(r => r.Book).WithMany().HasForeignKey(r => r.BookId).OnDelete(DeleteBehavior.Restrict);
+                reservation.HasOne(r => r.Student).WithMany().HasForeignKey(r => r.StudentId).OnDelete(DeleteBehavior.Restrict);
+                reservation.HasOne(r => r.Borrowing).WithMany().HasForeignKey(r => r.BorrowingId).OnDelete(DeleteBehavior.Restrict);
             });
 
             // One reminder per loan, kind and day, so the reminder job can safely run more than once a day. Notifications

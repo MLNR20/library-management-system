@@ -15,8 +15,23 @@ namespace LibraryManagementSystem.Server.Mapping
             borrowing.BorrowedAtUtc,
             borrowing.DueAtUtc,
             borrowing.ReturnedAtUtc,
+            borrowing.ReturnRequestedAtUtc,
+            borrowing.Book.Status,
+            StatusOf(borrowing),
             borrowing.IsOverdue(nowUtc),
             borrowing.OverdueDays(nowUtc),
             borrowing.IsReturned ? borrowing.PenaltyAmount : borrowing.CalculatePenalty(nowUtc, penaltyPerDay));
+
+        // What the loan is, according to the book that was borrowed.
+        public static BorrowingStatus StatusOf(Borrowing borrowing) =>
+            borrowing.IsReturned
+                ? BorrowingStatus.Returned
+                : borrowing.Book.Status switch
+                {
+                    BookStatus.ReturnPending => BorrowingStatus.ReturnRequested,
+                    BookStatus.Lost => BorrowingStatus.Lost,
+                    BookStatus.Damaged => BorrowingStatus.Damaged,
+                    _ => BorrowingStatus.Borrowed
+                };
     }
 }

@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.SignalR;
 
 namespace LibraryManagementSystem.Server.Hubs
 {
-    // Server-to-client only. Every connection receives its own user's loan events; administrators also receive everyone's.
+    // Server-to-client only. Every connection receives its own user's loan events; administrators and librarians also receive everyone's.
     // Client methods: "BorrowingChanged" (a loan was opened or returned) and "PenaltyUpdated" (an overdue penalty grew),
     // both carrying a BorrowingDto.
     [Authorize]
@@ -17,7 +17,7 @@ namespace LibraryManagementSystem.Server.Hubs
 
         public override async Task OnConnectedAsync()
         {
-            if (Context.User?.IsInRole(AppRoles.Administrator) == true)
+            if (Context.User?.IsInRole(AppRoles.Administrator) == true || Context.User?.IsInRole(AppRoles.Librarian) == true)
             {
                 await Groups.AddToGroupAsync(Context.ConnectionId, AdministratorsGroup);
             }

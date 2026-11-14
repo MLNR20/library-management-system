@@ -12,7 +12,7 @@ namespace LibraryManagementSystem.Server.Tests.Models
 
         private static ApplicationUser ActiveUser() => new() { Id = "user-1", UserName = "reader", IsActive = true };
 
-        private static Book AvailableBook() => new() { Id = Guid.NewGuid(), Title = "Dune", Status = BookStatus.Available };
+        private static Book AvailableBook() => new() { Id = Guid.NewGuid(), Title = "Dune" };
 
         private static Borrowing OpenLoan(DateTime borrowedAt, TimeSpan? period = null)
         {
@@ -128,7 +128,7 @@ namespace LibraryManagementSystem.Server.Tests.Models
         public void Start_rejects_book_that_is_not_available(BookStatus status)
         {
             var book = AvailableBook();
-            book.Status = status;
+            book.TransitionTo(status);
 
             var exception = Assert.Throws<BorrowingException>(
                 () => Borrowing.Start(book, ActiveUser(), [AppRoles.Student], Now, LoanPeriod));
@@ -271,11 +271,10 @@ namespace LibraryManagementSystem.Server.Tests.Models
         [Theory]
         [InlineData(BookStatus.Lost)]
         [InlineData(BookStatus.Damaged)]
-        [InlineData(BookStatus.Reserved)]
         public void Return_does_not_overwrite_a_status_set_while_the_book_was_out(BookStatus statusWhileOut)
         {
             var borrowing = OpenLoan(Now);
-            borrowing.Book.Status = statusWhileOut;
+            borrowing.Book.TransitionTo(statusWhileOut);
 
             borrowing.Return(borrowing.DueAtUtc.AddDays(-1), PenaltyPerDay);
 

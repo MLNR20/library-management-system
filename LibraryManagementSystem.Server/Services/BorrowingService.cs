@@ -69,22 +69,42 @@ namespace LibraryManagementSystem.Server.Services
             return BorrowingMapper.ToDto(borrowing, now, settings.PenaltyPerDay);
         }
 
-        public async Task<BorrowingDto?> ReturnAsync(Guid id, string requesterId, bool isAdministrator, CancellationToken cancellationToken = default)
+        public async Task<BorrowingDto?> RequestReturnAsync(Guid id, string requesterId, bool isStaff, CancellationToken cancellationToken = default)
         {
-            var borrowing = await WithRelations(unitOfWork.Repository<Borrowing>().Query(asNoTracking: false))
-                .FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
+            var borrowing = await FindForUpdateAsync(id, cancellationToken);
             if (borrowing is null)
             {
                 return null;
             }
 
-            if (!isAdministrator && borrowing.UserId != requesterId)
+            if (!isStaff && borrowing.UserId != requesterId)
             {
                 throw new UnauthorizedAccessException("You can only return your own loans.");
             }
 
             var now = DateTime.UtcNow;
-            borrowing.Return(now, settings.PenaltyPerDay);
+            borrowing.RequestReturn(now);
+            (await ReservationOfAsync(id, cancellationToken))?.MarkReturnRequested(now);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await audit.WriteAsync(
+                AuditActions.BookReturnRequested,
+                target: $"{borrowing.Book.Title}: {borrowing.User.UserName}",
+                cancellationToken: cancellationToken);
+
+            return BorrowingMapper.ToDto(borrowing, now, settings.PenaltyPerDay);
+        }
+
+        public async Task<BorrowingDto?> ApproveReturnAsync(Guid id, string approverName, CancellationToken cancellationToken = default)
+        {
+            var borrowing = await FindForUpdateAsync(id, cancellationToken);
+            if (borrowing is null)
+            {
+                return null;
+            }
+
+            var now = DateTime.UtcNow;
+            borrowing.Return(borrowing.ReturnRequestedAtUtc ?? now, settings.PenaltyPerDay);
+            (await ReservationOfAsync(id, cancellationToken))?.MarkReturned(approverName, now);
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await audit.WriteAsync(
                 AuditActions.BookReturned,
@@ -120,6 +140,13 @@ namespace LibraryManagementSystem.Server.Services
 
             return changed.Select(b => BorrowingMapper.ToDto(b, now, settings.PenaltyPerDay)).ToList();
         }
+
+        private Task<Borrowing?> FindForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
+            WithRelations(unitOfWork.Repository<Borrowing>().Query(asNoTracking: false)).FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
+
+        // The reservation this loan came from, if it came from one.
+        private Task<BookReservation?> ReservationOfAsync(Guid borrowingId, CancellationToken cancellationToken) =>
+            unitOfWork.Repository<BookReservation>().Query(asNoTracking: false).FirstOrDefaultAsync(r => r.BorrowingId == borrowingId, cancellationToken);
 
         private static IQueryable<Borrowing> WithRelations(IQueryable<Borrowing> loans) =>
             loans.Include(b => b.Book).Include(b => b.User);

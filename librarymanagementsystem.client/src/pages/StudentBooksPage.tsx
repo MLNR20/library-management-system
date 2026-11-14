@@ -1,8 +1,10 @@
 import { lazy, Suspense, useMemo, useState } from 'react';
+import { Link } from 'react-router';
 import { Page } from '../components/layout/Page.tsx';
 import { RichText } from '../components/ui/RichText.tsx';
 import { announcementHooks, BookStatus, bookHooks, genreHooks, rowLabel } from '../api/resources.ts';
 import type { Book } from '../api/resources.ts';
+import { useReserveBook } from '../api/bookReservations.ts';
 import { getErrorMessage } from '../lib/api.ts';
 import { bookMatchesSearch } from '../lib/bookSearch.ts';
 
@@ -13,6 +15,7 @@ const statusLabel: Record<BookStatus, string> = {
     [BookStatus.Reserved]: 'Reserved',
     [BookStatus.Lost]: 'Unavailable',
     [BookStatus.Damaged]: 'Unavailable',
+    [BookStatus.ReturnPending]: 'Being returned',
 };
 
 const statusBadge: Record<BookStatus, string> = {
@@ -21,6 +24,7 @@ const statusBadge: Record<BookStatus, string> = {
     [BookStatus.Reserved]: 'badge-info',
     [BookStatus.Lost]: 'badge-neutral',
     [BookStatus.Damaged]: 'badge-neutral',
+    [BookStatus.ReturnPending]: 'badge-secondary',
 };
 
 // The 3D scene is heavy, so it loads only when this page is opened.
@@ -39,12 +43,24 @@ export function StudentBooksPage() {
     const [genreId, setGenreId] = useState('');
     const [availableOnly, setAvailableOnly] = useState(true);
     const [selectedId, setSelectedId] = useState<string | null>(null);
+    const reserve = useReserveBook();
+    const [reserved, setReserved] = useState<string>();
+    const [reserveError, setReserveError] = useState<string>();
     const selectedBook = (books.data ?? []).find(book => book.id === selectedId) ?? null;
 
     const showTheWay = (book: Book) => {
         setSelectedId(book.id);
         // On a phone the 3D view sits above the list; bring it into sight.
         document.getElementById('student-3d')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    };
+
+    const reserveBook = (book: Book) => {
+        setReserved(undefined);
+        setReserveError(undefined);
+        reserve.mutate(book.id, {
+            onSuccess: () => setReserved(book.title),
+            onError: error => setReserveError(getErrorMessage(error)),
+        });
     };
 
     const visible = useMemo(
@@ -82,6 +98,20 @@ export function StudentBooksPage() {
                         </div>
                     ))}
                 </section>
+            )}
+
+            {reserved && (
+                <div role="status" className="alert alert-success alert-soft">
+                    '{reserved}' is reserved for you.{' '}
+                    <Link to="/student/my-books" className="link font-semibold">
+                        See my books
+                    </Link>
+                </div>
+            )}
+            {reserveError && (
+                <div role="alert" className="alert alert-error alert-soft">
+                    {reserveError}
+                </div>
             )}
 
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_30rem]">
@@ -140,6 +170,8 @@ export function StudentBooksPage() {
                                         book={book}
                                         selected={book.id === selectedId}
                                         onShowTheWay={() => showTheWay(book)}
+                                        onReserve={() => reserveBook(book)}
+                                        reserving={reserve.isPending && reserve.variables === book.id}
                                     />
                                 </li>
                             ))}
@@ -167,7 +199,15 @@ export function StudentBooksPage() {
     );
 }
 
-function BookCard({ book, selected, onShowTheWay }: { book: Book; selected: boolean; onShowTheWay: () => void }) {
+interface BookCardProps {
+    book: Book;
+    selected: boolean;
+    onShowTheWay: () => void;
+    onReserve: () => void;
+    reserving: boolean;
+}
+
+function BookCard({ book, selected, onShowTheWay, onReserve, reserving }: BookCardProps) {
     const authors = book.authors.map(author => author.name).join(', ');
     const shelved = book.rows.length > 0;
 
@@ -201,10 +241,15 @@ function BookCard({ book, selected, onShowTheWay }: { book: Book; selected: bool
                     )}
                 </div>
 
-                {book.status === BookStatus.Available && shelved && (
+                {book.status === BookStatus.Available && (
                     <div className="card-actions mt-2 justify-end">
-                        <button type="button" className="btn btn-primary btn-sm" onClick={onShowTheWay}>
-                            {selected ? 'Showing the way' : 'Show me the way'}
+                        {shelved && (
+                            <button type="button" className="btn btn-outline btn-sm" onClick={onShowTheWay}>
+                                {selected ? 'Showing the way' : 'Show me the way'}
+                            </button>
+                        )}
+                        <button type="button" className="btn btn-primary btn-sm" disabled={reserving} onClick={onReserve}>
+                            Reserve
                         </button>
                     </div>
                 )}

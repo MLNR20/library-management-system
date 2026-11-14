@@ -54,6 +54,7 @@ const navGroups: NavGroup[] = [
         title: 'Catalogue',
         items: [
             { to: '/books', label: 'Books', icon: <BookIcon className={iconClass} /> },
+            { to: '/book-returns', label: 'Book returns', icon: <BookIcon className={iconClass} />, staffOnly: true },
             { to: '/authors', label: 'Authors', icon: <AuthorIcon className={iconClass} /> },
             { to: '/genres', label: 'Genres', icon: <GenreIcon className={iconClass} /> },
             { to: '/languages', label: 'Languages', icon: <LanguageIcon className={iconClass} /> },

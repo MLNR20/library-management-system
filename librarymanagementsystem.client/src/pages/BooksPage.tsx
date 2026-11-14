@@ -13,6 +13,7 @@ const statusBadge: Record<string, string> = {
     Reserved: 'badge-info',
     Lost: 'badge-error',
     Damaged: 'badge-neutral',
+    'Return pending': 'badge-secondary',
 };
 
 const helper = createDataTableColumnHelper<Book>();
