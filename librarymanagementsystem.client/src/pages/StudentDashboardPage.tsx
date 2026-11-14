@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { useLatestAnnouncements } from '../api/publicAnnouncements.ts';
-import { usePublicFaqs } from '../api/publicNews.ts';
 import { useAuth } from '../auth/useAuth.ts';
 import { Page } from '../components/layout/Page.tsx';
-import { FaqList } from '../components/news/FaqList.tsx';
 import { RichText } from '../components/ui/RichText.tsx';
 
 const quickLinks = [
@@ -47,7 +45,6 @@ const valueParagraphs = [
 export function StudentDashboardPage() {
     const { user } = useAuth();
     const announcements = useLatestAnnouncements().data ?? [];
-    const faqs = usePublicFaqs().data ?? [];
     // Accounts made before names were collected have none; fall back to the user name.
     const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.userName;
 
@@ -95,15 +92,6 @@ export function StudentDashboardPage() {
                             </article>
                         ))}
                     </div>
-                </section>
-            )}
-
-            {faqs.length > 0 && (
-                <section aria-labelledby="faqs-heading" className="flex flex-col gap-3">
-                    <h2 id="faqs-heading" className="text-xl font-bold">
-                        Frequently asked questions
-                    </h2>
-                    <FaqList faqs={faqs} />
                 </section>
             )}
 
