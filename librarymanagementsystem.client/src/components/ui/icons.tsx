@@ -137,6 +137,15 @@ export function MapIcon(props: IconProps) {
     );
 }
 
+/** A reading-room table with two legs. */
+export function TableIcon(props: IconProps) {
+    return (
+        <Icon {...props}>
+            <path d="M3.75 8.25h16.5M6 8.25v9.75m12-9.75v9.75M4.5 8.25l1.125-3h12.75l1.125 3" />
+        </Icon>
+    );
+}
+
 export function UsersIcon(props: IconProps) {
     return (
         <Icon {...props}>
