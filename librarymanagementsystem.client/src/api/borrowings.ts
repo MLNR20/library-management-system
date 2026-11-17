@@ -1,4 +1,6 @@
 import { HubConnectionBuilder, LogLevel, type HubConnection } from '@microsoft/signalr';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '../lib/api.ts';
 import { getAccessToken } from '../lib/authStorage.ts';
 
 // Mirrors Dtos/Borrowings and Hubs/BorrowingHub in LibraryManagementSystem.Server.
@@ -16,6 +18,15 @@ export interface Borrowing {
     isOverdue: boolean;
     overdueDays: number;
     penaltyAmount: number;
+}
+
+/** Students get their own loans, newest first; librarians and administrators get everyone's. */
+export function useBorrowings() {
+    return useQuery({
+        queryKey: ['borrowings'],
+        queryFn: async () => (await api.get<Borrowing[]>('/borrowings')).data,
+        refetchInterval: 30 * 1000,
+    });
 }
 
 export interface BorrowingHandlers {

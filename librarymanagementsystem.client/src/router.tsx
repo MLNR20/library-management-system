@@ -22,6 +22,7 @@ import { TimeCardsPage } from './pages/TimeCardsPage.tsx';
 import { StudentDashboardPage } from './pages/StudentDashboardPage.tsx';
 import { StudentBooksPage } from './pages/StudentBooksPage.tsx';
 import { StudentMyBooksPage } from './pages/StudentMyBooksPage.tsx';
+import { StudentLoanBalancePage } from './pages/StudentLoanBalancePage.tsx';
 import { BookReturnsPage } from './pages/BookReturnsPage.tsx';
 import { StudentTablesPage } from './pages/StudentTablesPage.tsx';
 import { StudentRoomsPage } from './pages/StudentRoomsPage.tsx';
@@ -55,6 +56,7 @@ export const router = createBrowserRouter([
                     { index: true, element: <StudentDashboardPage /> },
                     { path: 'books', element: <StudentBooksPage /> },
                     { path: 'my-books', element: <StudentMyBooksPage /> },
+                    { path: 'loans', element: <StudentLoanBalancePage /> },
                     { path: 'tables', element: <StudentTablesPage /> },
                     { path: 'rooms', element: <StudentRoomsPage /> },
                     { path: 'sessions', element: <SessionsPage /> },

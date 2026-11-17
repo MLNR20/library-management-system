@@ -25,6 +25,9 @@ export function StudentLayout() {
                     <NavLink to="/student/my-books" className={navLinkClass}>
                         My books
                     </NavLink>
+                    <NavLink to="/student/loans" className={navLinkClass}>
+                        Loan balance
+                    </NavLink>
                     <NavLink to="/student/map" className={navLinkClass}>
                         Library map
                     </NavLink>

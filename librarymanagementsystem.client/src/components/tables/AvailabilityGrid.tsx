@@ -55,7 +55,7 @@ export function AvailabilityGrid({ rows, slots, isError, emptyText, footnote, da
     const previewValid = previewEnd > previewStart;
 
     return (
-        <section aria-labelledby="availability-heading" className="card card-border bg-base-100 shadow-sm">
+        <section aria-labelledby="availability-heading" className="card card-border bg-base-100">
             <div className="card-body gap-3 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                     <h2 id="availability-heading" className="card-title">

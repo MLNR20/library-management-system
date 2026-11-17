@@ -30,7 +30,7 @@ export function StudentDashboardPage() {
                 <div className="flex flex-col gap-6 lg:col-span-7">
                     <section
                         aria-label="Welcome"
-                        className="flex min-h-[20rem] flex-col items-start rounded-3xl bg-purple-600 p-6 text-left text-white shadow-lg sm:p-8"
+                        className="flex h-[24rem] flex-col items-start rounded-3xl bg-purple-600 p-6 text-left text-white sm:p-8"
                     >
                         <div className="flex flex-1 flex-col items-start justify-center">
                             {/* Each size is the Tailwind step (text-sm 0.875rem, text-3xl 1.875rem) plus 0.2rem. */}
@@ -44,7 +44,7 @@ export function StudentDashboardPage() {
 
                     <nav
                         aria-labelledby="services-heading"
-                        className="flex flex-col gap-3 rounded-3xl border border-base-300 bg-base-100 p-4 shadow-sm sm:p-6"
+                        className="flex flex-col gap-3 rounded-3xl border border-base-300 bg-base-100 p-4 sm:p-6"
                     >
                         <h2 id="services-heading" className="text-xl font-bold">
                             Services
@@ -54,7 +54,7 @@ export function StudentDashboardPage() {
                                 <Link
                                     key={to}
                                     to={to}
-                                    className="flex flex-col items-center gap-3 rounded-2xl p-4 text-center transition hover:-translate-y-0.5 hover:bg-base-200"
+                                    className="flex flex-col items-center gap-3 rounded-2xl text-center transition hover:-translate-y-0.5 hover:bg-base-200"
                                 >
                                     <span className="flex h-14 w-14 items-center justify-center rounded-xl bg-purple-600 text-white">
                                         <Icon className="h-7 w-7" />
@@ -72,7 +72,7 @@ export function StudentDashboardPage() {
                     {announcements.length > 0 && (
                         <section
                             aria-labelledby="announcements-heading"
-                            className="flex flex-col gap-3 rounded-3xl border border-base-300 bg-base-100 p-4 shadow-sm sm:p-6"
+                            className="flex flex-col gap-3 rounded-3xl border border-base-300 bg-base-100 p-4 sm:p-6"
                         >
                             <h2 id="announcements-heading" className="text-xl font-bold">
                                 Announcements

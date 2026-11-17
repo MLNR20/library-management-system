@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using LibraryManagementSystem.Server.Models;
+using LibraryManagementSystem.Server.Settings;
 using Microsoft.EntityFrameworkCore;
 
 namespace LibraryManagementSystem.Server.Data
@@ -233,6 +234,8 @@ namespace LibraryManagementSystem.Server.Data
         private const int RowsPerShelf = 3;
 
         private static readonly string[] ReadingRoomNames = ["Reading Room I", "Reading Room II"];
+        private const string SecondFloorReadingRoomName = "Reading Room III";
+        private const int MinShelvesOnSecondFloor = 3;
 
         // For tests.
         public static IReadOnlyList<string> ReadingRoomSeedNames => ReadingRoomNames;
@@ -298,6 +301,8 @@ namespace LibraryManagementSystem.Server.Data
             await db.SaveChangesAsync(cancellationToken);
 
             var readingRooms = await EnsureReadingRoomsAsync(db, cancellationToken);
+            await db.SaveChangesAsync(cancellationToken);
+            await EnsureSecondFloorAsync(db, cancellationToken);
 
             // Some tables for students to reserve, only when the library has none, shared out between the reading rooms.
             var tables = await db.StudyTables.OrderBy(t => t.Name).ToListAsync(cancellationToken);
@@ -323,9 +328,108 @@ namespace LibraryManagementSystem.Server.Data
             }
 
             await db.SaveChangesAsync(cancellationToken);
+
+            var reservations = await EnsureReservationsAsync(db, cancellationToken);
+            await db.SaveChangesAsync(cancellationToken);
+
             logger.LogInformation(
-                "Sample catalogue: {Added} books added, {Skipped} already there, {Moved} moved to their genre's row",
-                added, Books.Length - added, moved);
+                "Sample catalogue: {Added} books added, {Skipped} already there, {Moved} moved to their genre's row, {Reservations} table and room reservations added",
+                added, Books.Length - added, moved, reservations);
+        }
+
+        // Sample table and reading-room reservations for the first student or visitor, only while the library has none at
+        // all, so a librarian's own data is never mixed with them. Some are over (approved, rejected, cancelled), some are
+        // still to come (approved, pending). The approved ones never overlap, so every one could really have been approved.
+        // Dates are relative to today, so the history always looks recent. Returns how many were added.
+        private static async Task<int> EnsureReservationsAsync(ApplicationDbContext db, CancellationToken cancellationToken)
+        {
+            if (await db.TableReservations.AnyAsync(cancellationToken) || await db.RoomReservations.AnyAsync(cancellationToken))
+            {
+                return 0;
+            }
+
+            var student = await (
+                from user in db.Users
+                join userRole in db.UserRoles on user.Id equals userRole.UserId
+                join role in db.Roles on userRole.RoleId equals role.Id
+                where user.IsActive && AppRoles.Borrowers.Contains(role.Name!)
+                orderby user.UserName
+                select user).FirstOrDefaultAsync(cancellationToken);
+            if (student is null)
+            {
+                return 0;
+            }
+
+            var today = DateTime.UtcNow.Date;
+            var tables = await db.StudyTables.Where(t => t.IsActive).OrderBy(t => t.Name).ToListAsync(cancellationToken);
+            var rooms = await db.Sections.Where(s => s.Model == SectionModel.ReadingRoom).OrderBy(s => s.Name).ToListAsync(cancellationToken);
+            const string decider = "demo";
+            var added = 0;
+
+            T Fill<T>(T reservation, int day, int startHour, int endHour, string note, ReservationStatus status, string? decision = null)
+                where T : ReservationBase
+            {
+                reservation.Id = Guid.NewGuid();
+                reservation.UserId = student.Id;
+                reservation.StartUtc = today.AddDays(day).AddHours(startHour);
+                reservation.EndUtc = today.AddDays(day).AddHours(endHour);
+                reservation.Note = note;
+                reservation.Status = status;
+                reservation.RequestedAtUtc = reservation.StartUtc.AddDays(-2);
+                if (status is ReservationStatus.Approved or ReservationStatus.Rejected)
+                {
+                    reservation.DecidedAtUtc = reservation.RequestedAtUtc.AddHours(3);
+                    reservation.DecidedByName = decider;
+                    reservation.DecisionNote = decision;
+                }
+
+                return reservation;
+            }
+
+            if (tables.Count > 0)
+            {
+                StudyTable TableAt(int index) => tables[index % tables.Count];
+                (int Table, int Day, int From, int To, string Note, ReservationStatus Status, string? Decision)[] seeds =
+                [
+                    (0, -5, 10, 12, "Group study for statistics", ReservationStatus.Approved, null),
+                    (1, -3, 14, 16, "Writing up my thesis", ReservationStatus.Approved, null),
+                    (2, -2, 9, 11, "Study session", ReservationStatus.Rejected, "The table was needed for a library event."),
+                    (3, -1, 13, 15, "Revision with friends", ReservationStatus.Cancelled, null),
+                    (0, 1, 10, 12, "Exam revision", ReservationStatus.Approved, null),
+                    (4, 2, 15, 17, "Group project meeting", ReservationStatus.Pending, null),
+                    (1, 4, 9, 11, "Reading for my literature essay", ReservationStatus.Pending, null)
+                ];
+
+                foreach (var seed in seeds)
+                {
+                    var table = TableAt(seed.Table);
+                    db.TableReservations.Add(Fill(
+                        new TableReservation { TableId = table.Id }, seed.Day, seed.From, seed.To, seed.Note, seed.Status, seed.Decision));
+                    added++;
+                }
+            }
+
+            if (rooms.Count > 0)
+            {
+                Section RoomAt(int index) => rooms[index % rooms.Count];
+                (int Room, int Day, int From, int To, string Note, ReservationStatus Status, string? Decision)[] seeds =
+                [
+                    (0, -4, 13, 17, "Study group", ReservationStatus.Approved, null),
+                    (1, -1, 10, 12, "Quiet room for an interview prep", ReservationStatus.Rejected, "The room was closed for maintenance."),
+                    (2, 3, 14, 16, "Presentation rehearsal", ReservationStatus.Approved, null),
+                    (0, 5, 10, 13, "Group workshop", ReservationStatus.Pending, null)
+                ];
+
+                foreach (var seed in seeds)
+                {
+                    var room = RoomAt(seed.Room);
+                    db.RoomReservations.Add(Fill(
+                        new RoomReservation { SectionId = room.Id }, seed.Day, seed.From, seed.To, seed.Note, seed.Status, seed.Decision));
+                    added++;
+                }
+            }
+
+            return added;
         }
 
         // Two reading rooms for students, unless the library already has them. Each is a section on its own shelf; the 3D
@@ -366,6 +470,56 @@ namespace LibraryManagementSystem.Server.Data
             }
 
             return rooms;
+        }
+
+        // The second floor gets at least three shelves (the new ones empty, with three rows each) and a reading room of its
+        // own with two tables, unless it has one already. The new shelves are named after the existing ones, so they come
+        // last on the topmost floor and never shift where a genre is shelved. A library with no second floor is left as it is.
+        private static async Task EnsureSecondFloorAsync(ApplicationDbContext db, CancellationToken cancellationToken)
+        {
+            var floor = (await db.Floors.ToListAsync(cancellationToken)).Where(f => FloorRank(f.Name) == 2).OrderBy(f => f.Name).FirstOrDefault();
+            if (floor is null)
+            {
+                return;
+            }
+
+            var shelfNames = await db.Shelves.Select(s => s.Name).ToListAsync(cancellationToken);
+            var shelves = await db.Shelves.Where(s => s.FloorId == floor.Id).ToListAsync(cancellationToken);
+
+            while (shelves.Count < MinShelvesOnSecondFloor)
+            {
+                var shelf = new Shelf { Id = Guid.NewGuid(), Name = NextShelfName(shelfNames), FloorId = floor.Id };
+                db.Shelves.Add(shelf);
+                shelves.Add(shelf);
+                shelfNames.Add(shelf.Name);
+
+                var rowNames = new List<string>();
+                for (var number = 0; number < RowsPerShelf; number++)
+                {
+                    var name = NextRowName(shelf.Name, rowNames);
+                    rowNames.Add(name);
+                    db.Rows.Add(new Row { Id = Guid.NewGuid(), Name = name, ShelfId = shelf.Id });
+                }
+            }
+
+            if (await db.Sections.AnyAsync(s => s.FloorId == floor.Id && s.Model == SectionModel.ReadingRoom, cancellationToken))
+            {
+                return;
+            }
+
+            var taken = (await db.Sections.Select(s => s.ShelfId).ToListAsync(cancellationToken)).ToHashSet();
+            var home = shelves.OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase).First(s => !taken.Contains(s.Id));
+            var room = new Section
+            {
+                Id = Guid.NewGuid(), Name = SecondFloorReadingRoomName, FloorId = floor.Id, ShelfId = home.Id, Model = SectionModel.ReadingRoom
+            };
+            db.Sections.Add(room);
+
+            int[] seats = [6, 8];
+            db.StudyTables.AddRange(seats.Select((count, i) => new StudyTable
+            {
+                Id = Guid.NewGuid(), Name = $"{SecondFloorReadingRoomName} Table {i + 1}", Seats = count, SectionId = room.Id
+            }));
         }
 
         private static async Task<Dictionary<string, Genre>> EnsureGenresAsync(ApplicationDbContext db, CancellationToken cancellationToken)

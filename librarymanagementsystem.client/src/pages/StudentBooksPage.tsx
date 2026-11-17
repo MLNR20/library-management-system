@@ -213,7 +213,7 @@ function BookCard({ book, selected, onShowTheWay, onReserve, reserving }: BookCa
 
     return (
         <article
-            className={`card card-border h-full bg-base-100 shadow-sm ${selected ? 'border-primary ring-2 ring-primary/40' : ''}`}
+            className={`card card-border h-full bg-base-100 ${selected ? 'border-primary ring-2 ring-primary/40' : ''}`}
         >
             <div className="card-body gap-2">
                 <div className="flex items-start justify-between gap-2">

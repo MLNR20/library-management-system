@@ -110,7 +110,7 @@ export function ReservationRequestPage(props: Props) {
     return (
         <Page title={props.title} description={props.description}>
             <div className="grid gap-6 lg:grid-cols-[minmax(0,24rem)_1fr]">
-                <form onSubmit={submit} className="card card-border h-fit bg-base-100 shadow-sm">
+                <form onSubmit={submit} className="card card-border h-fit bg-base-100">
                     <div className="card-body gap-3">
                         <h2 className="card-title">New request</h2>
 

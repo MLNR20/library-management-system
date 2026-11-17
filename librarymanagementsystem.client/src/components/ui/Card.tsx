@@ -25,7 +25,7 @@ export function Card({
     className = '',
 }: CardProps) {
     return (
-        <div className={`card card-border bg-base-100 shadow-sm ${className}`}>
+        <div className={`card card-border bg-base-100 ${className}`}>
             {image && (
                 <figure>
                     <img src={image} alt={imageAlt} className="h-48 w-full object-cover" />
@@ -54,7 +54,7 @@ interface StatCardProps {
 
 export function StatCard({ label, value, hint, icon, className = '' }: StatCardProps) {
     return (
-        <div className={`stats card-border border-base-300 bg-base-100 shadow-sm ${className}`}>
+        <div className={`stats card-border border-base-300 bg-base-100 ${className}`}>
             <div className="stat flex items-center gap-4">
                 {icon && (
                     <div className="flex size-14 shrink-0 items-center justify-center rounded-box bg-primary/10 text-primary">
@@ -73,7 +73,7 @@ export function StatCard({ label, value, hint, icon, className = '' }: StatCardP
 
 export function CardSkeleton() {
     return (
-        <div className="card card-border bg-base-100 shadow-sm" aria-hidden="true">
+        <div className="card card-border bg-base-100" aria-hidden="true">
             <div className="card-body gap-3">
                 <div className="skeleton h-5 w-2/3" />
                 <div className="skeleton h-4 w-1/3" />

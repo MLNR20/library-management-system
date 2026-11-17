@@ -50,7 +50,7 @@ export function MyReservations({ id, heading, emptyText, items, isLoading, onCan
                             (item.status === ReservationStatus.Pending || item.status === ReservationStatus.Approved) &&
                             new Date(item.endUtc).getTime() > now;
                         return (
-                            <li key={item.id} className="card card-border bg-base-100 shadow-sm">
+                            <li key={item.id} className="card card-border bg-base-100">
                                 <div className="card-body gap-1 p-4">
                                     <div className="flex flex-wrap items-center justify-between gap-2">
                                         <h3 className="font-bold">
