@@ -15,7 +15,7 @@ const services: { to: string; label: string; Icon: ComponentType<{ className?: s
 ];
 
 /**
- * A reader's landing page. Left (7 of 12 columns): a tall welcome card by name, with the services as icon tiles in their
+ * A reader's landing page. Left (7 of 12 columns): a 16rem welcome card by name, with the services as icon tiles in their
  * own panel right under it. Right (5 of 12): a calendar with the latest announcements underneath.
  */
 export function StudentDashboardPage() {
@@ -30,14 +30,14 @@ export function StudentDashboardPage() {
                 <div className="flex flex-col gap-6 lg:col-span-7">
                     <section
                         aria-label="Welcome"
-                        className="flex h-[24rem] flex-col items-start rounded-3xl bg-purple-600 p-6 text-left text-white sm:p-8"
+                        className="flex h-[16rem] flex-col items-start rounded-3xl bg-purple-600 p-6 text-left text-white sm:p-8"
                     >
-                        <div className="flex flex-1 flex-col items-start justify-center">
-                            {/* Each size is the Tailwind step (text-sm 0.875rem, text-3xl 1.875rem) plus 0.2rem. */}
+                        <div className="mt-[1.8rem] flex flex-col items-start justify-start">
+                            {/* The greeting is the Tailwind step (text-sm 0.875rem) plus 0.2rem; the name is a flat 2.5rem. */}
                             <p className="text-[1.075rem] font-medium uppercase leading-snug tracking-wide text-white/80">Welcome to Alexandria</p>
-                            <h2 className="mt-1 text-[2.075rem] font-bold leading-tight">{fullName}</h2>
+                            <h2 className="mt-1 text-[2.5rem] font-bold leading-tight">{fullName}</h2>
                         </div>
-                        <p className="text-sm text-white/80">
+                        <p className="mt-auto text-sm text-white/80">
                             Search the catalogue, find your book on the map, and reserve a table or a room.
                         </p>
                     </section>
@@ -74,11 +74,16 @@ export function StudentDashboardPage() {
                             aria-labelledby="announcements-heading"
                             className="flex flex-col gap-3 rounded-3xl border border-base-300 bg-base-100 p-4 sm:p-6"
                         >
-                            <h2 id="announcements-heading" className="text-xl font-bold">
-                                Announcements
-                            </h2>
+                            <div className="flex items-center justify-between gap-3">
+                                <h2 id="announcements-heading" className="text-xl font-bold">
+                                    Announcements
+                                </h2>
+                                <Link to="/student/announcements" className="link link-hover text-sm font-semibold text-purple-600">
+                                    View all
+                                </Link>
+                            </div>
                             {announcements.map(announcement => (
-                                <article key={announcement.id} className="card bg-base-200">
+                                <article key={announcement.id} className="card border border-base-300 bg-base-200">
                                     <div className="card-body gap-2">
                                         <time className="text-xs opacity-70" dateTime={announcement.createdAt}>
                                             {new Date(announcement.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}

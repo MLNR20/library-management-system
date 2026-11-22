@@ -8,7 +8,7 @@ export function SiteFooter() {
 
     return (
         <footer className="bg-primary text-primary-content">
-            <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mx-auto grid max-w-6xl gap-8 px-4 py-20 sm:grid-cols-2 lg:grid-cols-4">
                 <div>
                     <p className="font-brand text-2xl font-bold tracking-wide">Alexandria</p>
                     <p className="mt-3 max-w-xs text-sm opacity-80">
@@ -86,7 +86,7 @@ export function SiteFooter() {
             </div>
 
             <div className="border-t border-primary-content/20">
-                <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 px-4 py-4 text-xs sm:flex-row">
+                <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 px-4 py-6 text-xs sm:flex-row">
                     <p className="opacity-80">© {new Date().getFullYear()} Alexandria Library Management System. All rights reserved.</p>
                     <ul className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
                         <li>

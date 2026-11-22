@@ -33,6 +33,7 @@ import { RoomCalendarPage } from './pages/RoomCalendarPage.tsx';
 import { ReadingRoomsPage } from './pages/ReadingRoomsPage.tsx';
 import { TablesPage } from './pages/TablesPage.tsx';
 import { AnnouncementsPage } from './pages/AnnouncementsPage.tsx';
+import { StudentAnnouncementsPage } from './pages/StudentAnnouncementsPage.tsx';
 import { NewsListPage } from './pages/NewsListPage.tsx';
 import { NewsPage } from './pages/NewsPage.tsx';
 import { UsersPage } from './pages/UsersPage.tsx';
@@ -57,6 +58,7 @@ export const router = createBrowserRouter([
                     { path: 'books', element: <StudentBooksPage /> },
                     { path: 'my-books', element: <StudentMyBooksPage /> },
                     { path: 'loans', element: <StudentLoanBalancePage /> },
+                    { path: 'announcements', element: <StudentAnnouncementsPage /> },
                     { path: 'tables', element: <StudentTablesPage /> },
                     { path: 'rooms', element: <StudentRoomsPage /> },
                     { path: 'sessions', element: <SessionsPage /> },

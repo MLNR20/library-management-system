@@ -28,12 +28,12 @@ export function SiteNavbar() {
                 ) : (
                     <>
                         {pathname !== '/login' && (
-                            <Link to="/login" className="btn btn-ghost btn-sm text-[1.15rem]">
+                            <Link to="/login" className="btn btn-ghost btn-sm">
                                 Sign in
                             </Link>
                         )}
                         {pathname !== '/register' && (
-                            <Link to="/register" className="btn btn-primary btn-sm text-[1.15rem]">
+                            <Link to="/register" className="btn btn-primary btn-sm">
                                 Create account
                             </Link>
                         )}

@@ -297,6 +297,8 @@ namespace LibraryManagementSystem.Server.Data
                 });
             }
 
+            await AddSampleAnnouncementsAsync(db, cancellationToken);
+
             // The shelves must exist in the database before a reading room can be attached to one.
             await db.SaveChangesAsync(cancellationToken);
 
@@ -335,6 +337,41 @@ namespace LibraryManagementSystem.Server.Data
             logger.LogInformation(
                 "Sample catalogue: {Added} books added, {Skipped} already there, {Moved} moved to their genre's row, {Reservations} table and room reservations added",
                 added, Books.Length - added, moved, reservations);
+        }
+
+        // Three sample announcements, each added only if none with its title exists: two for the whole library and one for
+        // the second floor (for the whole library too when there is no second floor).
+        private static async Task AddSampleAnnouncementsAsync(ApplicationDbContext db, CancellationToken cancellationToken)
+        {
+            var secondFloorId = (await db.Floors.ToListAsync(cancellationToken))
+                .Where(f => FloorRank(f.Name) == 2).OrderBy(f => f.Name).Select(f => (Guid?)f.Id).FirstOrDefault();
+            var titles = (await db.Announcements.Select(a => a.Title).ToListAsync(cancellationToken)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var now = DateTime.UtcNow;
+
+            (string Title, string Body, Guid? FloorId, int DaysAgo)[] samples =
+            [
+                ("Extended opening hours for exams",
+                    "<p>From next week the library stays open <strong>until 10 pm</strong> on weekdays so you have more time to revise. Reading-room tables are in demand, so reserve yours early.</p>",
+                    null, 4),
+                ("Quiet hours reminder",
+                    "<p>Please keep conversations low and phones on silent in the reading rooms. Group work is welcome in the room you have reserved.</p>",
+                    null, 2),
+                ("New reading room on the second floor",
+                    "<p><strong>Reading Room III</strong> is now open on the second floor, with two tables for six and eight readers. You can reserve a table or the whole room from your student page.</p>",
+                    secondFloorId, 1)
+            ];
+
+            foreach (var sample in samples.Where(s => !titles.Contains(s.Title)))
+            {
+                db.Announcements.Add(new Announcement
+                {
+                    Id = Guid.NewGuid(),
+                    Title = sample.Title,
+                    Body = sample.Body,
+                    FloorId = sample.FloorId,
+                    CreatedAt = now.AddDays(-sample.DaysAgo)
+                });
+            }
         }
 
         // Sample table and reading-room reservations for the first student or visitor, only while the library has none at

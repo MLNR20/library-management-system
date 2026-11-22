@@ -1,3 +1,6 @@
+import { DataTable } from '../components/data-table/DataTable.tsx';
+import { createDataTableColumnHelper } from '../components/data-table/tableConfig.ts';
+import { useMemo } from 'react';
 import { Page } from '../components/layout/Page.tsx';
 import { StatCard } from '../components/ui/Card.tsx';
 import { useBorrowings } from '../api/borrowings.ts';
@@ -13,13 +16,20 @@ const amount = new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maxi
  */
 export function StudentLoanBalancePage() {
     const borrowings = useBorrowings();
-    const loans = borrowings.data ?? [];
+    const loans = borrowings.data;
 
-    const open = loans.filter(loan => loan.returnedAtUtc === null);
+    // The tables need stable arrays, so split the loans once per fetch.
+    const { open, returned } = useMemo(
+        () => ({
+            open: (loans ?? []).filter(loan => loan.returnedAtUtc === null),
+            returned: (loans ?? []).filter(loan => loan.returnedAtUtc !== null),
+        }),
+        [loans],
+    );
     const overdue = open.filter(loan => loan.isOverdue);
     const accruing = sum(open);
-    const charged = sum(loans.filter(loan => loan.returnedAtUtc !== null));
-    const lateReturns = loans.filter(loan => loan.returnedAtUtc !== null && loan.penaltyAmount > 0);
+    const charged = sum(returned);
+    const lateReturns = returned.filter(loan => loan.penaltyAmount > 0);
 
     return (
         <Page
@@ -60,10 +70,10 @@ export function StudentLoanBalancePage() {
 
                     <section className="flex flex-col gap-3">
                         <h2 className="text-lg font-semibold">Returned</h2>
-                        {loans.length === open.length ? (
+                        {returned.length === 0 ? (
                             <p className="opacity-70">You have not returned any books yet.</p>
                         ) : (
-                            <LoanTable loans={loans.filter(loan => loan.returnedAtUtc !== null)} showReturned />
+                            <LoanTable loans={returned} showReturned />
                         )}
                     </section>
                 </div>
@@ -76,35 +86,38 @@ function sum(loans: Borrowing[]) {
     return loans.reduce((total, loan) => total + loan.penaltyAmount, 0);
 }
 
+const helper = createDataTableColumnHelper<Borrowing>();
+
+// Dates sort on the ISO string and show formatted; kept at module scope so the table gets stable columns.
+const bookColumn = helper.accessor('bookTitle', { header: 'Book' });
+const borrowedColumn = helper.accessor('borrowedAtUtc', { header: 'Borrowed', cell: info => formatDay(info.getValue()) });
+const dueColumn = helper.accessor('dueAtUtc', {
+    header: 'Due',
+    cell: info => (
+        <span className={info.row.original.isOverdue && !info.row.original.returnedAtUtc ? 'font-semibold text-error' : ''}>
+            {formatDay(info.getValue())}
+        </span>
+    ),
+});
+const returnedColumn = helper.accessor(loan => loan.returnedAtUtc ?? '', {
+    id: 'returnedAtUtc',
+    header: 'Returned',
+    cell: info => (info.getValue() ? formatDay(info.getValue()) : ''),
+});
+const daysLateColumn = helper.accessor('overdueDays', { header: 'Days late' });
+const penaltyColumn = helper.accessor('penaltyAmount', { header: 'Penalty', cell: info => amount.format(info.getValue()) });
+
+const onLoanColumns = helper.columns([bookColumn, borrowedColumn, dueColumn, daysLateColumn, penaltyColumn]);
+const returnedColumns = helper.columns([bookColumn, borrowedColumn, dueColumn, returnedColumn, daysLateColumn, penaltyColumn]);
+
 function LoanTable({ loans, showReturned }: { loans: Borrowing[]; showReturned: boolean }) {
     return (
-        <div className="overflow-x-auto rounded-box border border-base-300">
-            <table className="table">
-                <thead>
-                    <tr>
-                        <th>Book</th>
-                        <th>Borrowed</th>
-                        <th>Due</th>
-                        {showReturned && <th>Returned</th>}
-                        <th className="text-right">Days late</th>
-                        <th className="text-right">Penalty</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {loans.map(loan => (
-                        <tr key={loan.id}>
-                            <td>{loan.bookTitle}</td>
-                            <td>{formatDay(loan.borrowedAtUtc)}</td>
-                            <td className={loan.isOverdue && !loan.returnedAtUtc ? 'font-semibold text-error' : ''}>
-                                {formatDay(loan.dueAtUtc)}
-                            </td>
-                            {showReturned && <td>{loan.returnedAtUtc ? formatDay(loan.returnedAtUtc) : ''}</td>}
-                            <td className="text-right">{loan.overdueDays}</td>
-                            <td className="text-right">{amount.format(loan.penaltyAmount)}</td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
+        <DataTable
+            data={loans}
+            columns={showReturned ? returnedColumns : onLoanColumns}
+            searchPlaceholder="Search books..."
+            initialPageSize={5}
+            pageSizeOptions={[5, 10, 20]}
+        />
     );
 }
