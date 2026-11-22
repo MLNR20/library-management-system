@@ -37,7 +37,7 @@ export function StudentDashboardPage() {
                             <p className="text-[1.075rem] font-medium uppercase leading-snug tracking-wide text-white/80">Welcome to Alexandria</p>
                             <h2 className="mt-1 text-[2.5rem] font-bold leading-tight">{fullName}</h2>
                         </div>
-                        <p className="mt-auto text-sm text-white/80">
+                        <p className="mt-[2.1rem] text-sm text-white/80">
                             Search the catalogue, find your book on the map, and reserve a table or a room.
                         </p>
                     </section>
