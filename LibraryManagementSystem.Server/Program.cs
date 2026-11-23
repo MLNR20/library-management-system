@@ -117,6 +117,12 @@ try
             };
         });
 
+    // Social sign-in: Firebase proves who the person is, this app keeps the account. Off while Firebase:ProjectId is empty.
+    builder.Services.AddOptions<FirebaseSettings>().BindConfiguration(FirebaseSettings.SectionName);
+    builder.Services.AddSingleton<IFirebaseTokenValidator>(services =>
+        new FirebaseTokenValidator(services.GetRequiredService<IOptions<FirebaseSettings>>().Value.ProjectId));
+    builder.Services.AddScoped<IExternalSignInService, ExternalSignInService>();
+
     builder.Services.AddSingleton<ITokenService, TokenService>();
     builder.Services.AddScoped<ISessionService, SessionService>();
 

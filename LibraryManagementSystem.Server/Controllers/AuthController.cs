@@ -20,6 +20,8 @@ namespace LibraryManagementSystem.Server.Controllers
         ITokenService tokenService,
         ISessionService sessions,
         IAuditService audit,
+        IFirebaseTokenValidator firebase,
+        IExternalSignInService externalSignIn,
         ILogger<AuthController> logger) : ControllerBase
     {
         [AllowAnonymous]
@@ -80,6 +82,61 @@ namespace LibraryManagementSystem.Server.Controllers
             await audit.WriteAsync(AuditActions.Login, target: user.UserName, userId: user.Id, userName: user.UserName);
 
             return Ok(await BuildResponseAsync(user));
+        }
+
+        // Sign in or sign up with Google. The browser does the provider popup through Firebase and sends
+        // the Firebase ID token here; the response is the same session a password sign-in gets.
+        [AllowAnonymous]
+        [HttpPost("external")]
+        [ProducesResponseType<AuthResponse>(StatusCodes.Status200OK)]
+        [ProducesResponseType<AuthResponse>(StatusCodes.Status201Created)]
+        [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+        [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+        public async Task<IActionResult> External(ExternalSignInRequest request, CancellationToken cancellationToken)
+        {
+            if (!firebase.IsConfigured)
+            {
+                return Problem(statusCode: StatusCodes.Status404NotFound, title: "Social sign-in is not set up.");
+            }
+
+            var identity = await firebase.ValidateAsync(request.IdToken, cancellationToken);
+            if (identity is null)
+            {
+                await audit.WriteAsync(AuditActions.LoginFailed, success: false, details: "Invalid social sign-in token");
+                return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "The sign-in could not be verified. Try again.");
+            }
+
+            var result = await externalSignIn.FindOrCreateAsync(identity, cancellationToken);
+            switch (result.Failure)
+            {
+                case ExternalSignInFailure.NoEmail:
+                    await audit.WriteAsync(AuditActions.LoginFailed, success: false, details: $"{identity.Provider} shared no email address");
+                    return Problem(statusCode: StatusCodes.Status400BadRequest, title: "That account did not share an email address, so it cannot be used here.");
+
+                case ExternalSignInFailure.EmailInUse:
+                    await audit.WriteAsync(AuditActions.LoginFailed, success: false, target: identity.Email, details: $"{identity.Provider}: email already has a password account");
+                    return Problem(statusCode: StatusCodes.Status409Conflict, title: "An account with this email already exists. Sign in with your user name and password instead.");
+            }
+
+            var user = result.User!;
+            if (!user.IsActive || await userManager.IsLockedOutAsync(user))
+            {
+                await audit.WriteAsync(AuditActions.LoginFailed, success: false, target: user.UserName, details: $"{identity.Provider}: account unavailable", userId: user.Id, userName: user.UserName);
+                return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "This account is not available.");
+            }
+
+            await audit.WriteAsync(
+                result.Created ? AuditActions.Register : AuditActions.Login,
+                target: user.UserName,
+                details: $"Signed in with {identity.Provider}",
+                userId: user.Id,
+                userName: user.UserName);
+
+            var response = await BuildResponseAsync(user);
+
+            return result.Created ? StatusCode(StatusCodes.Status201Created, response) : Ok(response);
         }
 
         // Not subject to the strict "auth" policy (that is for credential guessing); the global limit still applies.

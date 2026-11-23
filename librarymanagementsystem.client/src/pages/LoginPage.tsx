@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router';
 import { z } from 'zod';
 import { homePathFor } from '../auth/homePath.ts';
 import { useAuth } from '../auth/useAuth.ts';
+import { SocialSignIn } from '../components/auth/SocialSignIn.tsx';
 import { FormBuilder } from '../components/form/FormBuilder.tsx';
 import type { FormField } from '../components/form/FormBuilder.tsx';
 import { AuthLayout } from '../components/layout/AuthLayout.tsx';
@@ -40,6 +41,7 @@ export function LoginPage() {
                 </>
             }
         >
+            <SocialSignIn onError={setFormError} redirectTo={from} />
             <FormBuilder
                 schema={loginSchema}
                 fields={fields}

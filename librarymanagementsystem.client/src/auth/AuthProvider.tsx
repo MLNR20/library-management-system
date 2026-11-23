@@ -5,6 +5,8 @@ import { ADMIN_ROLE, LIBRARIAN_ROLE } from '../api/admin.ts';
 import { api, refreshSession, setSessionRefreshedHandler, setUnauthorizedHandler } from '../lib/api.ts';
 import { clearSession, loadSession, saveSession } from '../lib/authStorage.ts';
 import type { AuthSession } from '../lib/authStorage.ts';
+import { getFirebaseIdToken } from '../lib/firebase.ts';
+import type { SocialProvider } from '../lib/firebase.ts';
 import { AuthContext } from './authContext.ts';
 import type { AuthContextValue, LoginRequest, RegisterRequest } from './authContext.ts';
 
@@ -77,6 +79,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             },
             register: async (request: RegisterRequest) => {
                 const { data } = await api.post<AuthSession>('/auth/register', request);
+                startSession(data);
+                return data;
+            },
+            loginWithProvider: async (provider: SocialProvider) => {
+                // Firebase proves who they are; the server checks that proof and answers with this app's own session.
+                const idToken = await getFirebaseIdToken(provider);
+                if (!idToken) return null;
+                const { data } = await api.post<AuthSession>('/auth/external', { idToken });
                 startSession(data);
                 return data;
             },

@@ -1,5 +1,6 @@
 import { createContext } from 'react';
 import type { AuthSession, AuthUser } from '../lib/authStorage.ts';
+import type { SocialProvider } from '../lib/firebase.ts';
 
 export interface LoginRequest {
     userName: string;
@@ -26,6 +27,8 @@ export interface AuthContextValue {
     /** Resolves with the new session so callers can route by its roles. */
     login: (request: LoginRequest) => Promise<AuthSession>;
     register: (request: RegisterRequest) => Promise<AuthSession>;
+    /** Signs in with Google, or signs up when the person is new. Resolves null when they closed the window. */
+    loginWithProvider: (provider: SocialProvider) => Promise<AuthSession | null>;
     logout: () => void;
 }
 
