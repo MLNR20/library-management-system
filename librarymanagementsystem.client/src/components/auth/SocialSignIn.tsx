@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router';
 import { homePathFor } from '../../auth/homePath.ts';
 import { useAuth } from '../../auth/useAuth.ts';
 import { getErrorMessage } from '../../lib/api.ts';
+import { socialSignInConfigured } from '../../lib/firebase.ts';
 import type { SocialProvider } from '../../lib/firebase.ts';
 
 const providers: { id: SocialProvider; label: string; icon: ReactNode }[] = [
@@ -49,6 +50,8 @@ export function SocialSignIn({ onError, redirectTo }: SocialSignInProps) {
             setBusy(undefined);
         }
     }
+
+    if (!socialSignInConfigured) return null;
 
     return (
         <div>

@@ -18,6 +18,7 @@ appsettings.*.local.json
 secrets.json
 .env
 .env.*
+!.env.example
 
 # Uploaded news images (stored on disk, not in git)
 Uploads/

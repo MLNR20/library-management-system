@@ -1,13 +1,16 @@
 export type SocialProvider = 'google';
 
-// Public by design: these identify the Firebase project and are shipped to every browser. They grant nothing on their own;
-// which sites may use them is set under Authentication > Settings > Authorized domains in the Firebase console.
+// From .env (see .env.example). Still shipped to every browser once built: they identify the Firebase project and grant
+// nothing on their own; which sites may use them is set under Authentication > Settings > Authorized domains.
 const firebaseConfig = {
-    apiKey: 'AIzaSyC3MXo0_MEw6wbZV3GD5dY_QP-bu92MjL8',
-    authDomain: 'alexandria-e8280.firebaseapp.com',
-    projectId: 'alexandria-e8280',
-    appId: '1:571781952105:web:5c80610f0f76622dfb28f8',
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY as string | undefined,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN as string | undefined,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID as string | undefined,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID as string | undefined,
 };
+
+/** False when .env has no Firebase details; the sign-in button is then hidden. */
+export const socialSignInConfigured = Object.values(firebaseConfig).every(Boolean);
 
 type AuthModule = typeof import('@firebase/auth');
 
