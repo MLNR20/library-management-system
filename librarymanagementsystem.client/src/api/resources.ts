@@ -99,13 +99,19 @@ export const SectionModel = {
     None: 0,
     Wing: 1,
     ReadingRoom: 2,
+    /** A reading room built as a glass-walled room with a TV and a table. It is a reading room in every other way. */
+    StudyRoom: 3,
 } as const;
 export type SectionModel = (typeof SectionModel)[keyof typeof SectionModel];
+
+/** True for the models that are reading rooms: tables go in them and they can be reserved. */
+export const isReadingRoomModel = (model: SectionModel) => model === SectionModel.ReadingRoom || model === SectionModel.StudyRoom;
 
 export const sectionModelLabels: Record<SectionModel, string> = {
     [SectionModel.None]: 'None',
     [SectionModel.Wing]: 'Wing',
     [SectionModel.ReadingRoom]: 'Reading room',
+    [SectionModel.StudyRoom]: 'Study room (glass walls, TV, table)',
 };
 
 export interface Section {

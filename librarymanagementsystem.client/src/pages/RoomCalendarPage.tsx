@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Page } from '../components/layout/Page.tsx';
 import { Modal } from '../components/ui/Modal.tsx';
-import { SectionModel, sectionHooks } from '../api/resources.ts';
+import { isReadingRoomModel, sectionHooks } from '../api/resources.ts';
 import { useApproveRoomReservation, useRejectRoomReservation, useRoomReservations } from '../api/rooms.ts';
 import type { RoomReservation } from '../api/rooms.ts';
 import { formatReservationTime, ReservationStatus, reservationStatusBadges, reservationStatusLabels } from '../api/tables.ts';
@@ -56,7 +56,7 @@ function monthGrid(month: Date) {
 /** Librarians and administrators see every reading-room reservation on a month calendar and approve or reject them there. */
 export function RoomCalendarPage() {
     const reservations = useRoomReservations();
-    const rooms = sectionHooks.useList().data?.filter(section => section.model === SectionModel.ReadingRoom);
+    const rooms = sectionHooks.useList().data?.filter(section => isReadingRoomModel(section.model));
     const approve = useApproveRoomReservation();
     const reject = useRejectRoomReservation();
 

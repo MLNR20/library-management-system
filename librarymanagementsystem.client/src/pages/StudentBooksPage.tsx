@@ -3,7 +3,7 @@ import { Link } from 'react-router';
 import { Page } from '../components/layout/Page.tsx';
 import { RichText } from '../components/ui/RichText.tsx';
 import type { FindTarget, WalkRequest } from '../components/library-map/StudentLibraryView.tsx';
-import { announcementHooks, BookStatus, bookHooks, genreHooks, rowLabel, SectionModel, sectionHooks } from '../api/resources.ts';
+import { announcementHooks, BookStatus, bookHooks, genreHooks, isReadingRoomModel, rowLabel, sectionHooks } from '../api/resources.ts';
 import type { Book, Section } from '../api/resources.ts';
 import { tableHooks } from '../api/tables.ts';
 import type { StudyTable } from '../api/tables.ts';
@@ -234,7 +234,7 @@ export function StudentBooksPage() {
                             loading={tables.isLoading || sections.isLoading}
                             empty="No reading rooms match."
                             places={(sections.data ?? [])
-                                .filter(section => section.model === SectionModel.ReadingRoom && matches(search, section.name, section.floorName))
+                                .filter(section => isReadingRoomModel(section.model) && matches(search, section.name, section.floorName))
                                 .map(room => placeOfRoom(room, tables.data ?? []))}
                             selectedId={selected?.kind === 'room' ? selected.id : null}
                             onShowTheWay={id => showTheWay('room', id)}

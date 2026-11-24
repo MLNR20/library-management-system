@@ -4,10 +4,10 @@ import { CrudPage } from '../components/crud/CrudPage.tsx';
 import { createDataTableColumnHelper } from '../components/data-table/tableConfig.ts';
 import type { FormField } from '../components/form/FormBuilder.tsx';
 import { RoomCell } from '../components/tables/RoomCell.tsx';
-import { floorHooks, SectionModel, sectionHooks, shelfHooks } from '../api/resources.ts';
+import { floorHooks, isReadingRoomModel, SectionModel, sectionHooks, shelfHooks } from '../api/resources.ts';
 import type { Section } from '../api/resources.ts';
 
-// A reading room is a section whose model is ReadingRoom: this page manages just those, so the model is fixed.
+// A reading room is a section whose model is ReadingRoom or StudyRoom (the glass-walled room): this page manages just those.
 
 const helper = createDataTableColumnHelper<Section>();
 const columns = helper.columns([
@@ -18,12 +18,13 @@ const columns = helper.columns([
     helper.display({ id: 'bookings', header: 'Reservations', cell: info => <RoomCell section={info.row.original} part="bookings" /> }),
 ]);
 
-const isReadingRoom = (section: Section) => section.model === SectionModel.ReadingRoom;
+const isReadingRoom = (section: Section) => isReadingRoomModel(section.model);
 
 const roomSchema = z.object({
     name: z.string().trim().min(1, 'Name is required').max(100, 'Name must be at most 100 characters'),
     floorId: z.string().min(1, 'Select a floor'),
     shelfId: z.string().min(1, 'Select a shelf'),
+    model: z.enum([String(SectionModel.ReadingRoom), String(SectionModel.StudyRoom)]),
 });
 type RoomFormInput = z.input<typeof roomSchema>;
 
@@ -50,6 +51,16 @@ export function ReadingRoomsPage() {
                 description: 'The room takes the wing this shelf stands in on the 3D map. The shelf must be on the selected floor.',
                 options: (shelves ?? []).map(s => ({ value: s.id, label: `${s.floorName} › ${s.name}` })),
             },
+            {
+                name: 'model',
+                label: 'Kind of room',
+                type: 'select',
+                description: 'A study room is built on the 3D map as a glass-walled room with a TV and a table; a reading room has open tables.',
+                options: [
+                    { value: String(SectionModel.ReadingRoom), label: 'Reading room (open tables)' },
+                    { value: String(SectionModel.StudyRoom), label: 'Study room (glass walls, TV, table)' },
+                ],
+            },
         ],
         [floors, shelves],
     );
@@ -63,9 +74,9 @@ export function ReadingRoomsPage() {
             columns={columns}
             schema={roomSchema}
             fields={fields}
-            newDefaults={{ name: '', floorId: '', shelfId: '' }}
-            toFormValues={room => ({ name: room.name, floorId: room.floorId, shelfId: room.shelfId })}
-            toRequest={values => ({ name: values.name, floorId: values.floorId, shelfId: values.shelfId, model: SectionModel.ReadingRoom })}
+            newDefaults={{ name: '', floorId: '', shelfId: '', model: String(SectionModel.ReadingRoom) }}
+            toFormValues={room => ({ name: room.name, floorId: room.floorId, shelfId: room.shelfId, model: String(room.model) as RoomFormInput['model'] })}
+            toRequest={values => ({ name: values.name, floorId: values.floorId, shelfId: values.shelfId, model: Number(values.model) as SectionModel })}
             itemLabel={room => room.name}
             filterItems={isReadingRoom}
         />

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { SectionModel, sectionHooks } from '../api/resources.ts';
+import { isReadingRoomModel, sectionHooks } from '../api/resources.ts';
 import {
     useCancelRoomReservation,
     useRequestRoomReservation,
@@ -28,7 +28,7 @@ export function StudentRoomsPage() {
     const rows = useMemo(
         () =>
             (sectionList ?? [])
-                .filter(section => section.model === SectionModel.ReadingRoom)
+                .filter(section => isReadingRoomModel(section.model))
                 .map(section => {
                     const inRoom = (tableList ?? []).filter(table => table.isActive && table.sectionId === section.id);
                     const seats = inRoom.reduce((total, table) => total + table.seats, 0);

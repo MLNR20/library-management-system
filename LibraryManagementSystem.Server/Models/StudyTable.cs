@@ -25,7 +25,7 @@ namespace LibraryManagementSystem.Server.Models
         // Tables only go in reading rooms: not in a plain section and not in a wing (those are for shelves).
         public static void EnsureSectionAllowsTables(Section section)
         {
-            if (section.Model != SectionModel.ReadingRoom)
+            if (!section.Model.IsReadingRoom())
             {
                 throw new StudyTableException(
                     $"Section '{section.Name}' is not a reading room. Tables can only be assigned to reading rooms.");

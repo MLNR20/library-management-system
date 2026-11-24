@@ -399,7 +399,7 @@ namespace LibraryManagementSystem.Server.Data
 
             var today = DateTime.UtcNow.Date;
             var tables = await db.StudyTables.Where(t => t.IsActive).OrderBy(t => t.Name).ToListAsync(cancellationToken);
-            var rooms = await db.Sections.Where(s => s.Model == SectionModel.ReadingRoom).OrderBy(s => s.Name).ToListAsync(cancellationToken);
+            var rooms = await db.Sections.Where(s => s.Model == SectionModel.ReadingRoom || s.Model == SectionModel.StudyRoom).OrderBy(s => s.Name).ToListAsync(cancellationToken);
             const string decider = "demo";
             var added = 0;
 
@@ -539,7 +539,7 @@ namespace LibraryManagementSystem.Server.Data
                 }
             }
 
-            if (await db.Sections.AnyAsync(s => s.FloorId == floor.Id && s.Model == SectionModel.ReadingRoom, cancellationToken))
+            if (await db.Sections.AnyAsync(s => s.FloorId == floor.Id && (s.Model == SectionModel.ReadingRoom || s.Model == SectionModel.StudyRoom), cancellationToken))
             {
                 return;
             }
@@ -548,7 +548,7 @@ namespace LibraryManagementSystem.Server.Data
             var home = shelves.OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase).First(s => !taken.Contains(s.Id));
             var room = new Section
             {
-                Id = Guid.NewGuid(), Name = SecondFloorReadingRoomName, FloorId = floor.Id, ShelfId = home.Id, Model = SectionModel.ReadingRoom
+                Id = Guid.NewGuid(), Name = SecondFloorReadingRoomName, FloorId = floor.Id, ShelfId = home.Id, Model = SectionModel.StudyRoom
             };
             db.Sections.Add(room);
 

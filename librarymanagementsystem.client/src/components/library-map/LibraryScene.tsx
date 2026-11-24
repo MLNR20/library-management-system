@@ -9,7 +9,8 @@ import { PLANK, QUARTERS, SHELF_DEPTH, SHELF_WIDTH, TIER_HEIGHT, hash01, wingRec
 import type { FloorLayout, ShelfLayout, TierLayout, WingLayout } from '../../lib/libraryLayout.ts';
 import { LibraryDragContext } from './dragContext.ts';
 import { Carpets, Columns, Doors, LibrarianDesk, Stairs, TableSet, Tables, Walls, Windows } from './FloorStructure.tsx';
-import { SLAB_THICKNESS, STAIR_LANDING, STAIR_WIDTH, flightFrame, readingTables, sceneMetrics, stairHole } from './floorPlan.ts';
+import { SLAB_THICKNESS, STAIR_LANDING, STAIR_WIDTH, flightFrame, readingTables, sceneMetrics, stairHole, studyRooms } from './floorPlan.ts';
+import { StudyRoomModel } from './StudyRoom.tsx';
 import { Plants } from './Decor.tsx';
 import { VictorianBookcase, WallBookcases } from './Bookcase.tsx';
 import { BOOKCASE_SHADOW, BOOKCASE_WOOD } from './ornamentShapes.ts';
@@ -365,6 +366,7 @@ function WingRoom({ wing, hall, seeThrough }: WingRoomProps) {
     const rect = wingRect(hall, wing);
     const tint = sectionColor(wing.sections[0]?.id ?? `wing-${wing.index}`);
     const isReadingRoom = wing.model === SectionModel.ReadingRoom;
+    const isStudyRoom = wing.model === SectionModel.StudyRoom;
     // The label sits at the outer edge of the wing, towards the north or south wall.
     const outward = QUARTERS[wing.quarters[0]].sz;
 
@@ -376,9 +378,11 @@ function WingRoom({ wing, hall, seeThrough }: WingRoomProps) {
             </mesh>
             {isReadingRoom &&
                 readingTables(hall, wing).map(({ z, xs }) => <TableSet key={z} xs={xs} depth={hall} z={z} seeThrough={seeThrough} />)}
+            {isStudyRoom &&
+                studyRooms(hall, wing).map(room => <StudyRoomModel key={`${room.x},${room.z}`} room={room} seeThrough={seeThrough} />)}
             <Html position={[rect.x, 0.1, rect.z + outward * (rect.hz - 0.4)]} center style={{ pointerEvents: 'none' }} distanceFactor={11}>
                 <div className="rounded px-2 py-0.5 text-xs font-bold whitespace-nowrap text-black" style={{ background: tint }}>
-                    {isReadingRoom ? 'Reading room' : `Wing ${wing.index + 1}`}
+                    {isStudyRoom ? 'Study room' : isReadingRoom ? 'Reading room' : `Wing ${wing.index + 1}`}
                     {wing.sections.length > 0 && ` · ${wing.sections.map(s => s.name).join(', ')}`}
                 </div>
             </Html>

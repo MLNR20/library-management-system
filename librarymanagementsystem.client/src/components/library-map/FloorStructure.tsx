@@ -943,7 +943,7 @@ const LEATHER_GREEN = '#2f5d3a';
  * A Victorian mahogany chair: turned front legs, back legs rising into stiles topped with acorns, a crest rail with a gilt
  * lozenge over a pierced splat of two scrolls back to back, and an upholstered seat with gold piping.
  */
-function Chair({ position, rotationY, upholstery, seeThrough }: ChairProps) {
+export function Chair({ position, rotationY, upholstery, seeThrough }: ChairProps) {
     const opacity = seeThrough ? 0.7 : 1;
     const wood = <meshStandardMaterial color={MAHOGANY} roughness={0.4} transparent={seeThrough} opacity={opacity} />;
     const leg = SEAT / 2 - 0.03;

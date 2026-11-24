@@ -7,5 +7,14 @@ namespace LibraryManagementSystem.Server.Models
         None = 0,
         Wing = 1,
         ReadingRoom = 2,
+        // A reading room built as a glass-walled room (walls, a glass door, a TV on the wall and a table). It is a reading
+        // room in every other way: tables can be assigned to it and the whole room can be reserved.
+        StudyRoom = 3,
+    }
+
+    public static class SectionModelExtensions
+    {
+        // True for the models that are reading rooms: tables go in them and they can be reserved.
+        public static bool IsReadingRoom(this SectionModel model) => model is SectionModel.ReadingRoom or SectionModel.StudyRoom;
     }
 }

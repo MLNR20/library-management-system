@@ -14,6 +14,14 @@ namespace LibraryManagementSystem.Server.Tests.Models
             Assert.Null(exception);
         }
 
+        [Fact]
+        public void A_study_room_can_hold_tables()
+        {
+            var exception = Record.Exception(() => StudyTable.EnsureSectionAllowsTables(SectionOf(SectionModel.StudyRoom)));
+
+            Assert.Null(exception);
+        }
+
         [Theory]
         [InlineData(SectionModel.None)]
         [InlineData(SectionModel.Wing)]

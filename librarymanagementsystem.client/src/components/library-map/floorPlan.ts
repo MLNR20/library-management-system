@@ -1,5 +1,5 @@
 import { SectionModel } from '../../api/resources.ts';
-import { LOBBY_WIDTH, MIN_HALL, QUARTERS, quarterRect } from '../../lib/libraryLayout.ts';
+import { LOBBY_WIDTH, MIN_HALL, QUARTERS, STUDY_ROOM_DEPTH, STUDY_ROOM_WIDTH, quarterRect } from '../../lib/libraryLayout.ts';
 import type { FloorLayout, WingLayout } from '../../lib/libraryLayout.ts';
 
 // Where things stand on a floor. Shared by the 3D models and by the route finder, so a route never cuts through furniture.
@@ -193,6 +193,56 @@ export function readingTables(hall: number, wing: WingLayout): { z: number; xs: 
     });
 }
 
+// The study room: a glass-walled room at the outer end of a quarter, beyond the last row of shelves. Its door is in the wall
+// that faces the carpet cross. In the room's own space the door is on the +z side and the TV on the wall at the -z side.
+export const STUDY_WALL = 0.1;
+export const STUDY_HEIGHT = 2.9;
+export const STUDY_DOOR_WIDTH = 1.3;
+export const STUDY_DOOR_HEIGHT = 2.1;
+/** Where the table stands along z in the room's own space, and the TV's height on the wall. */
+export const STUDY_TABLE_Z = -0.2;
+export const STUDY_TV_HEIGHT = 1.55;
+
+export interface StudyRoomPlace {
+    /** Middle of the room on the floor. */
+    x: number;
+    z: number;
+    /** Which way the door faces along z: +1 towards the south wall, -1 towards the north wall. */
+    door: 1 | -1;
+}
+
+/** One study room for each quarter of the wing, flush with the outer edge of the quarter, the door facing the cross. */
+export function studyRooms(hall: number, wing: WingLayout): StudyRoomPlace[] {
+    return wing.quarters.map(quarter => {
+        const rect = quarterRect(hall, quarter);
+        const outward = QUARTERS[quarter].sz;
+        const edge = rect.z + outward * rect.hz;
+        return { x: rect.x, z: edge - outward * (STUDY_ROOM_DEPTH / 2 + 0.15), door: (outward < 0 ? 1 : -1) as 1 | -1 };
+    });
+}
+
+/** A point given in the room's own space (x across, z towards the door), on the floor. */
+export const studyPoint = (room: StudyRoomPlace, x: number, z: number): [number, number] => [room.x + room.door * x, room.z + room.door * z];
+
+/** The room's walls as boxes on the floor: three solid walls, and the glass front on either side of the door. */
+function studyRoomRects(room: StudyRoomPlace): FloorRect[] {
+    const W = STUDY_ROOM_WIDTH;
+    const D = STUDY_ROOM_DEPTH;
+    const t = STUDY_WALL;
+    const piece = (W - STUDY_DOOR_WIDTH) / 2;
+    const rect = (x: number, z: number, hx: number, hz: number): FloorRect => {
+        const [wx, wz] = studyPoint(room, x, z);
+        return { x: wx, z: wz, hx, hz };
+    };
+    return [
+        rect(0, -(D / 2 - t / 2), W / 2, t / 2),
+        rect(-(W / 2 - t / 2), 0, t / 2, D / 2),
+        rect(W / 2 - t / 2, 0, t / 2, D / 2),
+        rect(-(STUDY_DOOR_WIDTH / 2 + piece / 2), D / 2 - t / 2, piece / 2, t / 2),
+        rect(STUDY_DOOR_WIDTH / 2 + piece / 2, D / 2 - t / 2, piece / 2, t / 2),
+    ];
+}
+
 export const DESK_LENGTH = 2;
 export const DESK_DEPTH = 0.75;
 export const DESK_HEIGHT = 1.05;
@@ -277,6 +327,11 @@ export function furnitureRects(hall: number, ground: boolean, wings: WingLayout[
         for (const { z, xs } of readingTables(hall, wing)) {
             for (const x of xs) rects.push({ x, z, hx: TABLE_LENGTH / 2, hz: CHAIR_OFFSET + 0.25 });
         }
+    }
+
+    for (const wing of wings) {
+        if (wing.model !== SectionModel.StudyRoom) continue;
+        for (const room of studyRooms(hall, wing)) rects.push(...studyRoomRects(room));
     }
 
     for (const x of tableXs(hall)) {

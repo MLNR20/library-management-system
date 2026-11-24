@@ -22,6 +22,11 @@ export const BACK_STRIP = 3.4;
 export const FRONT_STRIP = 2.8;
 /** Extra depth a quarter needs when its wing is a reading room, for the tables and chairs at its outer end. */
 const READING_ROOM_DEPTH = 2.8;
+/** Outside size of a study room (the glass-walled room): along x and along z. It is built beyond the last row of shelves. */
+export const STUDY_ROOM_WIDTH = 4.6;
+export const STUDY_ROOM_DEPTH = 3.4;
+/** Extra depth a quarter needs when its wing holds a study room: the room itself, and a little air round it. */
+const STUDY_ROOM_EXTRA_DEPTH = STUDY_ROOM_DEPTH + 0.6;
 /** The hall is a square at least this big, so that each quarter of it (a wing) is a cube at least 11 across. */
 export const MIN_HALL = 22;
 const DEFAULT_WINGS = 4;
@@ -35,7 +40,10 @@ const WING_ORDER = [0, 3, 1, 2];
 export interface WingLayout {
     /** 0 to 3: north-west, north-east, south-west, south-east (with 2 wings: the north half, then the south half). */
     index: number;
-    /** ReadingRoom if a reading-room section's shelf stands here (tables and chairs are added), else Wing if a wing section's does, else None. */
+    /**
+     * StudyRoom if a study-room section's shelf stands here (a glass-walled room is built), else ReadingRoom if a reading-room
+     * section's does (tables and chairs are added), else Wing if a wing section's does, else None.
+     */
     model: SectionModel;
     /** The sections with a wing or reading room model whose shelves stand in this wing. */
     sections: Section[];
@@ -194,15 +202,22 @@ export function buildLayout({ floors, shelves, rows, sections, books }: LayoutIn
             const named = sections
                 .filter(s => s.floorId === floor.id && s.model !== SectionModel.None && shelfIds.has(s.shelfId))
                 .sort(byName);
-            const model = named.some(s => s.model === SectionModel.ReadingRoom)
-                ? SectionModel.ReadingRoom
-                : named.length > 0
-                  ? SectionModel.Wing
-                  : SectionModel.None;
+            const model = named.some(s => s.model === SectionModel.StudyRoom)
+                ? SectionModel.StudyRoom
+                : named.some(s => s.model === SectionModel.ReadingRoom)
+                  ? SectionModel.ReadingRoom
+                  : named.length > 0
+                    ? SectionModel.Wing
+                    : SectionModel.None;
             return { index, model, sections: named, quarters: quartersOf(index) };
         });
 
-        const side = hallSide(columns, gridRows, wings.some(w => w.model === SectionModel.ReadingRoom) ? READING_ROOM_DEPTH : 0);
+        const extraDepth = wings.some(w => w.model === SectionModel.StudyRoom)
+            ? STUDY_ROOM_EXTRA_DEPTH
+            : wings.some(w => w.model === SectionModel.ReadingRoom)
+              ? READING_ROOM_DEPTH
+              : 0;
+        const side = hallSide(columns, gridRows, extraDepth);
 
         return {
             floor,

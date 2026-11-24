@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { CrudPage } from '../components/crud/CrudPage.tsx';
 import { createDataTableColumnHelper } from '../components/data-table/tableConfig.ts';
 import type { FormField } from '../components/form/FormBuilder.tsx';
-import { SectionModel, sectionHooks } from '../api/resources.ts';
+import { isReadingRoomModel, sectionHooks } from '../api/resources.ts';
 import { tableHooks } from '../api/tables.ts';
 import type { StudyTable } from '../api/tables.ts';
 
@@ -38,7 +38,7 @@ export function TablesPage() {
                 placeholder: 'Not assigned',
                 // Only reading rooms: the server rejects any other kind of section.
                 options: (sections ?? [])
-                    .filter(section => section.model === SectionModel.ReadingRoom)
+                    .filter(section => isReadingRoomModel(section.model))
                     .map(section => ({ value: section.id, label: `${section.floorName} › ${section.name}` })),
                 description: 'Tables can only be assigned to a section that is a reading room.',
                 span: 2,

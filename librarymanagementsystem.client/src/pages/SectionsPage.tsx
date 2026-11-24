@@ -24,7 +24,7 @@ const sectionSchema = z.object({
     name: z.string().trim().min(1, 'Name is required').max(100, 'Name must be at most 100 characters'),
     floorId: z.string().min(1, 'Select a floor'),
     shelfId: z.string().min(1, 'Select a shelf'),
-    model: z.enum(['0', '1', '2']),
+    model: z.enum(['0', '1', '2', '3']),
 });
 type SectionFormInput = z.input<typeof sectionSchema>;
 

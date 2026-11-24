@@ -27,7 +27,7 @@ namespace LibraryManagementSystem.Server.Models
         {
             EnsureCanReserve(user, roles, "reading rooms");
 
-            if (section.Model != SectionModel.ReadingRoom)
+            if (!section.Model.IsReadingRoom())
             {
                 throw new ReservationException($"Section '{section.Name}' is not a reading room and cannot be reserved.");
             }

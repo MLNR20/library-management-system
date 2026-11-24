@@ -1,4 +1,4 @@
-import { SectionModel } from '../../api/resources.ts';
+import { isReadingRoomModel } from '../../api/resources.ts';
 import type { Section } from '../../api/resources.ts';
 import { useRoomReservations } from '../../api/rooms.ts';
 import { ReservationStatus, tableHooks } from '../../api/tables.ts';
@@ -20,7 +20,7 @@ export function RoomCell({ section, part }: Props) {
     // "Now" is when the reservations were last fetched, which is every minute.
     const { data: reservations, dataUpdatedAt: now } = useRoomReservations();
 
-    if (section.model !== SectionModel.ReadingRoom) return <span className="opacity-40">—</span>;
+    if (!isReadingRoomModel(section.model)) return <span className="opacity-40">—</span>;
 
     if (part === 'furnishing') {
         const inRoom = (tables ?? []).filter(table => table.isActive && table.sectionId === section.id);

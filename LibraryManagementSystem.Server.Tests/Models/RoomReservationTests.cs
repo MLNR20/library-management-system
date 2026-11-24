@@ -48,6 +48,14 @@ namespace LibraryManagementSystem.Server.Tests.Models
             Assert.Equal("Society meeting", reservation.Note);
         }
 
+        [Fact]
+        public void Request_accepts_a_study_room()
+        {
+            var reservation = Pending(Room(SectionModel.StudyRoom));
+
+            Assert.Equal(ReservationStatus.Pending, reservation.Status);
+        }
+
         [Theory]
         [InlineData(SectionModel.None)]
         [InlineData(SectionModel.Wing)]
