@@ -81,9 +81,11 @@ export function DataTable<TData extends RowData>({
                 )}
             </div>
 
-            <div className="overflow-x-auto rounded-box border border-base-300 bg-base-100">
-                <table className="table">
-                    <thead>
+            {/* The calendars' border colour on the frame and on the row lines. */}
+            <div className="overflow-x-auto rounded-box border border-base-content/15 bg-base-100">
+                <table className="table [&_tr]:border-base-content/15">
+                    {/* The same light gray as the calendars' weekday row. */}
+                    <thead className="bg-base-200">
                         {table.getHeaderGroups().map(group => (
                             <tr key={group.id}>
                                 {group.headers.map(header => {

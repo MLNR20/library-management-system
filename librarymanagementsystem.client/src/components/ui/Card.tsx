@@ -64,17 +64,34 @@ const TONES = {
 
 export function StatCard({ label, value, hint, icon, tone = 'primary', className = '' }: StatCardProps) {
     return (
-        <div className={`stats card-border border-base-300 bg-base-100 ${className}`}>
-            <div className="stat flex items-center gap-4">
+        <div className={`stats card-border border-base-content/15 bg-base-100 ${className}`}>
+            {/* Tighter on phones, where two cards share a row; the text may wrap instead of running out of the card. */}
+            <div className="stat flex items-center gap-3 px-3 py-3 sm:gap-4 sm:px-6 sm:py-4">
                 {icon && (
-                    <div className={`flex size-14 shrink-0 items-center justify-center rounded-box ${TONES[tone]}`}>
+                    <div className={`flex size-10 shrink-0 items-center justify-center rounded-box sm:size-14 ${TONES[tone]}`}>
                         {icon}
                     </div>
                 )}
-                <div>
-                    <div className="stat-title">{label}</div>
-                    <div className="stat-value">{value}</div>
-                    {hint && <div className="stat-desc">{hint}</div>}
+                <div className="min-w-0">
+                    <div className="stat-title whitespace-normal">{label}</div>
+                    <div className="stat-value text-2xl sm:text-3xl">{value}</div>
+                    {hint && <div className="stat-desc whitespace-normal">{hint}</div>}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+/** Placeholder with the shape of a StatCard, shown while its numbers load. */
+export function StatCardSkeleton() {
+    return (
+        <div className="stats card-border border-base-300 bg-base-100" aria-hidden="true">
+            <div className="stat flex items-center gap-3 px-3 py-3 sm:gap-4 sm:px-6 sm:py-4">
+                <div className="skeleton size-10 shrink-0 rounded-box sm:size-14" />
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                    <div className="skeleton h-3 w-2/3" />
+                    <div className="skeleton h-7 w-1/3" />
+                    <div className="skeleton h-3 w-1/2" />
                 </div>
             </div>
         </div>

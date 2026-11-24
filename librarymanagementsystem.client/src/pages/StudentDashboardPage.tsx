@@ -44,7 +44,7 @@ export function StudentDashboardPage() {
 
                     <nav
                         aria-labelledby="services-heading"
-                        className="flex flex-col gap-3 rounded-3xl border border-base-300 bg-base-100 p-4 sm:p-6"
+                        className="flex flex-col gap-3 rounded-3xl border border-base-content/15 bg-base-100 p-4 sm:p-6"
                     >
                         <h2 id="services-heading" className="text-xl font-bold">
                             Services
@@ -72,7 +72,7 @@ export function StudentDashboardPage() {
                     {announcements.length > 0 && (
                         <section
                             aria-labelledby="announcements-heading"
-                            className="flex flex-col gap-3 rounded-3xl border border-base-300 bg-base-100 p-4 sm:p-6"
+                            className="flex flex-col gap-3 rounded-3xl border border-base-content/15 bg-base-100 p-4 sm:p-6"
                         >
                             <div className="flex items-center justify-between gap-3">
                                 <h2 id="announcements-heading" className="text-xl font-bold">
@@ -83,7 +83,7 @@ export function StudentDashboardPage() {
                                 </Link>
                             </div>
                             {announcements.map(announcement => (
-                                <article key={announcement.id} className="card border border-base-300 bg-base-200">
+                                <article key={announcement.id} className="card border border-base-content/15 bg-base-200">
                                     <div className="card-body gap-2">
                                         <time className="text-xs opacity-70" dateTime={announcement.createdAt}>
                                             {new Date(announcement.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}

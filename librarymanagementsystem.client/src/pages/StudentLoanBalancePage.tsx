@@ -2,7 +2,7 @@ import { DataTable } from '../components/data-table/DataTable.tsx';
 import { createDataTableColumnHelper } from '../components/data-table/tableConfig.ts';
 import { useMemo, useState } from 'react';
 import { Page } from '../components/layout/Page.tsx';
-import { StatCard } from '../components/ui/Card.tsx';
+import { StatCard, StatCardSkeleton } from '../components/ui/Card.tsx';
 import { EmptyState } from '../components/ui/EmptyState.tsx';
 import libraryIllustration from '../assets/illustrations/library-bro.svg';
 import studyingIllustration from '../assets/illustrations/studying-bro.svg';
@@ -46,10 +46,10 @@ export function StudentLoanBalancePage() {
                     Could not load your loans: {getErrorMessage(borrowings.error)}
                 </div>
             ) : borrowings.isLoading ? (
-                <span className="loading loading-spinner" />
+                <LoansSkeleton />
             ) : (
                 <div className="flex flex-col gap-8">
-                    <section aria-label="Summary" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <section aria-label="Summary" className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
                         <StatCard
                             label="Balance due"
                             value={amount.format(accruing)}
@@ -80,13 +80,14 @@ export function StudentLoanBalancePage() {
                     </section>
 
                     <section className="flex flex-col gap-3">
-                        <div role="tablist" className="tabs tabs-border border-b border-base-300" aria-label="Loans">
+                        {/* One line that scrolls sideways on a narrow screen, instead of wrapping. */}
+                        <div role="tablist" className="tabs tabs-border flex-nowrap overflow-x-auto border-b border-base-300" aria-label="Loans">
                             <button
                                 role="tab"
                                 id="loans-tab-open"
                                 aria-selected={tab === 'open'}
                                 aria-controls="loans-panel"
-                                className={`tab gap-2 ${tab === 'open' ? 'tab-active' : ''}`}
+                                className={`tab shrink-0 gap-2 whitespace-nowrap ${tab === 'open' ? 'tab-active' : ''}`}
                                 onClick={() => setTab('open')}
                             >
                                 <LoanIcon className="size-5" />
@@ -98,7 +99,7 @@ export function StudentLoanBalancePage() {
                                 id="loans-tab-returned"
                                 aria-selected={tab === 'returned'}
                                 aria-controls="loans-panel"
-                                className={`tab gap-2 ${tab === 'returned' ? 'tab-active' : ''}`}
+                                className={`tab shrink-0 gap-2 whitespace-nowrap ${tab === 'returned' ? 'tab-active' : ''}`}
                                 onClick={() => setTab('returned')}
                             >
                                 <CheckCircleIcon className="size-5" />
@@ -128,6 +129,31 @@ export function StudentLoanBalancePage() {
                 </div>
             )}
         </Page>
+    );
+}
+
+/** The page's shape while the loans load: the four summary cards, the tab bar and a few table rows. */
+function LoansSkeleton() {
+    return (
+        <div className="flex flex-col gap-8" role="status" aria-label="Loading your loans">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+                {Array.from({ length: 4 }, (_, i) => (
+                    <StatCardSkeleton key={i} />
+                ))}
+            </div>
+            <div className="flex flex-col gap-3" aria-hidden="true">
+                <div className="flex gap-6 border-b border-base-300 pb-3">
+                    <div className="skeleton h-5 w-32" />
+                    <div className="skeleton h-5 w-24" />
+                </div>
+                <div className="skeleton h-10 w-full sm:max-w-sm" />
+                <div className="flex flex-col gap-2 rounded-box border border-base-300 bg-base-100 p-4">
+                    {Array.from({ length: 4 }, (_, i) => (
+                        <div key={i} className="skeleton h-5 w-full" />
+                    ))}
+                </div>
+            </div>
+        </div>
     );
 }
 

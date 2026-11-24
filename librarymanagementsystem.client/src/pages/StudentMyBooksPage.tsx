@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { Page } from '../components/layout/Page.tsx';
 import { DataTable } from '../components/data-table/DataTable.tsx';
 import { createDataTableColumnHelper } from '../components/data-table/tableConfig.ts';
+import { CardSkeleton } from '../components/ui/Card.tsx';
 import { EmptyState } from '../components/ui/EmptyState.tsx';
+import { useToast } from '../components/ui/toastContext.ts';
 import libraryIllustration from '../assets/illustrations/library-bro.svg';
 import studyingIllustration from '../assets/illustrations/studying-bro.svg';
 import { BookIcon, ClockIcon } from '../components/ui/icons.tsx';
@@ -27,6 +29,7 @@ export function StudentMyBooksPage() {
     const cancel = useCancelBookReservation();
     const collect = useCollectBook();
     const requestReturn = useRequestBookReturn();
+    const toast = useToast();
     const [error, setError] = useState<string>();
     const [tab, setTab] = useState<'now' | 'history'>('now');
 
@@ -57,18 +60,28 @@ export function StudentMyBooksPage() {
                     Could not load your books: {getErrorMessage(reservations.error)}
                 </div>
             ) : reservations.isLoading ? (
-                <span className="loading loading-spinner" />
+                <div className="flex flex-col gap-4" role="status" aria-label="Loading your books">
+                    <div className="flex gap-6 border-b border-base-300 pb-3" aria-hidden="true">
+                        <div className="skeleton h-5 w-24" />
+                        <div className="skeleton h-5 w-28" />
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <CardSkeleton />
+                        <CardSkeleton />
+                    </div>
+                </div>
             ) : items.length === 0 ? (
                 <EmptyState image={libraryIllustration} title="You have not reserved any books yet">Find one under "Find a book" and press Reserve.</EmptyState>
             ) : (
                 <div className="flex flex-col gap-4">
-                    <div role="tablist" className="tabs tabs-border border-b border-base-300" aria-label="My books">
+                    {/* One line that scrolls sideways on a narrow screen, instead of wrapping. */}
+                    <div role="tablist" className="tabs tabs-border flex-nowrap overflow-x-auto border-b border-base-300" aria-label="My books">
                         <button
                             role="tab"
                             id="my-books-tab-now"
                             aria-selected={tab === 'now'}
                             aria-controls="my-books-panel"
-                            className={`tab gap-2 ${tab === 'now' ? 'tab-active' : ''}`}
+                            className={`tab shrink-0 gap-2 whitespace-nowrap ${tab === 'now' ? 'tab-active' : ''}`}
                             onClick={() => setTab('now')}
                         >
                             <BookIcon className="size-5" />
@@ -80,7 +93,7 @@ export function StudentMyBooksPage() {
                             id="my-books-tab-history"
                             aria-selected={tab === 'history'}
                             aria-controls="my-books-panel"
-                            className={`tab gap-2 ${tab === 'history' ? 'tab-active' : ''}`}
+                            className={`tab shrink-0 gap-2 whitespace-nowrap ${tab === 'history' ? 'tab-active' : ''}`}
                             onClick={() => setTab('history')}
                         >
                             <ClockIcon className="size-5" />
@@ -102,11 +115,30 @@ export function StudentMyBooksPage() {
                                             <ReservationCard
                                                 reservation={reservation}
                                                 busy={busy}
-                                                onCancel={() => run(() => cancel.mutate(reservation.id, { onError }))}
-                                                onCollect={() => run(() => collect.mutate(reservation.id, { onError }))}
+                                                onCancel={() =>
+                                                    run(() =>
+                                                        cancel.mutate(reservation.id, {
+                                                            onError,
+                                                            onSuccess: () => toast.success(`Reservation cancelled: ${reservation.bookTitle}`),
+                                                        }),
+                                                    )
+                                                }
+                                                onCollect={() =>
+                                                    run(() =>
+                                                        collect.mutate(reservation.id, {
+                                                            onError,
+                                                            onSuccess: () => toast.success(`Collected: ${reservation.bookTitle} is now on loan`),
+                                                        }),
+                                                    )
+                                                }
                                                 onRequestReturn={() =>
                                                     run(() => {
-                                                        if (reservation.borrowingId) requestReturn.mutate(reservation.borrowingId, { onError });
+                                                        if (reservation.borrowingId) {
+                                                            requestReturn.mutate(reservation.borrowingId, {
+                                                                onError,
+                                                                onSuccess: () => toast.success('Return requested: a librarian will approve it'),
+                                                            });
+                                                        }
                                                     })
                                                 }
                                             />

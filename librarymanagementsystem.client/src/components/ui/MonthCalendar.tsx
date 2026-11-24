@@ -35,7 +35,7 @@ export function MonthCalendar() {
     }
 
     return (
-        <section aria-label="Calendar" className="rounded-3xl border border-base-300 bg-base-100 p-6">
+        <section aria-label="Calendar" className="rounded-3xl border border-base-content/15 bg-base-100 p-6">
             <div className="flex items-center justify-between gap-2">
                 <h2 className="text-lg font-bold">
                     {shown.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
