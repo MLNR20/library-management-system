@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
+import type { RefObject } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html, OrbitControls, useContextBridge } from '@react-three/drei';
 import * as THREE from 'three';
@@ -12,8 +13,11 @@ import { SLAB_THICKNESS, STAIR_LANDING, STAIR_WIDTH, flightFrame, readingTables,
 import { Plants } from './Decor.tsx';
 import { VictorianBookcase, WallBookcases } from './Bookcase.tsx';
 import { BOOKCASE_SHADOW, BOOKCASE_WOOD } from './ornamentShapes.ts';
+import { FirstPersonRig } from './FirstPersonRig.tsx';
+import type { WalkState } from './FirstPersonRig.tsx';
 import { RoutePath } from './RoutePath.tsx';
 import type { Route } from './route.ts';
+import type { WalkPath } from './walkthrough.ts';
 import { sectionColor, statusColors } from './palette.ts';
 import { TILE_WORLD_SIZE, createFloorTileTexture } from './floorTileTexture.ts';
 import { useLibraryDrag } from './useLibraryDrag.ts';
@@ -32,9 +36,17 @@ interface LibraryCanvasProps {
     autoRotate?: boolean;
     /** Change this number to put the camera back to its starting view. */
     resetKey?: number;
+    /** Walk the camera through the library at eye height instead of orbiting it. */
+    walk?: {
+        path: WalkPath;
+        state: RefObject<WalkState>;
+        onProgress: (fraction: number) => void;
+        /** The book being walked to, if it is a book; it glows on its shelf. */
+        bookId?: string;
+    };
 }
 
-export function LibraryCanvas({ floors, stacked, route, autoRotate = false, resetKey = 0 }: LibraryCanvasProps) {
+export function LibraryCanvas({ floors, stacked, route, autoRotate = false, resetKey = 0, walk }: LibraryCanvasProps) {
     // Canvas renders in its own React root, so the drag context has to be carried across.
     const ContextBridge = useContextBridge(LibraryDragContext);
     // Every floor shares one footprint so walls and stairs line up from floor to floor.
@@ -85,8 +97,14 @@ export function LibraryCanvas({ floors, stacked, route, autoRotate = false, rese
                         {route && <RoutePath route={route} index={index} />}
                     </group>
                 ))}
-                <Controls autoRotate={autoRotate} />
+                <Controls autoRotate={autoRotate && !walk} disabled={!!walk} />
                 <CameraRig focus={focus} focusKey={`${stacked}-${resetKey}-${floors.map(f => f.floor.id).join(',')}`} />
+                {walk && (
+                    <>
+                        <FirstPersonRig path={walk.path} state={walk.state} onProgress={walk.onProgress} />
+                        {walk.bookId && <GlowBook bookId={walk.bookId} />}
+                    </>
+                )}
                 <RowPickerBridge />
                 <CursorManager />
             </ContextBridge>
@@ -119,12 +137,12 @@ function ShadowCasters() {
 }
 
 // The orbit controls must not rotate the view while a book is being dragged.
-function Controls({ autoRotate }: { autoRotate: boolean }) {
+function Controls({ autoRotate, disabled }: { autoRotate: boolean; disabled: boolean }) {
     const { drag } = useLibraryDrag();
     return (
         <OrbitControls
             makeDefault
-            enabled={!drag}
+            enabled={!drag && !disabled}
             autoRotate={autoRotate}
             autoRotateSpeed={1.5}
             maxPolarAngle={Math.PI * 0.49}
@@ -133,6 +151,18 @@ function Controls({ autoRotate }: { autoRotate: boolean }) {
             enableDamping={false}
         />
     );
+}
+
+// Makes the book that is being walked to glow on its shelf, so it stands out among its neighbours.
+function GlowBook({ bookId }: { bookId: string }) {
+    const { selectBook } = useLibraryDrag();
+
+    useEffect(() => {
+        selectBook(bookId);
+        return () => selectBook(null);
+    }, [bookId, selectBook]);
+
+    return null;
 }
 
 interface CameraRigProps {

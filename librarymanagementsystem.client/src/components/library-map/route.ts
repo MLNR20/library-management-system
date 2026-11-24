@@ -25,7 +25,8 @@ export interface Route {
     distance: number;
 }
 
-const WALK_HEIGHT = 0.06;
+/** How far above the floor the route line is drawn. */
+export const WALK_HEIGHT = 0.06;
 /** Space kept clear around furniture and shelves so the line does not hug them. */
 const CLEARANCE = 0.2;
 /** How far in front of a shelf the person stands. */
@@ -67,15 +68,26 @@ export function routeRowFor(rowIds: string[], layouts: FloorLayout[]): string | 
     return nearest !== undefined && levelOf(nearest) !== Infinity ? nearest : null;
 }
 
-/**
- * Plans the walk from the main door to a row: along the carpet to the stairs that face the door and up them when the row
- * is on a higher floor, then to the front of its shelf. `floors` are the floors being drawn (bottom first), sharing one
- * square hall `width` across (`depth` is the same) and one `storey` height. Returns null when the row is not on any of them.
- */
-export function buildRoute(floors: FloorLayout[], rowId: string, width: number, depth: number, storey: number): Route | null {
-    const targetIndex = floors.findIndex(floor => floor.shelves.some(shelf => shelf.tiers.some(tier => tier.row.id === rowId)));
-    if (targetIndex < 0) return null;
+/** Where a walk ends: the spot to stand, what to look at from there, and the last line of the directions. */
+interface Arrival {
+    stand: Point2;
+    look: Point3;
+    step: string;
+}
 
+/**
+ * Plans the walk from the main door to the place `arrive` describes on floor `targetIndex`: along the carpet to the stairs
+ * that face the door and up them when that floor is a higher one, then to where the reader stands. `floors` are the floors
+ * being drawn (bottom first), sharing one square hall `width` across (`depth` is the same) and one `storey` height.
+ */
+function planRoute(
+    floors: FloorLayout[],
+    targetIndex: number,
+    arrive: (floor: FloorLayout) => Arrival,
+    width: number,
+    depth: number,
+    storey: number,
+): Route {
     const { count, rise, run } = stairGeometry(storey);
     const { length: flight, centre } = flightFrame(width, storey);
     // Every flight faces the door: it starts at the west end of the stairs and climbs east, along the middle of the floor (z = 0).
@@ -124,22 +136,11 @@ export function buildRoute(floors: FloorLayout[], rowId: string, width: number, 
             points.push([topX, storey + WALK_HEIGHT, 0]);
             steps.push(`Take the stairs up to the ${floors[index + 1].floor.name.toLowerCase()}.`);
         } else {
-            const shelf = floor.shelves.find(s => s.tiers.some(tier => tier.row.id === rowId))!;
-            const tierIndex = shelf.tiers.findIndex(tier => tier.row.id === rowId);
-            const [fx, fz] = facing(shelf);
-            const stand: Point2 = [shelf.x + fx * STAND_DISTANCE, shelf.z + fz * STAND_DISTANCE];
+            const { stand, look, step } = arrive(floor);
             const walk = findPath(grid, from, stand) ?? [from, stand];
-            const book: Point3 = [
-                shelf.x + fx * (SHELF_DEPTH / 2 + 0.05),
-                tierIndex * TIER_HEIGHT + TIER_HEIGHT / 2 + PLANK / 2,
-                shelf.z + fz * (SHELF_DEPTH / 2 + 0.05),
-            ];
-            points.push(...lift(index > 0 ? [from, ...walk] : walk), book);
-            destination = { index, position: book };
-
-            const row = shelf.tiers[tierIndex].row;
-            const sections = shelf.sections.map(section => section.name).join(', ');
-            steps.push(`Walk to ${shelf.shelf.name}${sections ? ` (${sections})` : ''} and find ${row.name}.`);
+            points.push(...lift(index > 0 ? [from, ...walk] : walk), look);
+            destination = { index, position: look };
+            steps.push(step);
         }
 
         segments.push({ index, points });
@@ -152,4 +153,49 @@ export function buildRoute(floors: FloorLayout[], rowId: string, width: number, 
         steps,
         distance: segments.reduce((total, segment) => total + length(segment.points), 0),
     };
+}
+
+/** The walk from the main door to a row on a shelf. Returns null when the row is not on any of the floors. */
+export function buildRoute(floors: FloorLayout[], rowId: string, width: number, depth: number, storey: number): Route | null {
+    const targetIndex = floors.findIndex(floor => floor.shelves.some(shelf => shelf.tiers.some(tier => tier.row.id === rowId)));
+    if (targetIndex < 0) return null;
+
+    return planRoute(
+        floors,
+        targetIndex,
+        floor => {
+            const shelf = floor.shelves.find(s => s.tiers.some(tier => tier.row.id === rowId))!;
+            const tierIndex = shelf.tiers.findIndex(tier => tier.row.id === rowId);
+            const [fx, fz] = facing(shelf);
+            const row = shelf.tiers[tierIndex].row;
+            const sections = shelf.sections.map(section => section.name).join(', ');
+            return {
+                stand: [shelf.x + fx * STAND_DISTANCE, shelf.z + fz * STAND_DISTANCE],
+                look: [
+                    shelf.x + fx * (SHELF_DEPTH / 2 + 0.05),
+                    tierIndex * TIER_HEIGHT + TIER_HEIGHT / 2 + PLANK / 2,
+                    shelf.z + fz * (SHELF_DEPTH / 2 + 0.05),
+                ],
+                step: `Walk to ${shelf.shelf.name}${sections ? ` (${sections})` : ''} and find ${row.name}.`,
+            };
+        },
+        width,
+        depth,
+        storey,
+    );
+}
+
+/** A place on a floor other than a shelf (a table, a reading room): where to look, where to stand to look at it, and how to say so. */
+export interface Spot {
+    /** Position of its floor in the list of floors that were drawn. */
+    index: number;
+    look: Point3;
+    stand: Point2;
+    /** The last line of the directions, such as "Walk to Table 3 in the north-west of the first floor." */
+    step: string;
+}
+
+/** The walk from the main door to a spot on one of the floors. */
+export function buildRouteToSpot(floors: FloorLayout[], spot: Spot, width: number, depth: number, storey: number): Route {
+    return planRoute(floors, spot.index, () => ({ stand: spot.stand, look: spot.look, step: spot.step }), width, depth, storey);
 }
