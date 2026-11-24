@@ -4,6 +4,7 @@ import { DataTable } from '../components/data-table/DataTable.tsx';
 import { createDataTableColumnHelper } from '../components/data-table/tableConfig.ts';
 import { EmptyState } from '../components/ui/EmptyState.tsx';
 import libraryIllustration from '../assets/illustrations/library-bro.svg';
+import studyingIllustration from '../assets/illustrations/studying-bro.svg';
 import { BookIcon, ClockIcon } from '../components/ui/icons.tsx';
 import {
     bookReservationStatusBadges,
@@ -114,7 +115,7 @@ export function StudentMyBooksPage() {
                                 </ul>
                             )
                         ) : past.length === 0 ? (
-                            <EmptyState image={libraryIllustration} title="Nothing in your history yet">
+                            <EmptyState image={studyingIllustration} title="Nothing in your history yet">
                                 Returned and cancelled reservations are kept here.
                             </EmptyState>
                         ) : (

@@ -5,6 +5,7 @@ import { Page } from '../components/layout/Page.tsx';
 import { StatCard } from '../components/ui/Card.tsx';
 import { EmptyState } from '../components/ui/EmptyState.tsx';
 import libraryIllustration from '../assets/illustrations/library-bro.svg';
+import studyingIllustration from '../assets/illustrations/studying-bro.svg';
 import { BanknotesIcon, CheckCircleIcon, LoanIcon, ReceiptIcon, WarningIcon } from '../components/ui/icons.tsx';
 import { useBorrowings } from '../api/borrowings.ts';
 import type { Borrowing } from '../api/borrowings.ts';
@@ -116,7 +117,7 @@ export function StudentLoanBalancePage() {
                                     <LoanTable loans={open} showReturned={false} />
                                 )
                             ) : returned.length === 0 ? (
-                                <EmptyState illustration="history" title="You have not returned any books yet">
+                                <EmptyState image={studyingIllustration} title="You have not returned any books yet">
                                     Books you bring back, and any penalty, are listed here.
                                 </EmptyState>
                             ) : (
