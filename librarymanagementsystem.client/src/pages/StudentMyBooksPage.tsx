@@ -1,5 +1,10 @@
 import { useState } from 'react';
 import { Page } from '../components/layout/Page.tsx';
+import { DataTable } from '../components/data-table/DataTable.tsx';
+import { createDataTableColumnHelper } from '../components/data-table/tableConfig.ts';
+import { EmptyState } from '../components/ui/EmptyState.tsx';
+import libraryIllustration from '../assets/illustrations/library-bro.svg';
+import { BookIcon, ClockIcon } from '../components/ui/icons.tsx';
 import {
     bookReservationStatusBadges,
     bookReservationStatusLabels,
@@ -22,6 +27,7 @@ export function StudentMyBooksPage() {
     const collect = useCollectBook();
     const requestReturn = useRequestBookReturn();
     const [error, setError] = useState<string>();
+    const [tab, setTab] = useState<'now' | 'history'>('now');
 
     const run = (start: () => void) => {
         setError(undefined);
@@ -52,72 +58,124 @@ export function StudentMyBooksPage() {
             ) : reservations.isLoading ? (
                 <span className="loading loading-spinner" />
             ) : items.length === 0 ? (
-                <p className="opacity-70">You have not reserved any books yet. Find one under "Find a book" and press Reserve.</p>
+                <EmptyState image={libraryIllustration} title="You have not reserved any books yet">Find one under "Find a book" and press Reserve.</EmptyState>
             ) : (
-                <div className="flex flex-col gap-8">
-                    <section className="flex flex-col gap-3">
-                        <h2 className="text-lg font-semibold">Now</h2>
-                        {current.length === 0 ? (
-                            <p className="opacity-70">Nothing reserved or on loan right now.</p>
-                        ) : (
-                            <ul className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                {current.map(reservation => (
-                                    <li key={reservation.id}>
-                                        <ReservationCard
-                                            reservation={reservation}
-                                            busy={busy}
-                                            onCancel={() => run(() => cancel.mutate(reservation.id, { onError }))}
-                                            onCollect={() => run(() => collect.mutate(reservation.id, { onError }))}
-                                            onRequestReturn={() =>
-                                                run(() => {
-                                                    if (reservation.borrowingId) requestReturn.mutate(reservation.borrowingId, { onError });
-                                                })
-                                            }
-                                        />
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </section>
+                <div className="flex flex-col gap-4">
+                    <div role="tablist" className="tabs tabs-border border-b border-base-300" aria-label="My books">
+                        <button
+                            role="tab"
+                            id="my-books-tab-now"
+                            aria-selected={tab === 'now'}
+                            aria-controls="my-books-panel"
+                            className={`tab gap-2 ${tab === 'now' ? 'tab-active' : ''}`}
+                            onClick={() => setTab('now')}
+                        >
+                            <BookIcon className="size-5" />
+                            Now
+                            <span className="badge badge-sm">{current.length}</span>
+                        </button>
+                        <button
+                            role="tab"
+                            id="my-books-tab-history"
+                            aria-selected={tab === 'history'}
+                            aria-controls="my-books-panel"
+                            className={`tab gap-2 ${tab === 'history' ? 'tab-active' : ''}`}
+                            onClick={() => setTab('history')}
+                        >
+                            <ClockIcon className="size-5" />
+                            History
+                            <span className="badge badge-sm">{past.length}</span>
+                        </button>
+                    </div>
 
-                    {past.length > 0 && (
-                        <section className="flex flex-col gap-3">
-                            <h2 className="text-lg font-semibold">History</h2>
-                            <div className="overflow-x-auto rounded-box border border-base-300">
-                                <table className="table">
-                                    <thead>
-                                        <tr>
-                                            <th>Book</th>
-                                            <th>Reserved</th>
-                                            <th>Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {past.map(reservation => (
-                                            <tr key={reservation.id}>
-                                                <td>{reservation.bookTitle}</td>
-                                                <td>{formatDay(reservation.reservedAtUtc)}</td>
-                                                <td>
-                                                    <span className={`badge ${bookReservationStatusBadges[reservation.status]}`}>
-                                                        {bookReservationStatusLabels[reservation.status]}
-                                                    </span>
-                                                    {reservation.returnApprovedAtUtc && (
-                                                        <div className="text-xs opacity-60">
-                                                            approved {formatDay(reservation.returnApprovedAtUtc)}
-                                                            {reservation.returnApprovedByName ? ` by ${reservation.returnApprovedByName}` : ''}
-                                                        </div>
-                                                    )}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </section>
-                    )}
+                    <div id="my-books-panel" role="tabpanel" aria-labelledby={`my-books-tab-${tab}`}>
+                        {tab === 'now' ? (
+                            current.length === 0 ? (
+                                <EmptyState image={libraryIllustration} title="Nothing reserved or on loan right now">
+                                    Books you reserve or borrow are shown here.
+                                </EmptyState>
+                            ) : (
+                                <ul className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                    {current.map(reservation => (
+                                        <li key={reservation.id}>
+                                            <ReservationCard
+                                                reservation={reservation}
+                                                busy={busy}
+                                                onCancel={() => run(() => cancel.mutate(reservation.id, { onError }))}
+                                                onCollect={() => run(() => collect.mutate(reservation.id, { onError }))}
+                                                onRequestReturn={() =>
+                                                    run(() => {
+                                                        if (reservation.borrowingId) requestReturn.mutate(reservation.borrowingId, { onError });
+                                                    })
+                                                }
+                                            />
+                                        </li>
+                                    ))}
+                                </ul>
+                            )
+                        ) : past.length === 0 ? (
+                            <EmptyState image={libraryIllustration} title="Nothing in your history yet">
+                                Returned and cancelled reservations are kept here.
+                            </EmptyState>
+                        ) : (
+                            <HistoryTable reservations={past} />
+                        )}
+                    </div>
                 </div>
             )}
         </Page>
+    );
+}
+
+const helper = createDataTableColumnHelper<BookReservation>();
+
+// Kept at module scope so the table gets stable columns. Read-only: there is no actions column.
+const historyColumns = helper.columns([
+    helper.accessor('bookTitle', { header: 'Book' }),
+    helper.accessor('reservedAtUtc', { header: 'Reserved', cell: info => formatDay(info.getValue()) }),
+    helper.accessor(reservation => bookReservationStatusLabels[reservation.status], {
+        id: 'status',
+        header: 'Status',
+        filterFn: 'equalsString',
+        cell: info => {
+            const reservation = info.row.original;
+            return (
+                <>
+                    <span className={`badge ${bookReservationStatusBadges[reservation.status]}`}>{info.getValue()}</span>
+                    {reservation.returnApprovedAtUtc && (
+                        <div className="text-xs opacity-60">
+                            approved {formatDay(reservation.returnApprovedAtUtc)}
+                            {reservation.returnApprovedByName ? ` by ${reservation.returnApprovedByName}` : ''}
+                        </div>
+                    )}
+                </>
+            );
+        },
+    }),
+]);
+
+const historyFilters = [
+    {
+        columnId: 'status',
+        label: 'Statuses',
+        options: [BookReservationStatus.Returned, BookReservationStatus.Cancelled].map(status => ({
+            label: bookReservationStatusLabels[status],
+            value: bookReservationStatusLabels[status],
+        })),
+    },
+];
+
+/** Past reservations (returned or cancelled), in the shared data table: searchable, sortable and read-only. */
+function HistoryTable({ reservations }: { reservations: BookReservation[] }) {
+    return (
+        <DataTable
+            data={reservations}
+            columns={historyColumns}
+            filters={historyFilters}
+            searchPlaceholder="Search books..."
+            initialPageSize={5}
+            pageSizeOptions={[5, 10, 20]}
+        />
     );
 }
 

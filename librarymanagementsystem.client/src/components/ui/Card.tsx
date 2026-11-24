@@ -49,15 +49,25 @@ interface StatCardProps {
     value: ReactNode;
     hint?: ReactNode;
     icon?: ReactNode;
+    /** Colour of the icon's tile; the theme's primary colour unless set. */
+    tone?: 'primary' | 'success' | 'warning' | 'error';
     className?: string;
 }
 
-export function StatCard({ label, value, hint, icon, className = '' }: StatCardProps) {
+// Whole class names, so Tailwind can see them.
+const TONES = {
+    primary: 'bg-primary/10 text-primary',
+    success: 'bg-success/10 text-success',
+    warning: 'bg-warning/10 text-warning',
+    error: 'bg-error/10 text-error',
+} as const;
+
+export function StatCard({ label, value, hint, icon, tone = 'primary', className = '' }: StatCardProps) {
     return (
         <div className={`stats card-border border-base-300 bg-base-100 ${className}`}>
             <div className="stat flex items-center gap-4">
                 {icon && (
-                    <div className="flex size-14 shrink-0 items-center justify-center rounded-box bg-primary/10 text-primary">
+                    <div className={`flex size-14 shrink-0 items-center justify-center rounded-box ${TONES[tone]}`}>
                         {icon}
                     </div>
                 )}

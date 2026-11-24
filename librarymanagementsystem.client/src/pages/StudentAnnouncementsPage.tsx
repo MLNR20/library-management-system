@@ -99,33 +99,51 @@ export function StudentAnnouncementsPage() {
             ) : announcements.length === 0 ? (
                 <p className="opacity-70">There are no announcements yet.</p>
             ) : (
-                <div className="mx-auto flex max-w-3xl flex-col gap-4">
-                    <div className="flex flex-col gap-3 rounded-2xl border border-base-300 bg-base-100 p-4">
-                        <label className="input w-full">
-                            <svg aria-hidden="true" className="h-4 w-4 opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <circle cx="11" cy="11" r="7" />
-                                <path d="m20 20-3.5-3.5" strokeLinecap="round" />
-                            </svg>
-                            <input
-                                type="search"
-                                value={search}
-                                onChange={e => setSearch(e.target.value)}
-                                placeholder="Search announcements"
-                                aria-label="Search announcements"
-                            />
-                        </label>
-
-                        <div className="flex flex-wrap items-end gap-3">
-                            <label className="form-control">
-                                <span className="label-text mb-1 text-xs">From</span>
-                                <input type="date" className="input input-sm" value={from} max={to || undefined} onChange={e => setFrom(e.target.value)} />
-                            </label>
-                            <label className="form-control">
-                                <span className="label-text mb-1 text-xs">To</span>
-                                <input type="date" className="input input-sm" value={to} min={from || undefined} onChange={e => setTo(e.target.value)} />
+                <div className="flex w-full flex-col gap-4">
+                    {/* Two columns: search and its buttons on the left; the dates and the read filter on the right. */}
+                    <div className="grid grid-cols-1 gap-4 rounded-2xl border border-base-300 bg-base-100 p-4 lg:grid-cols-2">
+                        <div className="flex flex-col justify-between gap-3">
+                            <label className="input w-full">
+                                <svg aria-hidden="true" className="h-4 w-4 opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <circle cx="11" cy="11" r="7" />
+                                    <path d="m20 20-3.5-3.5" strokeLinecap="round" />
+                                </svg>
+                                <input
+                                    type="search"
+                                    value={search}
+                                    onChange={e => setSearch(e.target.value)}
+                                    placeholder="Search announcements"
+                                    aria-label="Search announcements"
+                                />
                             </label>
 
-                            <div role="tablist" aria-label="Read status" className="tabs tabs-box tabs-sm">
+                            <div className="flex flex-wrap items-center gap-2">
+                                {filtering && (
+                                    <button className="btn btn-ghost btn-sm" onClick={clear}>
+                                        Clear filters
+                                    </button>
+                                )}
+                                {unreadCount > 0 && (
+                                    <button className="btn btn-outline btn-sm" onClick={() => save(new Set(announcements.map(a => a.id)))}>
+                                        Mark all as read
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col gap-3">
+                            <div className="grid grid-cols-2 gap-3">
+                                <label className="form-control">
+                                    <span className="label-text mb-1 text-xs">From</span>
+                                    <input type="date" className="input input-sm w-full" value={from} max={to || undefined} onChange={e => setFrom(e.target.value)} />
+                                </label>
+                                <label className="form-control">
+                                    <span className="label-text mb-1 text-xs">To</span>
+                                    <input type="date" className="input input-sm w-full" value={to} min={from || undefined} onChange={e => setTo(e.target.value)} />
+                                </label>
+                            </div>
+
+                            <div role="tablist" aria-label="Read status" className="tabs tabs-box tabs-sm w-fit">
                                 {readFilters.map(({ value, label }) => (
                                     <button
                                         key={value}
@@ -138,19 +156,6 @@ export function StudentAnnouncementsPage() {
                                         {value === 'unread' && unreadCount > 0 && <span className="badge badge-primary badge-xs ml-2">{unreadCount}</span>}
                                     </button>
                                 ))}
-                            </div>
-
-                            <div className="ml-auto flex items-center gap-2">
-                                {filtering && (
-                                    <button className="btn btn-ghost btn-sm" onClick={clear}>
-                                        Clear filters
-                                    </button>
-                                )}
-                                {unreadCount > 0 && (
-                                    <button className="btn btn-outline btn-sm" onClick={() => save(new Set(announcements.map(a => a.id)))}>
-                                        Mark all as read
-                                    </button>
-                                )}
                             </div>
                         </div>
                     </div>

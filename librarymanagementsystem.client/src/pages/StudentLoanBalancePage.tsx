@@ -1,8 +1,11 @@
 import { DataTable } from '../components/data-table/DataTable.tsx';
 import { createDataTableColumnHelper } from '../components/data-table/tableConfig.ts';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Page } from '../components/layout/Page.tsx';
 import { StatCard } from '../components/ui/Card.tsx';
+import { EmptyState } from '../components/ui/EmptyState.tsx';
+import libraryIllustration from '../assets/illustrations/library-bro.svg';
+import { BanknotesIcon, CheckCircleIcon, LoanIcon, ReceiptIcon, WarningIcon } from '../components/ui/icons.tsx';
 import { useBorrowings } from '../api/borrowings.ts';
 import type { Borrowing } from '../api/borrowings.ts';
 import { formatDay } from '../api/bookReservations.ts';
@@ -17,6 +20,7 @@ const amount = new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maxi
 export function StudentLoanBalancePage() {
     const borrowings = useBorrowings();
     const loans = borrowings.data;
+    const [tab, setTab] = useState<'open' | 'returned'>('open');
 
     // The tables need stable arrays, so split the loans once per fetch.
     const { open, returned } = useMemo(
@@ -49,32 +53,76 @@ export function StudentLoanBalancePage() {
                             label="Balance due"
                             value={amount.format(accruing)}
                             hint={overdue.length > 0 ? 'Still growing while a book is overdue' : 'Nothing overdue'}
+                            icon={<BanknotesIcon />}
+                            tone={accruing > 0 ? 'error' : 'primary'}
                         />
-                        <StatCard label="Books on loan" value={open.length} hint={open.length === 1 ? '1 book out' : `${open.length} books out`} />
-                        <StatCard label="Overdue now" value={overdue.length} hint={overdue.length > 0 ? 'Return them soon' : 'All on time'} />
+                        <StatCard
+                            label="Books on loan"
+                            value={open.length}
+                            hint={open.length === 1 ? '1 book out' : `${open.length} books out`}
+                            icon={<LoanIcon />}
+                        />
+                        <StatCard
+                            label="Overdue now"
+                            value={overdue.length}
+                            hint={overdue.length > 0 ? 'Return them soon' : 'All on time'}
+                            icon={<WarningIcon />}
+                            tone={overdue.length > 0 ? 'warning' : 'success'}
+                        />
                         <StatCard
                             label="Penalties on returned books"
                             value={amount.format(charged)}
                             hint={`${lateReturns.length} late ${lateReturns.length === 1 ? 'return' : 'returns'}`}
+                            icon={<ReceiptIcon />}
+                            tone={charged > 0 ? 'error' : 'primary'}
                         />
                     </section>
 
                     <section className="flex flex-col gap-3">
-                        <h2 className="text-lg font-semibold">On loan now</h2>
-                        {open.length === 0 ? (
-                            <p className="opacity-70">You have no books on loan right now.</p>
-                        ) : (
-                            <LoanTable loans={open} showReturned={false} />
-                        )}
-                    </section>
+                        <div role="tablist" className="tabs tabs-border border-b border-base-300" aria-label="Loans">
+                            <button
+                                role="tab"
+                                id="loans-tab-open"
+                                aria-selected={tab === 'open'}
+                                aria-controls="loans-panel"
+                                className={`tab gap-2 ${tab === 'open' ? 'tab-active' : ''}`}
+                                onClick={() => setTab('open')}
+                            >
+                                <LoanIcon className="size-5" />
+                                On loan now
+                                <span className="badge badge-sm">{open.length}</span>
+                            </button>
+                            <button
+                                role="tab"
+                                id="loans-tab-returned"
+                                aria-selected={tab === 'returned'}
+                                aria-controls="loans-panel"
+                                className={`tab gap-2 ${tab === 'returned' ? 'tab-active' : ''}`}
+                                onClick={() => setTab('returned')}
+                            >
+                                <CheckCircleIcon className="size-5" />
+                                Returned
+                                <span className="badge badge-sm">{returned.length}</span>
+                            </button>
+                        </div>
 
-                    <section className="flex flex-col gap-3">
-                        <h2 className="text-lg font-semibold">Returned</h2>
-                        {returned.length === 0 ? (
-                            <p className="opacity-70">You have not returned any books yet.</p>
-                        ) : (
-                            <LoanTable loans={returned} showReturned />
-                        )}
+                        <div id="loans-panel" role="tabpanel" aria-labelledby={`loans-tab-${tab}`}>
+                            {tab === 'open' ? (
+                                open.length === 0 ? (
+                                    <EmptyState image={libraryIllustration} title="You have no books on loan right now">
+                                        Find one under "Find a book" and reserve it; it will show up here once you collect it.
+                                    </EmptyState>
+                                ) : (
+                                    <LoanTable loans={open} showReturned={false} />
+                                )
+                            ) : returned.length === 0 ? (
+                                <EmptyState illustration="history" title="You have not returned any books yet">
+                                    Books you bring back, and any penalty, are listed here.
+                                </EmptyState>
+                            ) : (
+                                <LoanTable loans={returned} showReturned />
+                            )}
+                        </div>
                     </section>
                 </div>
             )}
