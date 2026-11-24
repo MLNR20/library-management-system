@@ -79,6 +79,34 @@ namespace LibraryManagementSystem.Server.Tests.Data
         }
 
         [Fact]
+        public void The_expansion_adds_new_books_in_every_genre_with_titles_not_in_the_first_150()
+        {
+            var expansion = CatalogueSeeder.ExpansionCatalogue;
+            var first = CatalogueSeeder.Catalogue.Select(b => b.Title).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            Assert.Equal(180, expansion.Count);
+            Assert.Equal(180, expansion.Select(b => b.Title).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+            Assert.DoesNotContain(expansion, b => first.Contains(b.Title));
+            Assert.All(CatalogueSeeder.GenreNames, genre => Assert.Equal(12, expansion.Count(b => b.Genre == genre)));
+            Assert.All(expansion, b =>
+            {
+                Assert.Contains(b.Genre, CatalogueSeeder.GenreNames);
+                Assert.NotEmpty(b.Authors);
+                Assert.True(b.Pages >= 1, $"{b.Title} has no pages");
+            });
+        }
+
+        [Fact]
+        public void The_expansion_rooms_have_distinct_names_and_the_second_floor_gets_three()
+        {
+            var names = CatalogueSeeder.ExpansionRoomNames;
+
+            Assert.Equal(names.Count, names.Distinct(StringComparer.OrdinalIgnoreCase).Count());
+            Assert.DoesNotContain(names, name => CatalogueSeeder.ReadingRoomSeedNames.Contains(name, StringComparer.OrdinalIgnoreCase));
+            Assert.Equal(3, CatalogueSeeder.ExpansionRoomNamesOnSecondFloor.Count);
+        }
+
+        [Fact]
         public void Isbns_are_unique_fit_the_column_and_have_a_valid_check_digit()
         {
             var isbns = Enumerable.Range(0, 150).Select(CatalogueSeeder.IsbnFor).ToList();
@@ -92,6 +120,15 @@ namespace LibraryManagementSystem.Server.Tests.Data
                 var sum = digits.Select((c, i) => (c - '0') * (i % 2 == 0 ? 1 : 3)).Sum();
                 Assert.Equal(0, sum % 10);
             });
+        }
+
+        [Fact]
+        public void The_expansion_books_have_isbns_that_are_unique_and_follow_the_first_150()
+        {
+            var all = Enumerable.Range(0, 150 + CatalogueSeeder.ExpansionCatalogue.Count).Select(CatalogueSeeder.IsbnFor).ToList();
+
+            Assert.Equal(all.Count, all.Distinct().Count());
+            Assert.All(all, isbn => Assert.Equal(17, isbn.Length));
         }
     }
 }
