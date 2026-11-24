@@ -309,7 +309,7 @@ function BookCard({ book, selected, onShowTheWay, onWalkThere, onReserve, reserv
 
     return (
         <article
-            className={`card card-border h-full bg-base-100 ${selected ? 'border-primary ring-2 ring-primary/40' : ''}`}
+            className={`card card-border h-full bg-base-100 ${selected ? 'border-primary ring-2 ring-primary/40' : 'border-base-content/15'}`}
         >
             <div className="card-body gap-2">
                 <div className="flex items-start justify-between gap-2">
@@ -410,7 +410,7 @@ function PlaceList({ loading, empty, places, selectedId, onShowTheWay, onWalkThe
             {places.map(place => (
                 <li key={place.id}>
                     <article
-                        className={`card card-border h-full bg-base-100 ${place.id === selectedId ? 'border-primary ring-2 ring-primary/40' : ''}`}
+                        className={`card card-border h-full bg-base-100 ${place.id === selectedId ? 'border-primary ring-2 ring-primary/40' : 'border-base-content/15'}`}
                     >
                         <div className="card-body gap-2">
                             <h2 className="card-title text-base">{place.title}</h2>

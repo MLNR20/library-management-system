@@ -36,7 +36,7 @@ export function ReservationCard({ item, now, onCancel, cancelPending }: Props) {
         new Date(item.endUtc).getTime() > now;
 
     return (
-        <li className="card border border-base-300 bg-base-100">
+        <li className="card border border-base-content/15 bg-base-100">
             <div className="card-body gap-1 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                     <h3 className="font-bold">

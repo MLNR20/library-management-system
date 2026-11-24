@@ -226,7 +226,7 @@ function ReservationCard({ reservation, busy, onCancel, onCollect, onRequestRetu
     const overdue = reservation.isOverdue && !waiting;
 
     return (
-        <article className="card card-border h-full bg-base-100">
+        <article className="card card-border h-full border-base-content/15 bg-base-100">
             <div className="card-body gap-2">
                 <div className="flex items-start justify-between gap-2">
                     <h3 className="card-title text-base">{reservation.bookTitle}</h3>

@@ -167,7 +167,7 @@ export function StudentAnnouncementsPage() {
                             {visible.map(announcement => {
                                 const read = readIds.has(announcement.id);
                                 return (
-                                    <li key={announcement.id} className="card border border-base-300 bg-base-200">
+                                    <li key={announcement.id} className="card border border-base-content/15 bg-base-200">
                                         <div className="card-body gap-2">
                                             <div className="flex flex-wrap items-center gap-2 text-xs opacity-70">
                                                 <time dateTime={announcement.createdAt}>
