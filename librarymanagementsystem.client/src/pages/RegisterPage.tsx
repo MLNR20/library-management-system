@@ -8,6 +8,7 @@ import { FormBuilder } from '../components/form/FormBuilder.tsx';
 import type { FormField } from '../components/form/FormBuilder.tsx';
 import { AuthLayout } from '../components/layout/AuthLayout.tsx';
 import { getErrorMessage } from '../lib/api.ts';
+import { newPasswordHint, newPasswordSchema } from '../lib/passwordSchema.ts';
 
 // These mirror the server rules (RegisterRequestValidator + the Identity password options) for instant feedback.
 const registerSchema = z
@@ -21,14 +22,7 @@ const registerSchema = z
         firstName: z.string().trim().min(1, 'First name is required').max(50, 'First name must be at most 50 characters'),
         lastName: z.string().trim().min(1, 'Last name is required').max(50, 'Last name must be at most 50 characters'),
         email: z.string().trim().max(256, 'Email must be at most 256 characters').pipe(z.email('Enter a valid email address')),
-        password: z
-            .string()
-            .min(8, 'Password must be at least 8 characters')
-            .max(128, 'Password must be at most 128 characters')
-            .regex(/[a-z]/, 'Password needs a lowercase letter')
-            .regex(/[A-Z]/, 'Password needs an uppercase letter')
-            .regex(/[0-9]/, 'Password needs a digit')
-            .regex(/[^A-Za-z0-9]/, 'Password needs a symbol'),
+        password: newPasswordSchema,
         confirmPassword: z.string().min(1, 'Confirm your password'),
     })
     .refine(values => values.password === values.confirmPassword, {
@@ -46,7 +40,7 @@ const fields: FormField<z.input<typeof registerSchema>>[] = [
         label: 'Password',
         type: 'password',
         autoComplete: 'new-password',
-        description: 'At least 8 characters with upper and lower case, a digit and a symbol.',
+        description: newPasswordHint,
         span: 2,
     },
     { name: 'confirmPassword', label: 'Confirm password', type: 'password', autoComplete: 'new-password', span: 2 },

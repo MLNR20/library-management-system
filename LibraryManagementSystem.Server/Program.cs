@@ -6,6 +6,7 @@ using LibraryManagementSystem.Server.Filters;
 using LibraryManagementSystem.Server.Hubs;
 using LibraryManagementSystem.Server.Repositories;
 using LibraryManagementSystem.Server.Services;
+using LibraryManagementSystem.Server.Services.Email;
 using LibraryManagementSystem.Server.Services.Exports;
 using LibraryManagementSystem.Server.Settings;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -126,6 +127,31 @@ try
     builder.Services.AddSingleton<ITokenService, TokenService>();
     builder.Services.AddScoped<ISessionService, SessionService>();
 
+    // Email goes out through SMTP when Email:Host is set; otherwise it is only logged.
+    builder.Services.AddOptions<EmailSettings>()
+        .BindConfiguration(EmailSettings.SectionName)
+        .Validate(settings => !settings.IsConfigured || !string.IsNullOrWhiteSpace(settings.FromAddress),
+            "Email:FromAddress is required when Email:Host is set.")
+        .ValidateOnStart();
+    builder.Services.AddSingleton<IEmailSender>(services =>
+        services.GetRequiredService<IOptions<EmailSettings>>().Value.IsConfigured
+            ? ActivatorUtilities.CreateInstance<SmtpEmailSender>(services)
+            : ActivatorUtilities.CreateInstance<LogEmailSender>(services));
+    builder.Services.AddSingleton<EmailQueue>();
+    builder.Services.AddSingleton<IEmailQueue>(services => services.GetRequiredService<EmailQueue>());
+    builder.Services.AddHostedService(services => services.GetRequiredService<EmailQueue>());
+
+    // Forgot password: a one-time link by email.
+    builder.Services.AddOptions<PasswordResetSettings>()
+        .BindConfiguration(PasswordResetSettings.SectionName)
+        .ValidateDataAnnotations()
+        .ValidateOnStart();
+    builder.Services.AddOptions<DataProtectionTokenProviderOptions>()
+        .Configure<IOptions<PasswordResetSettings>>((options, reset) =>
+            options.TokenLifespan = TimeSpan.FromMinutes(reset.Value.TokenLifetimeMinutes));
+    builder.Services.AddMemoryCache();
+    builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();
+
     // Generic repository + unit of work (both share the request-scoped DbContext).
     builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
     builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
@@ -191,7 +217,7 @@ try
 
     builder.Services.AddAuthorization();
 
-    // Rate limiting: a global per-client cap, plus a stricter "auth" policy for login/register endpoints.
+    // Rate limiting: a global per-client cap, plus a stricter "auth" policy for sign-in, registration and password endpoints.
     builder.Services.AddRateLimiter(options =>
     {
         static string ClientKey(HttpContext context) =>

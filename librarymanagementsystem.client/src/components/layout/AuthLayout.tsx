@@ -5,11 +5,11 @@ interface AuthLayoutProps {
     title: string;
     subtitle: string;
     children: ReactNode;
-    /** Link to the other auth page. */
+    /** Link to a related auth page. */
     footer: ReactNode;
 }
 
-/** Centered card shared by the login and register pages. */
+/** Centered card shared by the sign-in, registration and password pages. */
 export function AuthLayout({ title, subtitle, children, footer }: AuthLayoutProps) {
     return (
         <div className="flex min-h-screen flex-col bg-base-200">

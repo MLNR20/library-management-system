@@ -58,6 +58,9 @@ export function LoginPage() {
                     }
                 }}
             />
+            <Link to="/forgot-password" className="link link-primary text-center text-sm">
+                Forgot password?
+            </Link>
         </AuthLayout>
     );
 }

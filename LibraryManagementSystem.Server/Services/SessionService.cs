@@ -29,6 +29,9 @@ namespace LibraryManagementSystem.Server.Services
         // Ends every other live session of the user and returns how many.
         Task<int> RevokeOthersAsync(string userId, Guid keepSessionId, string reason, CancellationToken cancellationToken = default);
 
+        // Ends every live session of the user and returns how many.
+        Task<int> RevokeAllAsync(string userId, string reason, CancellationToken cancellationToken = default);
+
         // The user's live sessions, most recently used first.
         Task<IReadOnlyList<SessionDto>> GetActiveAsync(string userId, Guid? currentSessionId, CancellationToken cancellationToken = default);
 
@@ -114,24 +117,30 @@ namespace LibraryManagementSystem.Server.Services
             return true;
         }
 
-        public async Task<int> RevokeOthersAsync(string userId, Guid keepSessionId, string reason, CancellationToken cancellationToken = default)
+        public Task<int> RevokeOthersAsync(string userId, Guid keepSessionId, string reason, CancellationToken cancellationToken = default) =>
+            RevokeLiveAsync(userId, keepSessionId, reason, cancellationToken);
+
+        public Task<int> RevokeAllAsync(string userId, string reason, CancellationToken cancellationToken = default) =>
+            RevokeLiveAsync(userId, null, reason, cancellationToken);
+
+        private async Task<int> RevokeLiveAsync(string userId, Guid? keepSessionId, string reason, CancellationToken cancellationToken)
         {
             var now = DateTime.UtcNow;
-            var others = await unitOfWork.Repository<UserSession>().Query(asNoTracking: false)
+            var live = await unitOfWork.Repository<UserSession>().Query(asNoTracking: false)
                 .Where(s => s.UserId == userId && s.Id != keepSessionId && s.RevokedAtUtc == null && s.ExpiresAtUtc > now)
                 .ToListAsync(cancellationToken);
 
-            foreach (var session in others)
+            foreach (var session in live)
             {
                 session.Revoke(now, reason);
             }
 
-            if (others.Count > 0)
+            if (live.Count > 0)
             {
                 await unitOfWork.SaveChangesAsync(cancellationToken);
             }
 
-            return others.Count;
+            return live.Count;
         }
 
         public async Task<IReadOnlyList<SessionDto>> GetActiveAsync(string userId, Guid? currentSessionId, CancellationToken cancellationToken = default)

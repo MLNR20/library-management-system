@@ -8,6 +8,8 @@ namespace LibraryManagementSystem.Server.Services
         public const string Register = "Auth.Register";
         public const string TokenRefreshReused = "Auth.RefreshReuse";
         public const string SessionRevoked = "Session.Revoked";
+        public const string PasswordResetRequested = "Auth.PasswordResetRequested";
+        public const string PasswordReset = "Auth.PasswordReset";
 
         public const string RoleCreated = "Role.Created";
         public const string RoleRenamed = "Role.Renamed";

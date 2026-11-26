@@ -8,12 +8,14 @@ import { AuthorsPage } from './pages/AuthorsPage.tsx';
 import { BooksPage } from './pages/BooksPage.tsx';
 import { DashboardPage } from './pages/DashboardPage.tsx';
 import { FloorsPage } from './pages/FloorsPage.tsx';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage.tsx';
 import { GenresPage } from './pages/GenresPage.tsx';
 import { LandingPage } from './pages/LandingPage.tsx';
 import { LegalPage } from './pages/LegalPage.tsx';
 import { LanguagesPage } from './pages/LanguagesPage.tsx';
 import { LoginPage } from './pages/LoginPage.tsx';
 import { RegisterPage } from './pages/RegisterPage.tsx';
+import { ResetPasswordPage } from './pages/ResetPasswordPage.tsx';
 import { RolesPage } from './pages/RolesPage.tsx';
 import { RowsPage } from './pages/RowsPage.tsx';
 import { SectionsPage } from './pages/SectionsPage.tsx';
@@ -45,6 +47,8 @@ export const router = createBrowserRouter([
     { path: '/welcome/privacy', element: <LegalPage document="privacy" /> },
     { path: '/welcome/terms', element: <LegalPage document="terms" /> },
     { path: '/welcome/legal', element: <LegalPage document="legal" /> },
+    // Reached from the emailed link, which works whether or not this browser is signed in.
+    { path: '/reset-password', element: <ResetPasswordPage /> },
     {
         // Everything inside needs a signed-in user.
         element: <RequireAuth />,
@@ -119,6 +123,7 @@ export const router = createBrowserRouter([
         children: [
             { path: '/login', element: <LoginPage /> },
             { path: '/register', element: <RegisterPage /> },
+            { path: '/forgot-password', element: <ForgotPasswordPage /> },
         ],
     },
 ]);
