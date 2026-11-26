@@ -16,7 +16,18 @@ const loginSchema = z.object({
 
 const fields: FormField<z.input<typeof loginSchema>>[] = [
     { name: 'userName', label: 'User name', type: 'text', autoComplete: 'username', span: 2 },
-    { name: 'password', label: 'Password', type: 'password', autoComplete: 'current-password', span: 2 },
+    {
+        name: 'password',
+        label: 'Password',
+        type: 'password',
+        autoComplete: 'current-password',
+        span: 2,
+        after: (
+            <Link to="/forgot-password" className="link link-primary justify-self-end text-sm">
+                Forgot password?
+            </Link>
+        ),
+    },
 ];
 
 export function LoginPage() {
@@ -42,12 +53,12 @@ export function LoginPage() {
                 </>
             }
         >
-            <SocialSignIn onError={setFormError} redirectTo={from} />
             <FormBuilder
                 schema={loginSchema}
                 fields={fields}
                 defaultValues={{ userName: '', password: '' }}
                 submitLabel="Sign in"
+                fullWidthSubmit
                 formError={formError}
                 onSubmit={async values => {
                     setFormError(undefined);
@@ -59,9 +70,7 @@ export function LoginPage() {
                     }
                 }}
             />
-            <Link to="/forgot-password" className="link link-primary text-center text-sm">
-                Forgot password?
-            </Link>
+            <SocialSignIn below onError={setFormError} redirectTo={from} />
         </AuthLayout>
     );
 }

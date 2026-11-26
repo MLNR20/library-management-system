@@ -13,6 +13,9 @@
   background-position: center;
 }
 
+/* Edge adds its own reveal button to password boxes; PasswordInput has one that works in every browser. */
+input[type="password"]::-ms-reveal { display: none; }
+
 /* Formatted messages (announcements): the editor and the places that show them. */
 .rich-text > * + * { margin-top: 0.5rem; }
 .rich-text h2 { font-size: 1.15rem; font-weight: 700; }

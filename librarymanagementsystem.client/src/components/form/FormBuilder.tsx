@@ -9,8 +9,10 @@ import type {
     UseFormRegister,
 } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import type { ReactNode } from 'react';
 import type { z } from 'zod';
 import { ImageUploadControl } from './ImageUploadControl.tsx';
+import { PasswordInput } from './PasswordInput.tsx';
 import { RichTextEditor } from './RichTextEditor.tsx';
 
 export interface FieldOption {
@@ -30,6 +32,8 @@ interface BaseField<TValues extends FieldValues> {
     disabled?: boolean;
     /** Columns taken on wide screens (the grid has 2). Defaults to 2 for textarea/checkbox/toggle, else 1. */
     span?: 1 | 2;
+    /** Extra content under the field, such as a related link. */
+    after?: ReactNode;
 }
 
 export type FormField<TValues extends FieldValues> =
@@ -53,6 +57,8 @@ interface FormBuilderProps<TSchema extends z.ZodType<FieldValues, FieldValues>> 
     defaultValues?: DefaultValues<z.input<TSchema>>;
     onSubmit: (values: z.output<TSchema>) => void | Promise<void>;
     submitLabel?: string;
+    /** Stretch the submit button across the form instead of keeping it at the right. */
+    fullWidthSubmit?: boolean;
     onCancel?: () => void;
     cancelLabel?: string;
     /** Clear the form back to its default values after a successful submit. */
@@ -67,6 +73,7 @@ export function FormBuilder<TSchema extends z.ZodType<FieldValues, FieldValues>>
     defaultValues,
     onSubmit,
     submitLabel = 'Submit',
+    fullWidthSubmit = false,
     onCancel,
     cancelLabel = 'Cancel',
     resetOnSubmit = false,
@@ -116,7 +123,7 @@ export function FormBuilder<TSchema extends z.ZodType<FieldValues, FieldValues>>
                         {cancelLabel}
                     </button>
                 )}
-                <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+                <button type="submit" className={`btn btn-primary ${fullWidthSubmit ? 'flex-1' : ''}`} disabled={isSubmitting}>
                     {isSubmitting && <span className="loading loading-spinner loading-sm" />}
                     {submitLabel}
                 </button>
@@ -299,6 +306,16 @@ function FieldControl<TValues extends FieldValues>({
                 />
             );
             break;
+        case 'password':
+            control = (
+                <PasswordInput
+                    {...common}
+                    {...register(field.name)}
+                    placeholder={field.placeholder}
+                    className={errorClass}
+                />
+            );
+            break;
         default:
             control = (
                 <input
@@ -334,6 +351,7 @@ function FieldControl<TValues extends FieldValues>({
                     </p>
                 )
             )}
+            {field.after}
         </fieldset>
     );
 }
