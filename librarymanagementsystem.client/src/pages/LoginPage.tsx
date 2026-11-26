@@ -30,6 +30,7 @@ export function LoginPage() {
 
     return (
         <AuthLayout
+            split
             title="Sign in"
             subtitle="Sign in to manage the library."
             footer={
