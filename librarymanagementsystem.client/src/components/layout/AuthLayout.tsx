@@ -12,7 +12,7 @@ interface AuthLayoutProps {
     footer: ReactNode;
     /** Full screen with no navbar: the reading-room photo on one half and the form on the other. */
     split?: boolean;
-    /** The Alexandria wordmark above the title, linking to the front page. */
+    /** The Alexandria "A" icon above the title, linking to the front page. */
     brand?: boolean;
 }
 
@@ -21,13 +21,13 @@ export function AuthLayout({ title, subtitle, children, footer, split = false, b
     const content = (
         <>
             {brand && (
-                <Link to="/welcome" className="self-start font-brand text-3xl font-bold tracking-wide text-primary">
-                    Alexandria
+                <Link to="/welcome" aria-label="Alexandria" className="self-center rounded-box bg-primary p-4 text-white">
+                    <span className="block size-[1em] text-center font-brand text-3xl leading-none font-bold">A</span>
                 </Link>
             )}
             <div>
                 <h1 className="text-2xl font-bold">{title}</h1>
-                <p className="opacity-70">{subtitle}</p>
+                <p className={`opacity-70 ${split ? 'text-[1.1rem]' : ''}`}>{subtitle}</p>
             </div>
             {children}
             <p className="text-center text-sm">{footer}</p>
@@ -57,7 +57,8 @@ function SplitFrame({ children }: { children: ReactNode }) {
     return (
         <main className="grid min-h-screen bg-base-100 lg:grid-cols-2">
             {/* The same photo as the landing page hero. Decorative, and left out where there is no room for two halves. */}
-            <div className="hero-photo relative hidden lg:block">
+            {/* It stays in view while a long form, such as sign-up, scrolls past it. */}
+            <div className="hero-photo relative hidden lg:sticky lg:top-0 lg:block lg:h-screen">
                 <PhotoCredit />
             </div>
             <div className="flex items-center justify-center px-4 py-10">

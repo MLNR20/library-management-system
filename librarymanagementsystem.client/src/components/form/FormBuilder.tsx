@@ -346,7 +346,7 @@ function FieldControl<TValues extends FieldValues>({
                 </p>
             ) : (
                 field.description && (
-                    <p id={`${id}-description`} className="label">
+                    <p id={`${id}-description`} className="label whitespace-normal">
                         {field.description}
                     </p>
                 )
