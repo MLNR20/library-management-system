@@ -53,8 +53,6 @@ export function RegisterPage() {
 
     return (
         <AuthLayout
-            split
-            brand
             title="Create an account"
             subtitle="Register to start managing the library."
             footer={
@@ -66,12 +64,12 @@ export function RegisterPage() {
                 </>
             }
         >
-            <SocialSignIn onError={setFormError} />
             <FormBuilder
                 schema={registerSchema}
                 fields={fields}
                 defaultValues={{ userName: '', firstName: '', lastName: '', email: '', password: '', confirmPassword: '' }}
                 submitLabel="Create account"
+                fullWidthSubmit
                 formError={formError}
                 onSubmit={async values => {
                     setFormError(undefined);
@@ -84,6 +82,7 @@ export function RegisterPage() {
                     }
                 }}
             />
+            <SocialSignIn onError={setFormError} />
         </AuthLayout>
     );
 }

@@ -20,7 +20,6 @@ export function ForgotPasswordPage() {
 
     return (
         <AuthLayout
-            split
             title="Forgot password"
             subtitle="We will email you a link to choose a new one."
             footer={

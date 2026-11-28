@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { PhotoCredit } from './PhotoCredit.tsx';
-import { SiteNavbar } from './SiteNavbar.tsx';
 import { useLightTheme } from './useLightTheme.ts';
 
 interface AuthLayoutProps {
@@ -10,48 +9,11 @@ interface AuthLayoutProps {
     children: ReactNode;
     /** Link to a related auth page. */
     footer: ReactNode;
-    /** Full screen with no navbar: the reading-room photo on one half and the form on the other. */
-    split?: boolean;
-    /** The Alexandria "A" icon above the title, linking to the front page. */
-    brand?: boolean;
 }
 
-/** Frame shared by the sign-in, registration and password pages. */
-export function AuthLayout({ title, subtitle, children, footer, split = false, brand = false }: AuthLayoutProps) {
-    const content = (
-        <>
-            {brand && (
-                <Link to="/welcome" aria-label="Alexandria" className="self-center rounded-box bg-primary p-4 text-white">
-                    <span className="block size-[1em] text-center font-brand text-3xl leading-none font-bold">A</span>
-                </Link>
-            )}
-            <div>
-                <h1 className="text-2xl font-bold">{title}</h1>
-                <p className={`opacity-70 ${split ? 'text-[1.1rem]' : ''}`}>{subtitle}</p>
-            </div>
-            {children}
-            <p className="text-center text-sm">{footer}</p>
-        </>
-    );
-
-    if (split) {
-        return <SplitFrame>{content}</SplitFrame>;
-    }
-
-    return (
-        <div className="flex min-h-screen flex-col bg-base-200">
-            <SiteNavbar />
-            <main className="flex flex-1 items-center justify-center p-4">
-                <div className="card w-full max-w-md bg-base-100 shadow-md">
-                    <div className="card-body gap-4">{content}</div>
-                </div>
-            </main>
-        </div>
-    );
-}
-
-function SplitFrame({ children }: { children: ReactNode }) {
-    // These pages are always light. The navbar normally sees to that, and there is none here.
+/** Frame shared by the sign-in, registration and password pages: the reading-room photo on one half and the form on the other. */
+export function AuthLayout({ title, subtitle, children, footer }: AuthLayoutProps) {
+    // These pages are always light. They have no navbar to see to that.
     useLightTheme();
 
     return (
@@ -62,7 +24,17 @@ function SplitFrame({ children }: { children: ReactNode }) {
                 <PhotoCredit />
             </div>
             <div className="flex items-center justify-center px-4 py-10">
-                <div className="flex w-full max-w-sm flex-col gap-4">{children}</div>
+                <div className="flex w-full max-w-sm flex-col gap-4">
+                    <Link to="/welcome" aria-label="Alexandria" className="self-center rounded-box bg-primary p-4 text-white">
+                        <span className="block size-[1em] text-center font-brand text-3xl leading-none font-bold">A</span>
+                    </Link>
+                    <div>
+                        <h1 className="text-2xl font-bold">{title}</h1>
+                        <p className="mt-[0.1rem] text-[1.2rem] opacity-70">{subtitle}</p>
+                    </div>
+                    {children}
+                    <p className="text-center text-sm">{footer}</p>
+                </div>
             </div>
         </main>
     );

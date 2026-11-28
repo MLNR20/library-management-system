@@ -41,8 +41,6 @@ export function LoginPage() {
 
     return (
         <AuthLayout
-            split
-            brand
             title="Sign in"
             subtitle="Sign in to manage the library."
             footer={
@@ -71,7 +69,7 @@ export function LoginPage() {
                     }
                 }}
             />
-            <SocialSignIn below onError={setFormError} redirectTo={from} />
+            <SocialSignIn onError={setFormError} redirectTo={from} />
         </AuthLayout>
     );
 }

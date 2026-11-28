@@ -27,12 +27,10 @@ interface SocialSignInProps {
     onError: (message: string | undefined) => void;
     /** Where to go afterwards; defaults to the home page for the person's role. */
     redirectTo?: string;
-    /** Set when it sits under the form, so the divider goes above the button instead of after it. */
-    below?: boolean;
 }
 
-/** The "Continue with Google" button and the divider that separates it from the login or register form. */
-export function SocialSignIn({ onError, redirectTo, below = false }: SocialSignInProps) {
+/** The "Continue with Google" button, under the login or register form with a divider between them. */
+export function SocialSignIn({ onError, redirectTo }: SocialSignInProps) {
     const { loginWithProvider } = useAuth();
     const navigate = useNavigate();
     const [busy, setBusy] = useState<SocialProvider>();
@@ -55,11 +53,9 @@ export function SocialSignIn({ onError, redirectTo, below = false }: SocialSignI
 
     if (!socialSignInConfigured) return null;
 
-    const divider = <div className="divider my-2 text-xs opacity-70">{below ? 'or' : 'or use your user name'}</div>;
-
     return (
         <div>
-            {below && divider}
+            <div className="divider my-2 text-xs opacity-70">or</div>
             <div className="flex flex-col gap-2">
                 {providers.map(({ id, label, icon }) => (
                     <button key={id} type="button" className="btn btn-outline" disabled={busy !== undefined} onClick={() => signIn(id)}>
@@ -68,7 +64,6 @@ export function SocialSignIn({ onError, redirectTo, below = false }: SocialSignI
                     </button>
                 ))}
             </div>
-            {!below && divider}
         </div>
     );
 }
