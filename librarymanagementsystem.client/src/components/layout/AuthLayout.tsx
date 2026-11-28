@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { PhotoCredit } from './PhotoCredit.tsx';
 import { SiteNavbar } from './SiteNavbar.tsx';
 import { useLightTheme } from './useLightTheme.ts';
 
@@ -48,7 +49,9 @@ function SplitFrame({ children }: { children: ReactNode }) {
     return (
         <main className="grid min-h-screen bg-base-100 lg:grid-cols-2">
             {/* The same photo as the landing page hero. Decorative, and left out where there is no room for two halves. */}
-            <div className="hero-photo hidden lg:block" aria-hidden="true" />
+            <div className="hero-photo relative hidden lg:block">
+                <PhotoCredit />
+            </div>
             <div className="flex items-center justify-center px-4 py-10">
                 <div className="flex w-full max-w-sm flex-col gap-4">{children}</div>
             </div>

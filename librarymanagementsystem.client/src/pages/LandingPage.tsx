@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { useAuth } from '../auth/useAuth.ts';
 import { useLatestAnnouncements } from '../api/publicAnnouncements.ts';
 import { useLatestNews, usePublicFaqs } from '../api/publicNews.ts';
+import { PhotoCredit } from '../components/layout/PhotoCredit.tsx';
 import { SiteFooter } from '../components/layout/SiteFooter.tsx';
 import { SiteNavbar } from '../components/layout/SiteNavbar.tsx';
 import { FaqList } from '../components/news/FaqList.tsx';
@@ -113,6 +114,7 @@ export function LandingPage() {
                             </div>
                         </div>
                     </div>
+                    <PhotoCredit />
                 </section>
 
                 {announcements.length > 0 && (
