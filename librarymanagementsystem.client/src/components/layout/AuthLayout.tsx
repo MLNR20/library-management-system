@@ -25,7 +25,7 @@ export function AuthLayout({ title, subtitle, children, footer }: AuthLayoutProp
             </div>
             <div className="flex items-center justify-center px-4 py-10">
                 <div className="flex w-full max-w-sm flex-col gap-4">
-                    <Link to="/welcome" aria-label="Alexandria" className="self-center rounded-box bg-primary p-4 text-white">
+                    <Link to="/welcome" aria-label="Alexandria" className="self-start rounded-box bg-primary p-4 text-white">
                         <span className="block size-[1em] text-center font-brand text-3xl leading-none font-bold">A</span>
                     </Link>
                     <div>
