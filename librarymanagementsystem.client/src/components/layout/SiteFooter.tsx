@@ -8,17 +8,17 @@ export function SiteFooter() {
 
     return (
         <footer className="bg-primary text-primary-content">
-            <div className="mx-auto grid max-w-6xl gap-8 px-4 py-20 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mx-auto grid max-w-6xl gap-[2.2rem] px-4 py-20 sm:grid-cols-2 lg:grid-cols-4">
                 <div>
                     <p className="font-brand text-2xl font-bold tracking-wide">Alexandria</p>
-                    <p className="mt-3 max-w-xs text-sm opacity-80">
+                    <p className="mt-[0.95rem] max-w-xs text-sm opacity-80">
                         Search the collection, borrow with confidence and find every book on the map.
                     </p>
                 </div>
 
                 <nav aria-label="Explore">
                     <h2 className="footer-title">Explore</h2>
-                    <ul className="mt-2 flex flex-col gap-2 text-sm">
+                    <ul className="mt-[0.7rem] flex flex-col gap-[0.7rem] text-sm">
                         <li>
                             <a href="/welcome#features" className="link link-hover">
                                 Features
@@ -39,7 +39,7 @@ export function SiteFooter() {
 
                 <nav aria-label="Student access">
                     <h2 className="footer-title">Students</h2>
-                    <ul className="mt-2 flex flex-col gap-2 text-sm">
+                    <ul className="mt-[0.7rem] flex flex-col gap-[0.7rem] text-sm">
                         {user ? (
                             <li>
                                 <Link to={home} className="link link-hover">
@@ -65,7 +65,7 @@ export function SiteFooter() {
 
                 <nav aria-label="Legal">
                     <h2 className="footer-title">Legal</h2>
-                    <ul className="mt-2 flex flex-col gap-2 text-sm">
+                    <ul className="mt-[0.7rem] flex flex-col gap-[0.7rem] text-sm">
                         <li>
                             <Link to="/welcome/privacy" className="link link-hover">
                                 Data privacy

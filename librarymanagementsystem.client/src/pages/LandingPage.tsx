@@ -201,7 +201,7 @@ export function LandingPage() {
 
                 <section id="how-it-works" className="scroll-mt-16 bg-base-200" aria-labelledby="steps-heading">
                     <div className="mx-auto max-w-6xl px-4 py-16">
-                        <h2 id="steps-heading" className="text-center text-3xl font-bold">
+                        <h2 id="steps-heading" className="text-center text-[1.775rem]/[1.2] font-bold">
                             From search to shelf in three steps
                         </h2>
                         <ol className="mt-10 grid gap-6 md:grid-cols-3">
@@ -211,8 +211,8 @@ export function LandingPage() {
                                         {index + 1}
                                     </span>
                                     <div>
-                                        <h3 className="font-bold">{step.title}</h3>
-                                        <p className="mt-1 text-sm opacity-75">{step.text}</p>
+                                        <h3 className="text-[1.1rem]/[1.5] font-bold">{step.title}</h3>
+                                        <p className="mt-1 text-[0.975rem]/[1.43] opacity-75">{step.text}</p>
                                     </div>
                                 </li>
                             ))}
@@ -223,16 +223,16 @@ export function LandingPage() {
                 {!user && (
                     <section className="mx-auto max-w-6xl px-4 py-16">
                         <div className="card bg-primary text-primary-content">
-                            <div className="card-body items-center gap-4 py-12 text-center">
-                                <h2 className="text-3xl font-bold">Ready to find your next read?</h2>
-                                <p className="max-w-prose opacity-90">
+                            <div className="card-body items-center gap-4 py-[3.1rem] text-center">
+                                <h2 className="text-[1.775rem]/[1.2] font-bold">Ready to find your next read?</h2>
+                                <p className="max-w-prose text-[1.175rem]/[1.5] opacity-90">
                                     Create a free account and start browsing the collection today.
                                 </p>
                                 <div className="card-actions">
                                     <Link to="/register" className="btn btn-lg border-0 bg-base-100 text-base-content">
                                         Create account
                                     </Link>
-                                    <Link to="/login" className="btn btn-lg btn-ghost">
+                                    <Link to="/login" className="btn btn-lg border-transparent bg-transparent text-white shadow-none hover:bg-white/15">
                                         I already have one
                                     </Link>
                                 </div>
