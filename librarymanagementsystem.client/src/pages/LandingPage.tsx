@@ -228,7 +228,7 @@ export function LandingPage() {
                                 <p className="max-w-prose text-[1.175rem]/[1.5] opacity-90">
                                     Create a free account and start browsing the collection today.
                                 </p>
-                                <div className="card-actions">
+                                <div className="card-actions mt-[0.1rem]">
                                     <Link to="/register" className="btn btn-lg border-0 bg-base-100 text-base-content">
                                         Create account
                                     </Link>
