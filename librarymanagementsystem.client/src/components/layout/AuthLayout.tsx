@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Link } from 'react-router';
 import { PhotoCredit } from './PhotoCredit.tsx';
 import { SiteNavbar } from './SiteNavbar.tsx';
 import { useLightTheme } from './useLightTheme.ts';
@@ -11,12 +12,19 @@ interface AuthLayoutProps {
     footer: ReactNode;
     /** Full screen with no navbar: the reading-room photo on one half and the form on the other. */
     split?: boolean;
+    /** The Alexandria wordmark above the title, linking to the front page. */
+    brand?: boolean;
 }
 
 /** Frame shared by the sign-in, registration and password pages. */
-export function AuthLayout({ title, subtitle, children, footer, split = false }: AuthLayoutProps) {
+export function AuthLayout({ title, subtitle, children, footer, split = false, brand = false }: AuthLayoutProps) {
     const content = (
         <>
+            {brand && (
+                <Link to="/welcome" className="self-start font-brand text-3xl font-bold tracking-wide text-primary">
+                    Alexandria
+                </Link>
+            )}
             <div>
                 <h1 className="text-2xl font-bold">{title}</h1>
                 <p className="opacity-70">{subtitle}</p>

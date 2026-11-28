@@ -53,6 +53,7 @@ export function RegisterPage() {
 
     return (
         <AuthLayout
+            brand
             title="Create an account"
             subtitle="Register to start managing the library."
             footer={
